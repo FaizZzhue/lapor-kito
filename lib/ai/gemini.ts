@@ -14,7 +14,7 @@ import {
 } from '@/lib/validators/ai'
 import { z } from 'zod'
 
-export const GEMINI_MODEL = 'gemini-2.5-flash'
+export const GEMINI_MODEL = 'gemini-3.8-flash'
 
 export class GeminiProvider implements AIProvider {
   readonly name = 'Google Gemini AI'
@@ -38,6 +38,34 @@ export class GeminiProvider implements AIProvider {
       )
     }
     return this.client
+  }
+
+  private async generateWithRetry(
+    ai: GoogleGenAI,
+    params: Parameters<typeof ai.models.generateContent>[0],
+    maxRetries = 2
+  ) {
+    let lastError: unknown
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await ai.models.generateContent(params)
+      } catch (err: unknown) {
+        lastError = err
+        const status = (err as { status?: number })?.status
+        const message = (err as Error)?.message || ''
+        const isTransient =
+          status === 503 ||
+          status === 429 ||
+          message.includes('503') ||
+          message.includes('high demand')
+        if (isTransient && attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)))
+          continue
+        }
+        throw err
+      }
+    }
+    throw lastError
   }
 
   /**
@@ -83,7 +111,7 @@ Berikan respon HANYA dalam format JSON valid sesuai schema berikut:
 }`
 
     try {
-      const response = await ai.models.generateContent({
+      const response = await this.generateWithRetry(ai, {
         model: GEMINI_MODEL,
         contents: prompt,
         config: {
@@ -153,7 +181,7 @@ Keluarkan output HANYA format JSON valid:
 }`
 
     try {
-      const response = await ai.models.generateContent({
+      const response = await this.generateWithRetry(ai, {
         model: GEMINI_MODEL,
         contents: prompt,
         config: {
@@ -229,7 +257,7 @@ Format output HANYA array JSON:
 ]`
 
     try {
-      const response = await ai.models.generateContent({
+      const response = await this.generateWithRetry(ai, {
         model: GEMINI_MODEL,
         contents: prompt,
         config: {

@@ -9,6 +9,7 @@ import {
 } from "@/lib/validators/report";
 import { triageReportWithAI, type TriageInput } from "@/lib/ai/triage";
 import type { AuthorityOption } from "@/lib/ai/provider";
+import { GEMINI_MODEL } from "@/lib/ai/gemini";
 import { sendReportSubmittedEmail } from "@/lib/email/resend";
 import type { AITriageResult } from "@/types/ai";
 import type { ReportPriority } from "@/types/database";
@@ -116,7 +117,7 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
       await adminSupabase.from("ai_triage_logs").insert({
         report_id: null, // report not yet created at triage time
         prompt_version: "v1.0",
-        model: "gemini-2.5-flash",
+        model: GEMINI_MODEL,
         raw_request: {
           title: triageInput.title,
           description: triageInput.description.slice(0, 500),
