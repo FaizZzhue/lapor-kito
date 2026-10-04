@@ -1,18 +1,36 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { createReportSchema, type CreateReportSchemaType } from "@/lib/validators/report";
+import {
+  createReportSchema,
+  type CreateReportSchemaType,
+  reportAIMetadataSchema,
+  type ReportAIMetadataType,
+} from "@/lib/validators/report";
 import { triageReportWithAI, type TriageInput } from "@/lib/ai/triage";
+import type { AuthorityOption } from "@/lib/ai/provider";
 import { sendReportSubmittedEmail } from "@/lib/email/resend";
 import type { AITriageResult } from "@/types/ai";
+import type { ReportPriority } from "@/types/database";
 import crypto from "crypto";
 
 export interface MasterDataResult {
   categories: Array<{ id: string; slug: string; name_id: string; description: string | null }>;
   kecamatan: Array<{ id: string; code: string; name: string }>;
   kelurahan: Array<{ id: string; kecamatan_id: string; code: string; name: string }>;
+  authorities?: AuthorityOption[];
   isConfigured: boolean;
   error?: string;
+}
+
+/**
+ * Authoritative Palembang authority/OPD master data lookup.
+ * In this Phase, verified official authority records are not yet migrated or seeded.
+ * Strictly returns an empty array until authoritative source data is provided.
+ * IMPORTANT: Does NOT fabricate fake authorities (no mock PUPR/DLHK/Dishub/etc.).
+ */
+export async function getAuthoritativeAuthorities(): Promise<AuthorityOption[]> {
+  return [];
 }
 
 /**
@@ -23,10 +41,11 @@ export async function getMasterDataAction(): Promise<MasterDataResult> {
   try {
     const supabase = await createClient();
 
-    const [catRes, kecRes, kelRes] = await Promise.all([
+    const [catRes, kecRes, kelRes, authorities] = await Promise.all([
       supabase.from("categories").select("id, slug, name_id, description").eq("is_active", true).order("display_order"),
       supabase.from("kecamatan").select("id, code, name").order("name"),
       supabase.from("kelurahan").select("id, kecamatan_id, code, name").order("name"),
+      getAuthoritativeAuthorities(),
     ]);
 
     if (catRes.error || kecRes.error || kelRes.error) {
@@ -35,6 +54,7 @@ export async function getMasterDataAction(): Promise<MasterDataResult> {
         categories: [],
         kecamatan: [],
         kelurahan: [],
+        authorities: [],
         isConfigured: false,
         error: "Basis data LAPORKITO belum terhubung atau tabel belum dimigrasi.",
       };
@@ -48,6 +68,7 @@ export async function getMasterDataAction(): Promise<MasterDataResult> {
       categories,
       kecamatan,
       kelurahan,
+      authorities,
       isConfigured: categories.length > 0 || kecamatan.length > 0,
       error: categories.length === 0 ? "Data master kategori belum diisi oleh pengelola sistem." : undefined,
     };
@@ -57,6 +78,7 @@ export async function getMasterDataAction(): Promise<MasterDataResult> {
       categories: [],
       kecamatan: [],
       kelurahan: [],
+      authorities: [],
       isConfigured: false,
       error: message,
     };
@@ -76,7 +98,13 @@ export interface AnalyzeReportResult {
  */
 export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeReportResult> {
   try {
-    const triage = await triageReportWithAI(input);
+    // Obtain authoritative authorities from server/database source
+    const authoritativeAuthorities = await getAuthoritativeAuthorities();
+    const triageInput: TriageInput = {
+      ...input,
+      availableAuthorities: authoritativeAuthorities,
+    };
+    const triage = await triageReportWithAI(triageInput);
     return {
       success: true,
       isConfigured: true,
@@ -201,24 +229,47 @@ export interface SubmitReportResult {
  */
 export async function submitReportAction(
   payload: CreateReportSchemaType,
-  aiMetadata?: {
-    confidence?: number;
-    summary?: string;
-    authorityTarget?: string;
-  }
+  aiMetadata?: ReportAIMetadataType
 ): Promise<SubmitReportResult> {
   try {
-    // 1. Authoritative Zod validation
+    // 1. Authoritative Zod validation for payload and AI metadata
     const parsed = createReportSchema.safeParse(payload);
     if (!parsed.success) {
       const issue = parsed.error.issues[0]?.message || "Data formulir tidak valid";
       return { success: false, error: issue };
     }
 
+    let validatedAiMetadata: ReportAIMetadataType | undefined = undefined;
+    if (aiMetadata) {
+      const metaParsed = reportAIMetadataSchema.safeParse(aiMetadata);
+      if (metaParsed.success) {
+        validatedAiMetadata = metaParsed.data;
+      }
+    }
+
+    // 2. Authoritative server-side validation of authorityTarget:
+    // Only permit authorityTarget if it strictly matches a verified authority from getAuthoritativeAuthorities().
+    // If the authoritative list is empty, authorityTarget MUST remain null.
+    const authoritativeAuthorities = await getAuthoritativeAuthorities();
+    let finalAuthorityTarget: string | null = null;
+    if (validatedAiMetadata?.authorityTarget && authoritativeAuthorities.length > 0) {
+      const matched = authoritativeAuthorities.find(
+        (a) =>
+          a.name.toLowerCase() === validatedAiMetadata?.authorityTarget?.toLowerCase() ||
+          a.code.toLowerCase() === validatedAiMetadata?.authorityTarget?.toLowerCase()
+      );
+      if (matched) {
+        finalAuthorityTarget = matched.name;
+      }
+    }
+
+    // 3. Priority resolution: Use validated AI priority if provided; fallback to 'medium' per domain contract
+    const finalPriority: ReportPriority = validatedAiMetadata?.priority ?? "medium";
+
     const data = parsed.data;
     const adminSupabase = createAdminClient();
 
-    // 2. Handle Reporter Record (if name/phone/email provided)
+    // 4. Handle Reporter Record (if name/phone/email provided)
     let reporterId: string | null = null;
     const hasReporterInfo = data.reporterEmail || data.reporterPhone || data.reporterName;
 
@@ -239,7 +290,7 @@ export async function submitReportAction(
       }
     }
 
-    // 3. Generate Tracking Code
+    // 5. Generate Tracking Code
     let trackingCode = generateLocalTrackingCode();
 
     // Try database RPC if available
@@ -252,7 +303,7 @@ export async function submitReportAction(
       // Fallback to local code generator if RPC not installed
     }
 
-    // 4. Insert Report Record
+    // 6. Insert Report Record
     const { data: newReport, error: reportErr } = await adminSupabase
       .from("reports")
       .insert({
@@ -266,10 +317,10 @@ export async function submitReportAction(
         latitude: data.latitude ?? null,
         longitude: data.longitude ?? null,
         status: "submitted",
-        priority: "medium",
-        ai_confidence: aiMetadata?.confidence ?? null,
-        ai_summary: aiMetadata?.summary ?? null,
-        authority_target: aiMetadata?.authorityTarget ?? null,
+        priority: finalPriority,
+        ai_confidence: validatedAiMetadata?.confidence ?? null,
+        ai_summary: validatedAiMetadata?.summary ?? null,
+        authority_target: finalAuthorityTarget,
       })
       .select("id, tracking_code, title")
       .single();

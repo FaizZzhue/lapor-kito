@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Sparkles,
-  MapPin,
   UploadCloud,
   CheckCircle2,
   AlertTriangle,
   Building2,
   Send,
   Loader2,
-  FileText,
   Shield,
   Trash2,
   Info,
@@ -33,7 +31,6 @@ interface ReportFormProps {
 
 export function ReportForm({ initialMasterData }: ReportFormProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
   // Form State
   const [title, setTitle] = useState("");
@@ -164,6 +161,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
         slug: c.slug,
         name: c.name_id,
       })),
+      availableAuthorities: initialMasterData.authorities ?? [],
     });
 
     setIsAnalyzing(false);
@@ -240,6 +238,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
           confidence: aiResult.confidence,
           summary: aiResult.summary,
           authorityTarget: aiResult.recommendedAuthority || undefined,
+          priority: aiResult.priority,
         }
       : undefined;
 
@@ -860,11 +859,6 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                           selectedCategory?.name_id ||
                           "Instansi Terkait Kota Palembang"}
                       </h4>
-                      {aiResult?.summary && (
-                        <p className="text-[11px] text-[#434654] mt-1 leading-relaxed">
-                          {aiResult.summary}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -879,6 +873,17 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                   RINGKASAN SIAP DITERUSKAN
                 </span>
 
+                {aiResult?.summary && (
+                  <div className="rounded-lg border border-[#D9DEE7] bg-white p-3 space-y-1">
+                    <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block font-semibold">
+                      Ringkasan Masalah (Telaah AI):
+                    </span>
+                    <p className="text-xs text-[#111C2D] leading-relaxed">
+                      {aiResult.summary}
+                    </p>
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 text-xs font-mono space-y-1.5 text-[#434654]">
                   <div className="flex justify-between">
                     <span>Judul:</span>
@@ -890,6 +895,12 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                     <span>Kategori:</span>
                     <span className="text-[#111C2D]">
                       {selectedCategory?.name_id || "(Belum dipilih)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Prioritas AI:</span>
+                    <span className="font-semibold text-[#111C2D] capitalize">
+                      {aiResult?.priority || "Medium (Standar)"}
                     </span>
                   </div>
                   <div className="flex justify-between">

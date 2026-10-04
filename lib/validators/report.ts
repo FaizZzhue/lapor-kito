@@ -50,3 +50,12 @@ export const trackingSearchSchema = z.object({
 })
 
 export type TrackingSearchSchemaType = z.infer<typeof trackingSearchSchema>
+
+export const reportAIMetadataSchema = z.object({
+  confidence: z.number().min(0).max(1).optional(),
+  summary: z.string().optional(),
+  authorityTarget: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+})
+
+export type ReportAIMetadataType = z.infer<typeof reportAIMetadataSchema>
