@@ -95,6 +95,7 @@ export interface AnalyzeReportResult {
 /**
  * Executes AI triage via the provider abstraction.
  * If Gemini is not configured, returns truthful configuration error without fake data.
+ * Persists triage audit log to ai_triage_logs for governance trail.
  */
 export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeReportResult> {
   try {
@@ -104,7 +105,41 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
       ...input,
       availableAuthorities: authoritativeAuthorities,
     };
+
+    const startTime = Date.now();
     const triage = await triageReportWithAI(triageInput);
+    const processingTimeMs = Date.now() - startTime;
+
+    // Persist audit log (non-fatal if it fails)
+    try {
+      const adminSupabase = createAdminClient();
+      await adminSupabase.from("ai_triage_logs").insert({
+        report_id: null, // report not yet created at triage time
+        prompt_version: "v1.0",
+        model: "gemini-2.5-flash",
+        raw_request: {
+          title: triageInput.title,
+          description: triageInput.description.slice(0, 500),
+          categoryName: triageInput.categoryName ?? null,
+          districtName: triageInput.districtName ?? null,
+          subdistrictName: triageInput.subdistrictName ?? null,
+          evidenceCount: triageInput.evidenceUrls?.length ?? 0,
+          authoritiesCount: triageInput.availableAuthorities?.length ?? 0,
+        },
+        raw_response: {
+          categorySlug: triage.categorySlug,
+          priority: triage.priority,
+          confidence: triage.confidence,
+          summary: triage.summary,
+          recommendedAuthority: triage.recommendedAuthority,
+          isValidComplaint: triage.isValidComplaint,
+        },
+        processing_time_ms: processingTimeMs,
+      });
+    } catch (logErr) {
+      console.warn("AI triage audit log non-fatal warning:", logErr);
+    }
+
     return {
       success: true,
       isConfigured: true,

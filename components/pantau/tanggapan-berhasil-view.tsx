@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, ArrowRight, Home, ShieldCheck, FileText } from "lucide-react";
+import { CheckCircle2, Home, ShieldCheck, FileText } from "lucide-react";
 
 interface TanggapanBerhasilViewProps {
   trackingCode: string;

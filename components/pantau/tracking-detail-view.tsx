@@ -6,15 +6,12 @@ import {
   MapPin,
   Calendar,
   Building2,
-  CheckCircle2,
   Clock,
   Reply,
   ShieldCheck,
   AlertCircle,
   FileText,
-  AlertTriangle,
   HelpCircle,
-  ArrowRight,
 } from "lucide-react";
 import type { TrackingLookupResult } from "@/lib/actions/tracking";
 import { TrackingSearchBar } from "@/components/pantau/search-bar";
@@ -100,7 +97,23 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
     }
   };
 
+  const getPriorityBadge = () => {
+    switch (report.priority) {
+      case "critical":
+        return { label: "Kritis", bg: "bg-[#FFF5F5] text-[#BA1A1A] border-[#FFDAD6]" };
+      case "high":
+        return { label: "Tinggi", bg: "bg-[#FFF8EF] text-[#8C5000] border-[#E58A1F]/40" };
+      case "medium":
+        return { label: "Sedang", bg: "bg-[#F0F3FF] text-[#1749D2] border-[#D9DEE7]" };
+      case "low":
+        return { label: "Rendah", bg: "bg-[#F9F9FF] text-[#667085] border-[#D9DEE7]" };
+      default:
+        return { label: report.priority, bg: "bg-[#F0F3FF] text-[#1749D2] border-[#D9DEE7]" };
+    }
+  };
+
   const badge = getStatusBadge();
+  const priorityBadge = getPriorityBadge();
 
   return (
     <div className="space-y-6">
@@ -121,6 +134,11 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
                 className={`rounded-full px-3 py-0.5 font-mono text-xs font-semibold border ${badge.bg}`}
               >
                 {badge.label}
+              </span>
+              <span
+                className={`rounded-full px-3 py-0.5 font-mono text-xs font-semibold border ${priorityBadge.bg}`}
+              >
+                Prioritas: {priorityBadge.label}
               </span>
             </div>
             <h2 className="text-base sm:text-lg font-semibold text-[#111C2D]">{report.title}</h2>
@@ -162,6 +180,30 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
               </div>
               <span className="font-mono text-xs text-[#667085]">Audit Trail Sistem</span>
             </div>
+
+            {isRejected && (
+              <div className="rounded-lg border border-[#FFDAD6] bg-[#FFF5F5] p-3.5 text-xs text-[#BA1A1A] space-y-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Laporan Tidak Dapat Diproses (Ditolak)</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-[#434654]">
+                  Laporan ini telah ditinjau dan dinyatakan tidak memenuhi kriteria pengaduan fasilitas umum atau rincian kejadian belum memadai.
+                </p>
+              </div>
+            )}
+
+            {isDuplicate && (
+              <div className="rounded-lg border border-[#FFDAD6] bg-[#FFF5F5] p-3.5 text-xs text-[#BA1A1A] space-y-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Laporan Ditandai Sebagai Duplikat</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-[#434654]">
+                  Kejadian di lokasi ini telah dilaporkan sebelumnya oleh warga lain dan penanganan dipusatkan pada laporan utama.
+                </p>
+              </div>
+            )}
 
             {/* Visual Step Progression */}
             <div className="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[#D9DEE7]">
@@ -388,6 +430,15 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
                 </div>
 
                 <div className="rounded-lg bg-[#F9F9FF] border border-[#D9DEE7] px-3 py-2 flex justify-between items-center">
+                  <span className="text-[#667085]">Prioritas:</span>
+                  <span
+                    className={`font-semibold uppercase text-[11px] px-2 py-0.5 rounded border ${priorityBadge.bg}`}
+                  >
+                    {priorityBadge.label}
+                  </span>
+                </div>
+
+                <div className="rounded-lg bg-[#F9F9FF] border border-[#D9DEE7] px-3 py-2 flex justify-between items-center">
                   <span className="text-[#667085]">Lokasi Alamat:</span>
                   <span className="font-medium text-[#111C2D] text-right truncate max-w-[200px]">
                     {report.address_detail}
@@ -397,7 +448,7 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
                 <div className="rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] px-3 py-2 flex justify-between items-center">
                   <span className="text-[#667085]">Instansi Sasaran:</span>
                   <span className="font-bold text-[#0033A7] text-right truncate max-w-[200px]">
-                    {report.authority_target || "Dinas Terkait Kota Palembang"}
+                    {report.authority_target || "Menunggu Verifikasi Instansi"}
                   </span>
                 </div>
               </div>

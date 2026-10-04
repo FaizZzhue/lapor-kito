@@ -855,10 +855,13 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                         INSTANSI TUJUAN:
                       </span>
                       <h4 className="text-sm font-bold text-[#111C2D] leading-tight mt-0.5">
-                        {aiResult?.recommendedAuthority ||
-                          selectedCategory?.name_id ||
-                          "Instansi Terkait Kota Palembang"}
+                        {aiResult?.recommendedAuthority || "Menunggu Verifikasi Instansi"}
                       </h4>
+                      {!aiResult?.recommendedAuthority && (
+                        <p className="text-[10px] text-[#667085] mt-0.5 leading-relaxed">
+                          Data master instansi/OPD resmi belum tersedia. Instansi akan ditentukan oleh petugas verifikator setelah laporan diterima.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

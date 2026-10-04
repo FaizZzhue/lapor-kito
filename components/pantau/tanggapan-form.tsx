@@ -12,7 +12,6 @@ import {
   Trash2,
   AlertCircle,
   Loader2,
-  CheckCircle2,
   Lock,
 } from "lucide-react";
 import { submitReporterResponseAction } from "@/lib/actions/responses";
