@@ -1,13 +1,10 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   ShieldCheck,
   MapPin,
   Sparkles,
-  Search,
   CheckCircle2,
   FileText,
-  HelpCircle,
   Building2,
   Eye,
   Lock,
