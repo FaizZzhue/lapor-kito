@@ -9,14 +9,18 @@ export function Footer() {
           {/* Brand & Purpose */}
           <div className="md:col-span-6 space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="relative flex h-7 w-7 items-center justify-center rounded-md bg-[#1749D2] text-white shadow-xs">
-                <span className="font-bold text-sm">L</span>
-                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white bg-[#E58A1F]" />
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#1749D2] text-white shadow-sm transition-transform group-hover:scale-105">
+                <span className="relative block h-5 w-4">
+                  <span className="absolute left-0 top-0 h-full w-1 bg-white" />
+                  <span className="absolute left-0 top-0 h-1 w-full bg-white" />
+                </span>
+
+                <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-[#E58A1F]" />
               </div>
               <span className="text-base font-bold text-[#111C2D]">LAPORKITO</span>
-              <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2 py-0.5 font-mono text-[10px] text-[#434654]">
+              {/* <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2 py-0.5 font-mono text-[10px] text-[#434654]">
                 Kota Palembang
-              </span>
+              </span> */}
             </div>
             <p className="text-xs text-[#434654] leading-relaxed max-w-lg">
               LAPORKITO adalah platform pendamping pra-pelaporan partisipasi warga, dirancang untuk
@@ -79,8 +83,8 @@ export function Footer() {
 
         {/* Bottom Notice */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-[#667085]">
-          <span>© 2026 LAPORKITO. Platform Pra-Pelaporan Partisipasi Warga Kota Palembang.</span>
-          <span>Infrastruktur Transparansi & Tata Kelola Pengaduan Publik</span>
+          <span>© 2026 LAPORKITO. All Right Reserve</span>
+          {/* <span>Infrastruktur Transparansi & Tata Kelola Pengaduan Publik</span> */}
         </div>
       </div>
     </footer>

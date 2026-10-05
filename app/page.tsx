@@ -42,7 +42,7 @@ export default function Home() {
               {/* Technical Tag */}
               <div className="inline-flex items-center gap-2 rounded-md border border-[#D9DEE7] bg-[#F0F3FF] px-3 py-1 text-xs font-mono font-medium text-[#1749D2]">
                 <span className="h-2 w-2 rounded-full bg-[#1749D2] animate-pulse" />
-                <span>KOTA PALEMBANG · CIVIC PRE-REPORTING PLATFORM</span>
+                <span>KOTA PALEMBANG</span>
               </div>
 
               {/* Headline */}
@@ -65,19 +65,19 @@ export default function Home() {
                   className="inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-[#1749D2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0033A7] active:scale-95"
                 >
                   <span>Ceritakan Masalah</span>
-                  <ArrowRight className="h-4 w-4" />
+                  {/* <ArrowRight className="h-4 w-4" /> */}
                 </Link>
-                <Link
+                {/* <Link
                   href="#cara-kerja"
                   className="inline-flex h-12 w-full sm:w-auto items-center justify-center rounded-lg border border-[#D9DEE7] bg-white px-5 text-sm font-semibold text-[#111C2D] transition-colors hover:bg-[#F0F3FF]"
                 >
                   Cara Kerja
-                </Link>
+                </Link> */}
                 <Link
                   href="/pantau"
                   className="inline-flex h-12 w-full sm:w-auto items-center justify-center rounded-lg border border-dashed border-[#D9DEE7] bg-[#F9F9FF] px-5 text-sm font-medium text-[#434654] transition-colors hover:bg-[#F0F3FF] hover:text-[#1749D2]"
                 >
-                  <Search className="h-4 w-4 mr-2 text-[#667085]" />
+                  {/* <Search className="h-4 w-4 mr-2 text-[#667085]" /> */}
                   Pantau Laporan
                 </Link>
               </div>
@@ -180,15 +180,15 @@ export default function Home() {
         <div className="mx-auto max-w-7xl space-y-12">
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto space-y-3">
-            <div className="inline-flex items-center gap-1.5 rounded-md border border-[#D9DEE7] bg-white px-3 py-1 font-mono text-xs font-semibold text-[#1749D2]">
+            {/* <div className="inline-flex items-center gap-1.5 rounded-md border border-[#D9DEE7] bg-white px-3 py-1 font-mono text-xs font-semibold text-[#1749D2]">
               <span>ALUR 4 TAHAP</span>
-            </div>
+            </div> */}
             <h2 className="text-2xl font-bold tracking-tight text-[#111C2D] sm:text-3xl">
               Bagaimana LAPORKITO Membantu Anda
             </h2>
-            <p className="text-sm text-[#434654] leading-relaxed">
+            {/* <p className="text-sm text-[#434654] leading-relaxed">
               Dari cerita sehari-hari menjadi berkas laporan yang terstruktur, jelas, dan siap ditindaklanjuti.
-            </p>
+            </p> */}
           </div>
 
           {/* Steps Grid */}
@@ -289,10 +289,10 @@ export default function Home() {
         <div className="mx-auto max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-6 space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-md bg-[#FFF8EF] border border-[#E58A1F]/30 px-3 py-1 font-mono text-xs font-semibold text-[#8C5000]">
+              {/* <div className="inline-flex items-center gap-2 rounded-md bg-[#FFF8EF] border border-[#E58A1F]/30 px-3 py-1 font-mono text-xs font-semibold text-[#8C5000]">
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>KECERDASAN BUATAN BERINTEGRITAS</span>
-              </div>
+              </div> */}
               <h2 className="text-2xl font-bold tracking-tight text-[#111C2D] sm:text-3xl">
                 Bukan Chatbot Biasa, Melainkan Pendamping Analitis
               </h2>
@@ -390,7 +390,7 @@ export default function Home() {
               href="/pantau"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#1749D2] px-6 text-sm font-semibold text-white shadow-sm hover:bg-[#0033A7] transition-colors"
             >
-              <Search className="h-4 w-4" />
+              {/* <Search className="h-4 w-4" /> */}
               <span>Buka Halaman Pantau Laporan</span>
             </Link>
           </div>
@@ -401,10 +401,10 @@ export default function Home() {
       <section id="faq" className="w-full bg-white px-4 py-16 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-4xl space-y-8">
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-1 rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2.5 py-1 font-mono text-xs font-semibold text-[#1749D2]">
+            {/* <div className="inline-flex items-center gap-1 rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2.5 py-1 font-mono text-xs font-semibold text-[#1749D2]">
               <HelpCircle className="h-3.5 w-3.5" />
               <span>PERTANYAAN UMUM</span>
-            </div>
+            </div> */}
             <h2 className="text-2xl font-bold tracking-tight text-[#111C2D]">
               Frequently Asked Questions (FAQ)
             </h2>
@@ -468,7 +468,7 @@ export default function Home() {
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-6 text-sm font-semibold text-[#1749D2] shadow-sm hover:bg-[#F0F3FF] transition-colors"
               >
                 <span>Mulai Buat Laporan</span>
-                <ArrowRight className="h-4 w-4" />
+                {/* <ArrowRight className="h-4 w-4" /> */}
               </Link>
             </div>
           </div>

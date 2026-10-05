@@ -1,0 +1,538 @@
+[
+  {
+    "code": "1671010",
+    "name": "ILIR BARAT II",
+    "villages": [
+      {
+        "code": "1671010006",
+        "name": "35 ILIR"
+      },
+      {
+        "code": "1671010007",
+        "name": "32 ILIR"
+      },
+      {
+        "code": "1671010008",
+        "name": "30 ILIR"
+      },
+      {
+        "code": "1671010009",
+        "name": "KEMANG MANIS"
+      },
+      {
+        "code": "1671010010",
+        "name": "29 ILIR"
+      },
+      {
+        "code": "1671010011",
+        "name": "28 ILIR"
+      },
+      {
+        "code": "1671010012",
+        "name": "27 ILIR"
+      }
+    ]
+  },
+  {
+    "code": "1671011",
+    "name": "GANDUS",
+    "villages": [
+      {
+        "code": "1671011001",
+        "name": "PULO KERTO"
+      },
+      {
+        "code": "1671011002",
+        "name": "GANDUS"
+      },
+      {
+        "code": "1671011003",
+        "name": "KARANG JAYA"
+      },
+      {
+        "code": "1671011004",
+        "name": "KARANG ANYAR"
+      },
+      {
+        "code": "1671011005",
+        "name": "36 ILIR"
+      }
+    ]
+  },
+  {
+    "code": "1671020",
+    "name": "SEBERANG ULU I",
+    "villages": [
+      {
+        "code": "1671020008",
+        "name": "1 ULU"
+      },
+      {
+        "code": "1671020010",
+        "name": "2 ULU"
+      },
+      {
+        "code": "1671020011",
+        "name": "3-4 ULU"
+      },
+      {
+        "code": "1671020012",
+        "name": "5 ULU"
+      },
+      {
+        "code": "1671020013",
+        "name": "7 ULU"
+      }
+    ]
+  },
+  {
+    "code": "1671021",
+    "name": "KERTAPATI",
+    "villages": [
+      {
+        "code": "1671021001",
+        "name": "KARYA JAYA"
+      },
+      {
+        "code": "1671021002",
+        "name": "KERAMASAN"
+      },
+      {
+        "code": "1671021003",
+        "name": "KEMANG AGUNG"
+      },
+      {
+        "code": "1671021004",
+        "name": "KEMAS RINDO"
+      },
+      {
+        "code": "1671021005",
+        "name": "OGAN BARU"
+      },
+      {
+        "code": "1671021006",
+        "name": "KERTAPATI"
+      }
+    ]
+  },
+  {
+    "code": "1671022",
+    "name": "JAKABARING",
+    "villages": [
+      {
+        "code": "1671022001",
+        "name": "15 ULU"
+      },
+      {
+        "code": "1671022002",
+        "name": "TUAN KENTANG"
+      },
+      {
+        "code": "1671022003",
+        "name": "8 ULU"
+      },
+      {
+        "code": "1671022004",
+        "name": "SILABERANTI"
+      },
+      {
+        "code": "1671022005",
+        "name": "9/10 ULU"
+      }
+    ]
+  },
+  {
+    "code": "1671030",
+    "name": "SEBERANG ULU II",
+    "villages": [
+      {
+        "code": "1671030007",
+        "name": "SENTOSA"
+      },
+      {
+        "code": "1671030008",
+        "name": "16 ULU"
+      },
+      {
+        "code": "1671030010",
+        "name": "TANGGA TAKAT"
+      },
+      {
+        "code": "1671030011",
+        "name": "14 ULU"
+      },
+      {
+        "code": "1671030012",
+        "name": "13 ULU"
+      },
+      {
+        "code": "1671030013",
+        "name": "12 ULU"
+      },
+      {
+        "code": "1671030014",
+        "name": "11 ULU"
+      }
+    ]
+  },
+  {
+    "code": "1671031",
+    "name": "PLAJU",
+    "villages": [
+      {
+        "code": "1671031001",
+        "name": "PLAJU DARAT"
+      },
+      {
+        "code": "1671031002",
+        "name": "TALANG PUTRI"
+      },
+      {
+        "code": "1671031003",
+        "name": "KOMPERTA"
+      },
+      {
+        "code": "1671031004",
+        "name": "PLAJU ILIR"
+      },
+      {
+        "code": "1671031005",
+        "name": "TALANG BUBUK"
+      },
+      {
+        "code": "1671031006",
+        "name": "PLAJU ULU"
+      },
+      {
+        "code": "1671031007",
+        "name": "BAGUS KUNING"
+      }
+    ]
+  },
+  {
+    "code": "1671040",
+    "name": "ILIR BARAT I",
+    "villages": [
+      {
+        "code": "1671040001",
+        "name": "BUKIT LAMA"
+      },
+      {
+        "code": "1671040002",
+        "name": "26 ILIR I"
+      },
+      {
+        "code": "1671040009",
+        "name": "LOROK PAKJO"
+      },
+      {
+        "code": "1671040010",
+        "name": "DEMANG LEBAR DAUN"
+      },
+      {
+        "code": "1671040011",
+        "name": "BUKIT BARU"
+      },
+      {
+        "code": "1671040012",
+        "name": "SIRING AGUNG"
+      }
+    ]
+  },
+  {
+    "code": "1671041",
+    "name": "BUKIT KECIL",
+    "villages": [
+      {
+        "code": "1671041001",
+        "name": "TALANG SEMUT"
+      },
+      {
+        "code": "1671041002",
+        "name": "22 ILIR"
+      },
+      {
+        "code": "1671041003",
+        "name": "19 ILIR"
+      },
+      {
+        "code": "1671041004",
+        "name": "23 ILIR"
+      },
+      {
+        "code": "1671041005",
+        "name": "26 ILIR"
+      },
+      {
+        "code": "1671041006",
+        "name": "24 ILIR"
+      }
+    ]
+  },
+  {
+    "code": "1671050",
+    "name": "ILIR TIMUR I",
+    "villages": [
+      {
+        "code": "1671050001",
+        "name": "18 ILIR"
+      },
+      {
+        "code": "1671050002",
+        "name": "16 ILIR"
+      },
+      {
+        "code": "1671050003",
+        "name": "13 ILIR"
+      },
+      {
+        "code": "1671050004",
+        "name": "14 ILIR"
+      },
+      {
+        "code": "1671050005",
+        "name": "15 ILIR"
+      },
+      {
+        "code": "1671050006",
+        "name": "17 ILIR"
+      },
+      {
+        "code": "1671050007",
+        "name": "KEPANDEAN BARU"
+      },
+      {
+        "code": "1671050008",
+        "name": "20 ILIR I"
+      },
+      {
+        "code": "1671050009",
+        "name": "SEI PANGERAN"
+      },
+      {
+        "code": "1671050011",
+        "name": "20 ILIR III"
+      },
+      {
+        "code": "1671050017",
+        "name": "20 ILIR IV"
+      }
+    ]
+  },
+  {
+    "code": "1671051",
+    "name": "KEMUNING",
+    "villages": [
+      {
+        "code": "1671051001",
+        "name": "SEKIP JAYA"
+      },
+      {
+        "code": "1671051002",
+        "name": "PAHLAWAN"
+      },
+      {
+        "code": "1671051003",
+        "name": "20 ILIR II"
+      },
+      {
+        "code": "1671051004",
+        "name": "PIPA REJA"
+      },
+      {
+        "code": "1671051005",
+        "name": "TALANG AMAN"
+      },
+      {
+        "code": "1671051006",
+        "name": "ARIO KEMUNING"
+      }
+    ]
+  },
+  {
+    "code": "1671060",
+    "name": "ILIR TIMUR II",
+    "villages": [
+      {
+        "code": "1671060004",
+        "name": "LAWANG KIDUL"
+      },
+      {
+        "code": "1671060005",
+        "name": "3 ILIR"
+      },
+      {
+        "code": "1671060006",
+        "name": "1 ILIR"
+      },
+      {
+        "code": "1671060007",
+        "name": "SUNGAI BUAH"
+      },
+      {
+        "code": "1671060008",
+        "name": "2 ILIR"
+      },
+      {
+        "code": "1671060009",
+        "name": "5 ILIR"
+      }
+    ]
+  },
+  {
+    "code": "1671061",
+    "name": "KALIDONI",
+    "villages": [
+      {
+        "code": "1671061001",
+        "name": "SEI LAIS"
+      },
+      {
+        "code": "1671061002",
+        "name": "SEI SELINCAH"
+      },
+      {
+        "code": "1671061003",
+        "name": "SEI SELAYUR"
+      },
+      {
+        "code": "1671061004",
+        "name": "KALIDONI"
+      },
+      {
+        "code": "1671061005",
+        "name": "BUKIT SANGKAL"
+      }
+    ]
+  },
+  {
+    "code": "1671062",
+    "name": "ILIR TIMUR III",
+    "villages": [
+      {
+        "code": "1671062001",
+        "name": "10 ILIR"
+      },
+      {
+        "code": "1671062002",
+        "name": "11 ILIR"
+      },
+      {
+        "code": "1671062003",
+        "name": "KUTO BATU"
+      },
+      {
+        "code": "1671062004",
+        "name": "DUKU"
+      },
+      {
+        "code": "1671062005",
+        "name": "9 ILIR"
+      },
+      {
+        "code": "1671062006",
+        "name": "8 ILIR"
+      }
+    ]
+  },
+  {
+    "code": "1671070",
+    "name": "SAKO",
+    "villages": [
+      {
+        "code": "1671070001",
+        "name": "SUKAMAJU"
+      },
+      {
+        "code": "1671070002",
+        "name": "SIALANG"
+      },
+      {
+        "code": "1671070003",
+        "name": "SAKO"
+      },
+      {
+        "code": "1671070007",
+        "name": "SAKO BARU"
+      }
+    ]
+  },
+  {
+    "code": "1671071",
+    "name": "SEMATANG BORANG",
+    "villages": [
+      {
+        "code": "1671071001",
+        "name": "LEBONG GAJAH"
+      },
+      {
+        "code": "1671071002",
+        "name": "SRIMULYO"
+      },
+      {
+        "code": "1671071003",
+        "name": "SUKA MULYA"
+      },
+      {
+        "code": "1671071004",
+        "name": "KARYA MULYA"
+      }
+    ]
+  },
+  {
+    "code": "1671080",
+    "name": "SUKARAMI",
+    "villages": [
+      {
+        "code": "1671080002",
+        "name": "SUKA BANGUN"
+      },
+      {
+        "code": "1671080003",
+        "name": "SUKAJAYA"
+      },
+      {
+        "code": "1671080004",
+        "name": "SUKARAMI"
+      },
+      {
+        "code": "1671080008",
+        "name": "KEBUN BUNGA"
+      },
+      {
+        "code": "1671080009",
+        "name": "TALANG BETUTU"
+      },
+      {
+        "code": "1671080010",
+        "name": "SUKODADI"
+      },
+      {
+        "code": "1671080011",
+        "name": "TALANG JAMBE"
+      }
+    ]
+  },
+  {
+    "code": "1671081",
+    "name": "ALANG ALANG LEBAR",
+    "villages": [
+      {
+        "code": "1671081001",
+        "name": "SRIJAYA"
+      },
+      {
+        "code": "1671081002",
+        "name": "KARYA BARU"
+      },
+      {
+        "code": "1671081003",
+        "name": "TALANG KELAPA"
+      },
+      {
+        "code": "1671081004",
+        "name": "ALANG ALANG LEBAR"
+      }
+    ]
+  }
+]
