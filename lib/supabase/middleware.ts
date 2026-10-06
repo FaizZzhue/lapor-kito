@@ -36,13 +36,31 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protected route check for /admin and /petugas
   const pathname = request.nextUrl.pathname
+
+  // Redirect legacy /login to /admin/login
+  if (pathname === '/login') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Handle /admin/login access
+  if (pathname === '/admin/login') {
+    if (user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin'
+      return NextResponse.redirect(url)
+    }
+    return supabaseResponse
+  }
+
+  // Protected route check for /admin and /petugas
   const isProtectedRoute = pathname.startsWith('/admin') || pathname.startsWith('/petugas')
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = '/admin/login'
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }

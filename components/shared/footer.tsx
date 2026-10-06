@@ -1,7 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Shield, MapPin, FileCheck } from "lucide-react";
 
 export function Footer() {
+  const pathname = usePathname();
+
+  // Do not render public citizen footer inside internal admin / petugas portals
+  if (pathname.startsWith('/admin') || pathname.startsWith('/petugas')) {
+    return null;
+  }
   return (
     <footer className="w-full border-t border-[#D9DEE7] bg-white">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">

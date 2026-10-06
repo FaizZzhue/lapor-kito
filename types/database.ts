@@ -58,6 +58,95 @@ export interface Database {
         }
         Relationships: []
       }
+      institutions: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          short_name: string | null
+          category: string | null
+          address: string | null
+          email: string | null
+          phone: string | null
+          mandate: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name: string
+          short_name?: string | null
+          category?: string | null
+          address?: string | null
+          email?: string | null
+          phone?: string | null
+          mandate?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name?: string
+          short_name?: string | null
+          category?: string | null
+          address?: string | null
+          email?: string | null
+          phone?: string | null
+          mandate?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      institution_units: {
+        Row: {
+          id: string
+          institution_id: string
+          code: string
+          name: string
+          work_area: string | null
+          description: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          institution_id: string
+          code: string
+          name: string
+          work_area?: string | null
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          institution_id?: string
+          code?: string
+          name?: string
+          work_area?: string | null
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institution_units_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       reporters: {
         Row: {
           id: string
@@ -445,3 +534,17 @@ export interface Database {
     }
   }
 }
+
+export type InstitutionRow = Database['public']['Tables']['institutions']['Row']
+export type InstitutionInsert = Database['public']['Tables']['institutions']['Insert']
+export type InstitutionUpdate = Database['public']['Tables']['institutions']['Update']
+
+export type InstitutionUnitRow = Database['public']['Tables']['institution_units']['Row']
+export type InstitutionUnitInsert = Database['public']['Tables']['institution_units']['Insert']
+export type InstitutionUnitUpdate = Database['public']['Tables']['institution_units']['Update']
+
+export type CategoryRow = Database['public']['Tables']['categories']['Row']
+export type CategoryInsert = Database['public']['Tables']['categories']['Insert']
+export type CategoryUpdate = Database['public']['Tables']['categories']['Update']
+
+

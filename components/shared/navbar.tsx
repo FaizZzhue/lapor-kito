@@ -9,6 +9,11 @@ export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Do not render public citizen navbar inside internal admin / petugas portals
+  if (pathname.startsWith('/admin') || pathname.startsWith('/petugas')) {
+    return null;
+  }
+
   const navLinks = [
     { href: "/", label: "Beranda", active: pathname === "/" },
     { href: "/#faq", label: "FAQ", active: false },
