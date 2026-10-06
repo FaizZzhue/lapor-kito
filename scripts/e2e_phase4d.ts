@@ -80,7 +80,7 @@ async function runPhase4DE2E() {
     console.log('\n[STEP 2] Verifying public guest restrictions (RLS on internal_users)...');
 
     // 2a. Public cannot SELECT internal users
-    const { data: pubUsers, error: errPubSelect } = await anonClient
+    const { data: pubUsers } = await anonClient
       .from('internal_users')
       .select('id, email, full_name, phone, role');
 
