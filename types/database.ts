@@ -547,4 +547,9 @@ export type CategoryRow = Database['public']['Tables']['categories']['Row']
 export type CategoryInsert = Database['public']['Tables']['categories']['Insert']
 export type CategoryUpdate = Database['public']['Tables']['categories']['Update']
 
+export type InternalUserRow = Database['public']['Tables']['internal_users']['Row']
+export type InternalUserInsert = Database['public']['Tables']['internal_users']['Insert']
+export type InternalUserUpdate = Database['public']['Tables']['internal_users']['Update']
+
+
 
