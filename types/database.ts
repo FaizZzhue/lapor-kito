@@ -147,6 +147,80 @@ export interface Database {
           }
         ]
       }
+      authority_rules: {
+        Row: {
+          id: string
+          rule_code: string
+          category_id: string
+          kecamatan_id: string | null
+          context_title: string
+          context_description: string | null
+          institution_id: string
+          institution_unit_id: string | null
+          regulation_basis: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          rule_code: string
+          category_id: string
+          kecamatan_id?: string | null
+          context_title: string
+          context_description?: string | null
+          institution_id: string
+          institution_unit_id?: string | null
+          regulation_basis: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          rule_code?: string
+          category_id?: string
+          kecamatan_id?: string | null
+          context_title?: string
+          context_description?: string | null
+          institution_id?: string
+          institution_unit_id?: string | null
+          regulation_basis?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authority_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "authority_rules_kecamatan_id_fkey"
+            columns: ["kecamatan_id"]
+            isOneToOne: false
+            referencedRelation: "kecamatan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "authority_rules_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_authority_rules_unit_institution"
+            columns: ["institution_unit_id", "institution_id"]
+            isOneToOne: false
+            referencedRelation: "institution_units"
+            referencedColumns: ["id", "institution_id"]
+          }
+        ]
+      }
       reporters: {
         Row: {
           id: string
@@ -550,6 +624,10 @@ export type CategoryUpdate = Database['public']['Tables']['categories']['Update'
 export type InternalUserRow = Database['public']['Tables']['internal_users']['Row']
 export type InternalUserInsert = Database['public']['Tables']['internal_users']['Insert']
 export type InternalUserUpdate = Database['public']['Tables']['internal_users']['Update']
+
+export type AuthorityRuleRow = Database['public']['Tables']['authority_rules']['Row']
+export type AuthorityRuleInsert = Database['public']['Tables']['authority_rules']['Insert']
+export type AuthorityRuleUpdate = Database['public']['Tables']['authority_rules']['Update']
 
 
 

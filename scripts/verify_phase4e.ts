@@ -16,9 +16,9 @@ async function runVerification() {
 
   // 1. Table authority_rules existence & row count
   console.log('[CHECK 1] Verifying public.authority_rules existence & row count...');
-  const { data: authRules, count: authRulesCount, error: errAuthRules } = await adminClient
+  const { count: authRulesCount, error: errAuthRules } = await adminClient
     .from('authority_rules')
-    .select('*', { count: 'exact' });
+    .select('*', { count: 'exact', head: true });
 
   if (errAuthRules) {
     console.error(' - ERROR reading authority_rules:', errAuthRules.message);
@@ -28,7 +28,7 @@ async function runVerification() {
 
   // 2. Checking columns via head query / metadata
   console.log('\n[CHECK 2] Verifying columns & structure via insert-rollback or empty select...');
-  const { data: colsData, error: errCols } = await adminClient
+  const { error: errCols } = await adminClient
     .from('authority_rules')
     .select('id, rule_code, category_id, kecamatan_id, context_title, context_description, institution_id, institution_unit_id, regulation_basis, is_active, created_at, updated_at')
     .limit(1);

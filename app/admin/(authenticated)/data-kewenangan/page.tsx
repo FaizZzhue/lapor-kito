@@ -1,13 +1,21 @@
-import { PlaceholderView } from "@/components/admin/placeholder-view";
+import {
+  getAuthorityRulesAction,
+  getAuthorityRuleFormDataAction,
+} from '@/lib/actions/authority-rules';
+import { AuthorityRulesManager } from '@/components/admin/authority-rules/authority-rules-manager';
 
-export default function DataKewenanganPage() {
-  return (
-    <PlaceholderView
-      title="Data Kewenangan"
-      subtitle="Konfigurasi matriks distribusi kewenangan penanganan laporan dan aturan disposisi dinas."
-      badge="DATA MASTER • ATURAN KEWENANGAN"
-      icon="policy"
-      plannedPhase="Fase 4E — Aturan Kewenangan & Disposisi"
-    />
-  );
+export const dynamic = 'force-dynamic';
+
+export default async function DataKewenanganPage() {
+  const [rulesRes, formDataRes] = await Promise.all([
+    getAuthorityRulesAction(),
+    getAuthorityRuleFormDataAction(),
+  ]);
+
+  const rules = rulesRes.success ? rulesRes.data : [];
+  const formData = formDataRes.success
+    ? formDataRes.data
+    : { categories: [], kecamatan: [], institutions: [], institutionUnits: [] };
+
+  return <AuthorityRulesManager initialRules={rules} formData={formData} />;
 }
