@@ -69,11 +69,19 @@ CREATE TRIGGER trigger_authority_rules_updated_at
 -- --------------------------------------------------------------------
 ALTER TABLE public.authority_rules ENABLE ROW LEVEL SECURITY;
 
--- 5.1 Staff Read: All authenticated internal staff can read authority rules
+-- 5.1 Staff Read: Only active internal staff (admin/petugas) can read authority rules
 DROP POLICY IF EXISTS "Staff read authority_rules" ON public.authority_rules;
 CREATE POLICY "Staff read authority_rules" ON public.authority_rules
     FOR SELECT
-    USING (auth.role() = 'authenticated' OR auth.role() = 'service_role');
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.internal_users
+            WHERE internal_users.id = auth.uid()
+            AND internal_users.role IN ('admin', 'petugas')
+            AND internal_users.is_active = true
+        )
+        OR auth.role() = 'service_role'
+    );
 
 -- 5.2 Admin Manage: Only active internal users with 'admin' role can CRUD
 DROP POLICY IF EXISTS "Admin manage authority_rules" ON public.authority_rules;
