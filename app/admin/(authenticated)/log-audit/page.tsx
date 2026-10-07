@@ -1,11 +1,27 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import Link from "next/link";
+import {
+  ShieldCheck,
+  Clock,
+  MessageSquare,
+  Bot,
+  BadgeCheck,
+  Info,
+  Lock,
+  Lightbulb,
+  ArrowRight,
+  type LucideIcon,
+} from "lucide-react";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function LogAuditPage() {
   const { internalUser } = await getCurrentInternalUser();
+  if (internalUser?.role !== "admin") {
+    redirect("/admin/laporan");
+  }
   const supabase = await createClient();
 
   // Fetch available data sources for audit trail
@@ -52,11 +68,11 @@ export default async function LogAuditPage() {
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1749D2]" />
             <p className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider">
-              Pengaturan & Tata Kelola • Audit
+              Pengaturan &amp; Tata Kelola • Audit
             </p>
           </div>
           <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">
-            Log Audit & Sesi
+            Log Audit &amp; Sesi
           </h1>
           <p className="text-[14px] text-[#434654] mt-1">
             Riwayat aktivitas operasional, jejak timeline laporan, dan informasi sesi pengguna internal.
@@ -64,7 +80,7 @@ export default async function LogAuditPage() {
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg shadow-sm self-start md:self-auto">
-          <span className="material-symbols-outlined text-[#1749D2] text-[18px]">verified_user</span>
+          <ShieldCheck size={18} className="text-[#1749D2]" aria-hidden="true" />
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold text-[#111C2D]">
               {internalUser?.full_name ?? "Staff"}
@@ -83,28 +99,28 @@ export default async function LogAuditPage() {
         <AuditMetricCard
           label="Timeline Laporan"
           count={timeline.length}
-          icon="history"
+          icon={Clock}
           description="Entri terbaru"
           color="#1749D2"
         />
         <AuditMetricCard
           label="Tanggapan Instansi"
           count={responses.length}
-          icon="chat"
+          icon={MessageSquare}
           description="Entri terbaru"
           color="#16845B"
         />
         <AuditMetricCard
           label="Log AI Triage"
           count={aiLogs.length}
-          icon="smart_toy"
+          icon={Bot}
           description="Evaluasi AI"
           color="#E58A1F"
         />
         <AuditMetricCard
           label="Pengguna Internal"
           count={staff.length}
-          icon="badge"
+          icon={BadgeCheck}
           description="Terakhir diperbarui"
           color="#0033A7"
         />
@@ -114,7 +130,7 @@ export default async function LogAuditPage() {
       {/* AUDIT SCOPE NOTICE */}
       {/* ================================================================ */}
       <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9] mb-6">
-        <span className="material-symbols-outlined text-[#B2640A] text-[18px] mt-0.5">info</span>
+        <Info size={18} className="text-[#B2640A] mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p className="text-[13px] font-semibold text-[#B2640A]">Cakupan Log Audit Saat Ini</p>
           <p className="text-[12px] text-[#8B6914] mt-0.5 leading-relaxed">
@@ -134,7 +150,7 @@ export default async function LogAuditPage() {
       {/* ================================================================ */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <span className="material-symbols-outlined text-[#1749D2] text-[18px]">history</span>
+          <Clock size={18} className="text-[#1749D2]" aria-hidden="true" />
           <h2 className="text-[16px] font-semibold text-[#111C2D]">Timeline Laporan</h2>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] font-medium">
             {timeline.length} entri
@@ -175,7 +191,7 @@ export default async function LogAuditPage() {
           </div>
         ) : (
           <EmptyAuditSection
-            icon="history"
+            icon={Clock}
             title="Belum Ada Timeline Laporan"
             description="Riwayat perubahan status dan aktivitas laporan akan muncul di sini setelah laporan warga diproses oleh petugas."
           />
@@ -187,7 +203,7 @@ export default async function LogAuditPage() {
       {/* ================================================================ */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <span className="material-symbols-outlined text-[#E58A1F] text-[18px]">smart_toy</span>
+          <Bot size={18} className="text-[#E58A1F]" aria-hidden="true" />
           <h2 className="text-[16px] font-semibold text-[#111C2D]">Log AI Triage</h2>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#FEF3E6] text-[#B2640A] font-medium border border-[#FCD7A9]">
             {aiLogs.length} evaluasi
@@ -232,7 +248,7 @@ export default async function LogAuditPage() {
           </div>
         ) : (
           <EmptyAuditSection
-            icon="smart_toy"
+            icon={Bot}
             title="Belum Ada Log AI"
             description="Riwayat evaluasi AI triage akan ditampilkan setelah sistem AI memproses laporan warga."
           />
@@ -244,7 +260,7 @@ export default async function LogAuditPage() {
       {/* ================================================================ */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <span className="material-symbols-outlined text-[#0033A7] text-[18px]">badge</span>
+          <BadgeCheck size={18} className="text-[#0033A7]" aria-hidden="true" />
           <h2 className="text-[16px] font-semibold text-[#111C2D]">Pengguna Internal</h2>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F3FF] text-[#0033A7] font-medium border border-[#D9DEE7]">
             {staff.length} pengguna
@@ -304,7 +320,7 @@ export default async function LogAuditPage() {
           </div>
         ) : (
           <EmptyAuditSection
-            icon="badge"
+            icon={BadgeCheck}
             title="Belum Ada Pengguna Internal"
             description="Daftar pengguna internal akan ditampilkan setelah administrator mendaftarkan akun staf."
           />
@@ -317,7 +333,7 @@ export default async function LogAuditPage() {
               className="text-[12px] text-[#0033A7] hover:text-[#1749D2] font-medium inline-flex items-center gap-1"
             >
               Lihat semua pengguna
-              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -328,7 +344,7 @@ export default async function LogAuditPage() {
       {/* ================================================================ */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <span className="material-symbols-outlined text-[#16845B] text-[18px]">chat</span>
+          <MessageSquare size={18} className="text-[#16845B]" aria-hidden="true" />
           <h2 className="text-[16px] font-semibold text-[#111C2D]">Tanggapan Terbaru</h2>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] font-medium border border-[#B5E2CD]">
             {responses.length} tanggapan
@@ -381,7 +397,7 @@ export default async function LogAuditPage() {
           </div>
         ) : (
           <EmptyAuditSection
-            icon="chat"
+            icon={MessageSquare}
             title="Belum Ada Tanggapan"
             description="Riwayat tanggapan instansi terhadap laporan warga akan ditampilkan di sini."
           />
@@ -392,7 +408,7 @@ export default async function LogAuditPage() {
       {/* SECURITY NOTE */}
       {/* ================================================================ */}
       <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] mb-6">
-        <span className="material-symbols-outlined text-[#0033A7] text-[18px] mt-0.5">lock</span>
+        <Lock size={18} className="text-[#0033A7] mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p className="text-[13px] font-semibold text-[#111C2D]">Keamanan Informasi</p>
           <p className="text-[12px] text-[#434654] mt-0.5 leading-relaxed">
@@ -405,7 +421,7 @@ export default async function LogAuditPage() {
       {/* Audit Log Migration Proposal Notice */}
       {totalAvailable === 0 && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#F0F3FF] border border-[#C4D3F8]">
-          <span className="material-symbols-outlined text-[#1749D2] text-[18px] mt-0.5">lightbulb</span>
+          <Lightbulb size={18} className="text-[#1749D2] mt-0.5 shrink-0" aria-hidden="true" />
           <div>
             <p className="text-[13px] font-semibold text-[#111C2D]">Rekomendasi: Audit Log Terstruktur</p>
             <p className="text-[12px] text-[#434654] mt-0.5 leading-relaxed">
@@ -427,13 +443,13 @@ export default async function LogAuditPage() {
 function AuditMetricCard({
   label,
   count,
-  icon,
+  icon: Icon,
   description,
   color,
 }: {
   label: string;
   count: number;
-  icon: string;
+  icon: LucideIcon;
   description: string;
   color: string;
 }) {
@@ -441,7 +457,7 @@ function AuditMetricCard({
     <div className="bg-white p-4 rounded-xl border border-[#D9DEE7] shadow-sm">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[12px] font-medium text-[#747686]">{label}</span>
-        <span className="material-symbols-outlined text-[18px]" style={{ color }}>{icon}</span>
+        <Icon size={18} style={{ color }} aria-hidden="true" />
       </div>
       <span className="text-[22px] font-bold text-[#111C2D]">{count}</span>
       <p className="text-[11px] text-[#747686] mt-0.5">{description}</p>
@@ -450,18 +466,18 @@ function AuditMetricCard({
 }
 
 function EmptyAuditSection({
-  icon,
+  icon: Icon,
   title,
   description,
 }: {
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
 }) {
   return (
     <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-8 text-center">
       <div className="w-12 h-12 rounded-xl bg-[#F0F3FF] flex items-center justify-center mx-auto mb-3">
-        <span className="material-symbols-outlined text-[#747686] text-[28px]">{icon}</span>
+        <Icon size={28} className="text-[#747686]" aria-hidden="true" />
       </div>
       <p className="text-[14px] font-medium text-[#434654]">{title}</p>
       <p className="text-[12px] text-[#747686] mt-1 max-w-md mx-auto">{description}</p>

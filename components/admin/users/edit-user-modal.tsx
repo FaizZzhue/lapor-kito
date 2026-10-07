@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, UserCheck, Mail, User, Phone, Shield, Loader2 } from 'lucide-react';
+import { X, UserCheck, Mail, User, Phone, Shield, Loader2, AlertCircle } from 'lucide-react';
 import { updateInternalUserAction } from '@/lib/actions/internal-users';
 import type { InternalUserRow } from '@/types/database';
 
@@ -94,7 +94,7 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {error && (
             <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <span className="font-semibold text-error shrink-0">⚠</span>
+              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { Building2, X, AlertCircle } from 'lucide-react';
 import { createInstitutionAction, updateInstitutionAction } from '@/lib/actions/institutions';
 import type { InstitutionRow } from '@/types/database';
 
@@ -111,7 +112,7 @@ export function InstitutionFormModal({
         {/* Modal Header */}
         <div className="px-6 py-4 bg-[#F0F3FF] border-b border-[#D9DEE7] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#0033A7] text-[22px]">apartment</span>
+            <Building2 size={20} className="text-[#0033A7]" aria-hidden="true" />
             <h3 className="text-[17px] font-semibold text-[#111C2D]">
               {isEdit ? 'Edit Data Instansi' : 'Tambah Instansi Baru'}
             </h3>
@@ -120,8 +121,10 @@ export function InstitutionFormModal({
             type="button"
             onClick={onClose}
             className="text-[#747686] hover:text-[#111C2D] p-1 rounded-lg hover:bg-white/60 transition-colors"
+            title="Tutup"
+            aria-label="Tutup"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
@@ -129,7 +132,7 @@ export function InstitutionFormModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {errorMsg && (
             <div className="p-3 rounded-lg bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[13px] flex items-start gap-2">
-              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
+              <AlertCircle size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
               <span>{errorMsg}</span>
             </div>
           )}

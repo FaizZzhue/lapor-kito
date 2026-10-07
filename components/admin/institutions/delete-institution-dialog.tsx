@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Trash2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { deleteInstitutionAction } from '@/lib/actions/institutions';
 
 interface DeleteInstitutionDialogProps {
@@ -48,7 +49,7 @@ export function DeleteInstitutionDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-md bg-white rounded-xl border border-[#D9DEE7] shadow-xl overflow-hidden p-6 text-center">
         <div className="w-12 h-12 rounded-full bg-[#FFDAD6] text-[#BA1A1A] flex items-center justify-center mx-auto mb-4">
-          <span className="material-symbols-outlined text-[26px]">delete</span>
+          <Trash2 size={24} aria-hidden="true" />
         </div>
 
         <h3 className="text-[17px] font-semibold text-[#111C2D] mb-1">
@@ -61,7 +62,7 @@ export function DeleteInstitutionDialog({
         {unitsCount > 0 && (
           <div className="p-3 mb-4 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9] text-[#B2640A] text-[12px] text-left">
             <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">warning</span>
+              <AlertTriangle size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 Instansi ini tercatat memiliki <strong>{unitsCount} unit kerja</strong>. Penghapusan akan ditolak demi integritas data struktural. Disarankan untuk menon-aktifkan instansi daripada menghapusnya.
               </span>
@@ -71,7 +72,7 @@ export function DeleteInstitutionDialog({
 
         {errorMsg && (
           <div className="p-3 mb-4 rounded-lg bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[12px] text-left flex items-start gap-2">
-            <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+            <AlertCircle size={16} className="shrink-0 mt-0.5" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}

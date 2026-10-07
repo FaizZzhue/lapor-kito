@@ -3,6 +3,17 @@
 import { useState, useCallback, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  ChevronRight,
+  Home,
+  Network,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { getInstitutionByIdAction } from '@/lib/actions/institutions';
 import type { InstitutionRow, InstitutionUnitRow } from '@/types/database';
 import { InstitutionFormModal } from '@/components/admin/institutions/institution-form-modal';
@@ -68,7 +79,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
     return (
       <div className="max-w-xl mx-auto p-8 bg-white rounded-xl border border-[#D9DEE7] text-center my-12">
         <div className="w-12 h-12 rounded-full bg-[#FFDAD6] text-[#BA1A1A] flex items-center justify-center mx-auto mb-3">
-          <span className="material-symbols-outlined text-[24px]">error</span>
+          <AlertCircle size={24} aria-hidden="true" />
         </div>
         <h2 className="text-[18px] font-semibold text-[#111C2D] mb-1">Instansi Tidak Ditemukan</h2>
         <p className="text-[13px] text-[#434654] mb-6">{errorMsg || 'Instansi yang Anda tuju tidak tersedia.'}</p>
@@ -76,7 +87,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
           href="/admin/instansi"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] text-white text-[13px] font-semibold"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <ArrowLeft size={16} aria-hidden="true" />
           <span>Kembali ke Daftar Instansi</span>
         </Link>
       </div>
@@ -91,17 +102,20 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
           href="/admin/instansi"
           className="inline-flex items-center gap-1.5 text-[13px] text-[#0033A7] hover:underline font-medium"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <ArrowLeft size={16} aria-hidden="true" />
           <span>Kembali ke Instansi</span>
         </Link>
         <span className="text-[#C4C5D7]">•</span>
         <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold">
-          <span>SISTEM PUSAT</span>
-          <span className="text-[#C4C5D7]">/</span>
+          <Link href="/admin" className="flex items-center gap-1 hover:text-[#0033A7] transition-colors">
+            <Home size={13} aria-hidden="true" />
+            <span>SISTEM PUSAT</span>
+          </Link>
+          <ChevronRight size={12} className="text-[#C4C5D7]" aria-hidden="true" />
           <Link href="/admin/instansi" className="hover:text-[#0033A7] transition-colors">
             INSTANSI
           </Link>
-          <span className="text-[#C4C5D7]">/</span>
+          <ChevronRight size={12} className="text-[#C4C5D7]" aria-hidden="true" />
           <span className="text-[#111C2D] truncate max-w-sm">{institution.name}</span>
         </div>
       </div>
@@ -137,7 +151,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
             onClick={() => setIsEditModalOpen(true)}
             className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-[13px] font-medium shadow-sm hover:bg-[#F0F3FF] transition-colors"
           >
-            <span className="material-symbols-outlined text-[17px] text-[#747686]">edit</span>
+            <Pencil size={16} className="text-[#747686]" aria-hidden="true" />
             <span>Edit Instansi</span>
           </button>
           <button
@@ -145,7 +159,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
             onClick={() => setIsDeleteModalOpen(true)}
             className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-white border border-[#FFDAD6] text-[#BA1A1A] text-[13px] font-medium shadow-sm hover:bg-[#FFDAD6]/30 transition-colors"
           >
-            <span className="material-symbols-outlined text-[17px]">delete</span>
+            <Trash2 size={16} aria-hidden="true" />
             <span>Hapus</span>
           </button>
         </div>
@@ -155,7 +169,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
       <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
         <div className="px-6 py-3.5 bg-[#F8F9FB] border-b border-[#D9DEE7] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-[#0033A7]">corporate_fare</span>
+            <Building2 size={20} className="text-[#0033A7]" aria-hidden="true" />
             <h2 className="text-[15px] font-semibold text-[#111C2D]">Informasi Instansi</h2>
           </div>
           <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider">
@@ -215,7 +229,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
         <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D9DEE7]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[20px] text-[#0033A7]">domain</span>
+              <Network size={20} className="text-[#0033A7]" aria-hidden="true" />
               <h2 className="text-[16px] font-semibold text-[#111C2D]">Daftar Unit Pelaksana (UPT)</h2>
             </div>
             <p className="text-[13px] text-[#747686] mt-0.5">
@@ -230,7 +244,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
             }}
             className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm shrink-0"
           >
-            <span className="material-symbols-outlined text-[17px]">add</span>
+            <Plus size={16} aria-hidden="true" />
             <span>Tambah Unit</span>
           </button>
         </div>
@@ -238,7 +252,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
         {institution.units.length === 0 ? (
           <div className="p-10 text-center flex flex-col items-center justify-center max-w-md mx-auto">
             <div className="w-12 h-12 rounded-xl bg-[#F0F3FF] text-[#0033A7] flex items-center justify-center mb-3">
-              <span className="material-symbols-outlined text-[24px]">domain_disabled</span>
+              <Network size={24} aria-hidden="true" />
             </div>
             <p className="text-[14px] font-semibold text-[#111C2D] mb-1">Belum Ada Unit Pelaksana</p>
             <p className="text-[13px] text-[#747686] mb-4">
@@ -311,16 +325,18 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
                           }}
                           className="p-1 rounded text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors"
                           title="Edit Unit"
+                          aria-label="Edit Unit"
                         >
-                          <span className="material-symbols-outlined text-[17px]">edit</span>
+                          <Pencil size={16} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setUnitToDelete(unit)}
                           className="p-1 rounded text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors"
                           title="Hapus Unit"
+                          aria-label="Hapus Unit"
                         >
-                          <span className="material-symbols-outlined text-[17px]">delete</span>
+                          <Trash2 size={16} aria-hidden="true" />
                         </button>
                       </div>
                     </td>

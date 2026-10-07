@@ -22,6 +22,18 @@ export interface AIDuplicateCandidate {
   similarityReason: string
 }
 
+export interface AIAuthorityRecommendation {
+  rule_code: string | null
+  decision: 'RECOMMEND' | 'NEEDS_REVIEW'
+  confidence: number
+  reasoning: string
+  institution_name?: string | null
+  institution_code?: string | null
+  unit_name?: string | null
+  unit_code?: string | null
+  context_title?: string | null
+}
+
 export interface AITriageResult {
   categorySlug: string
   priority: ReportPriority
@@ -29,8 +41,10 @@ export interface AITriageResult {
   summary: string
   reasoning?: string
   recommendedAuthority: string
+  authorityRecommendation?: AIAuthorityRecommendation
   isValidComplaint: boolean
   rejectionReason?: string
   evidenceAnalysis?: AIEvidenceAnalysis
   potentialDuplicates?: AIDuplicateCandidate[]
 }
+

@@ -22,16 +22,22 @@ export async function sendReportSubmittedEmail({
   categoryName,
   trackingUrl,
 }: SendReportSubmittedEmailParams) {
-  if (!resend) {
+  const activeApiKey = process.env.RESEND_API_KEY
+  const activeFromEmail = process.env.RESEND_FROM_EMAIL || fromEmail
+
+  if (!activeApiKey) {
     console.warn('Resend API key is not configured. Email notification skipped.')
     return { success: false, reason: 'RESEND_NOT_CONFIGURED' }
   }
 
+  const client = new Resend(activeApiKey)
+
   try {
-    const { data, error } = await resend.emails.send({
-      from: fromEmail,
+    const { data, error } = await client.emails.send({
+      from: activeFromEmail,
       to,
       subject: `[LAPORKITO] Pengaduan Diterima — Kode Lacak: ${trackingCode}`,
+      text: `Halo ${reporterName},\n\nTerima kasih atas laporan Anda. Pengaduan Anda telah berhasil dicatat ke dalam sistem LAPORKITO dan akan ditinjau oleh tim verifikator.\n\nKode Lacak: ${trackingCode}\nJudul: ${reportTitle}\nKategori: ${categoryName}\n\nPantau status pengaduan Anda melalui tautan berikut:\n${trackingUrl}\n\nSimpan kode lacak ini. Anda dapat menggunakannya kapan saja di situs LAPORKITO untuk melihat perkembangan penanganan aduan Anda.\n\nLAPORKITO — Kanal Pengaduan Warga Kota Palembang`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
           <div style="background-color: #047857; color: white; padding: 16px 20px; border-radius: 6px; text-align: center;">

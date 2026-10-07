@@ -1,6 +1,24 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import {
+  Home,
+  ChevronRight,
+  RefreshCw,
+  Plus,
+  Search,
+  Building2,
+  Filter,
+  ChevronDown,
+  AlertCircle,
+  Network,
+  MapPin,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { getUnitsAction, getInstitutionsAction, type UnitWithInstitution } from '@/lib/actions/institutions';
 import { UnitFormModal } from '@/components/admin/units/unit-form-modal';
 import { DeleteUnitDialog } from '@/components/admin/units/delete-unit-dialog';
@@ -67,14 +85,16 @@ export default function UnitInstansiPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Breadcrumb / Context Tag */}
-      <div className="flex items-center gap-1.5 text-[#747686]">
-        <span className="material-symbols-outlined text-[16px]">account_tree</span>
-        <p className="text-[11px] uppercase tracking-wider font-semibold">
-          SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL <span className="text-[#C4C5D7] mx-1">&gt;</span>{' '}
-          <span className="text-[#747686]">DATA MASTER</span> <span className="text-[#C4C5D7] mx-1">&gt;</span>{' '}
-          <span className="text-[#0033A7] font-bold">UNIT INSTANSI</span>
-        </p>
-      </div>
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[#747686] text-[11px] uppercase tracking-wider font-semibold">
+        <div className="flex items-center gap-1">
+          <Home className="w-3.5 h-3.5 shrink-0 text-[#747686]" aria-hidden="true" />
+          <span>SISTEM PUSAT</span>
+        </div>
+        <ChevronRight className="w-3 h-3 text-[#C4C5D7] shrink-0" aria-hidden="true" />
+        <span className="text-[#747686]">DATA MASTER</span>
+        <ChevronRight className="w-3 h-3 text-[#C4C5D7] shrink-0" aria-hidden="true" />
+        <span className="text-[#0033A7] font-bold">UNIT INSTANSI</span>
+      </nav>
 
       {/* Header & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -88,9 +108,11 @@ export default function UnitInstansiPage() {
           <button
             type="button"
             onClick={() => loadUnits()}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] hover:bg-[#F0F3FF] transition-colors shadow-sm text-[13px] font-medium"
+            disabled={isLoading}
+            aria-label="Segarkan data unit"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] hover:bg-[#F0F3FF] transition-colors shadow-sm text-[13px] font-medium disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
           >
-            <span className="material-symbols-outlined text-[18px] text-[#747686]">sync</span>
+            <RefreshCw className={`w-4 h-4 text-[#747686] ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Segarkan</span>
           </button>
           <button
@@ -99,9 +121,9 @@ export default function UnitInstansiPage() {
               setSelectedUnitForEdit(null);
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white transition-colors shadow-sm text-[13px] font-semibold"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white transition-colors shadow-sm text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>Tambah Unit</span>
           </button>
         </div>
@@ -112,24 +134,25 @@ export default function UnitInstansiPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
           {/* Search Field */}
           <div className="relative flex-1 sm:max-w-xs">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-[#747686]">
-              search
-            </span>
+            <Search className="w-4 h-4 text-[#747686] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari nama unit, kode UPT..."
+              aria-label="Cari nama unit atau kode UPT"
               className="w-full h-10 pl-9 pr-3 rounded-lg bg-[#F0F3FF] text-[#111C2D] placeholder:text-[#747686] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2]"
             />
           </div>
 
           {/* Instansi Filter Dropdown */}
           <div className="relative sm:w-60">
+            <Building2 className="w-4 h-4 text-[#747686] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
             <select
               value={selectedInstId}
               onChange={(e) => setSelectedInstId(e.target.value)}
-              className="w-full h-10 px-3 pr-8 rounded-lg bg-[#F0F3FF] text-[#111C2D] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2] appearance-none cursor-pointer"
+              aria-label="Filter instansi induk"
+              className="w-full h-10 pl-9 pr-8 rounded-lg bg-[#F0F3FF] text-[#111C2D] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2] appearance-none cursor-pointer"
             >
               <option value="all">Semua Instansi ({institutionsList.length})</option>
               {institutionsList.map((inst) => (
@@ -138,30 +161,28 @@ export default function UnitInstansiPage() {
                 </option>
               ))}
             </select>
-            <span className="material-symbols-outlined absolute right-2.5 top-2.5 text-[18px] text-[#747686] pointer-events-none">
-              expand_more
-            </span>
+            <ChevronDown className="w-4 h-4 text-[#747686] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Status Filter Dropdown */}
           <div className="relative sm:w-44">
+            <Filter className="w-4 h-4 text-[#747686] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="w-full h-10 px-3 pr-8 rounded-lg bg-[#F0F3FF] text-[#111C2D] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2] appearance-none cursor-pointer"
+              aria-label="Filter status unit"
+              className="w-full h-10 pl-9 pr-8 rounded-lg bg-[#F0F3FF] text-[#111C2D] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2] appearance-none cursor-pointer"
             >
               <option value="all">Semua Status</option>
               <option value="active">Aktif</option>
               <option value="inactive">Non-Aktif</option>
             </select>
-            <span className="material-symbols-outlined absolute right-2.5 top-2.5 text-[18px] text-[#747686] pointer-events-none">
-              expand_more
-            </span>
+            <ChevronDown className="w-4 h-4 text-[#747686] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <div className="flex items-center gap-2 self-start lg:self-center text-[#747686] text-[12px] bg-[#F0F3FF] px-3 py-1.5 rounded-lg border border-[#D9DEE7]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1749D2]" />
+          <Network className="w-3.5 h-3.5 text-[#1749D2] shrink-0" aria-hidden="true" />
           <span>
             Total: <strong className="text-[#111C2D] font-semibold">{totalCount} Unit Pelaksana Terdaftar</strong>
           </span>
@@ -171,7 +192,7 @@ export default function UnitInstansiPage() {
       {/* Error Alert */}
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[13px] flex items-start gap-2.5">
-          <span className="material-symbols-outlined text-[20px] shrink-0">error</span>
+          <AlertCircle className="w-5 h-5 shrink-0 text-[#BA1A1A]" aria-hidden="true" />
           <span>{errorMsg}</span>
         </div>
       )}
@@ -190,7 +211,7 @@ export default function UnitInstansiPage() {
           /* Institutional Empty State */
           <div className="p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-[#F0F3FF] text-[#0033A7] flex items-center justify-center mb-4">
-              <span className="material-symbols-outlined text-[36px]">domain</span>
+              <Network className="w-8 h-8 text-[#0033A7]" aria-hidden="true" />
             </div>
             <h3 className="text-[17px] font-semibold text-[#111C2D] mb-1.5">
               Belum Ada Unit Pelaksana
@@ -206,9 +227,9 @@ export default function UnitInstansiPage() {
                 setSelectedUnitForEdit(null);
                 setIsModalOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
+              <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span>Tambah Unit Baru</span>
             </button>
           </div>
@@ -248,7 +269,7 @@ export default function UnitInstansiPage() {
                     {/* Instansi Induk */}
                     <td className="py-4 px-5 align-middle">
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#1749D2]/40" />
+                        <Building2 className="w-3.5 h-3.5 text-[#1749D2]/70 shrink-0" aria-hidden="true" />
                         <span className="text-[13px] font-medium text-[#111C2D]">
                           {unit.institution?.name || '—'}
                         </span>
@@ -258,17 +279,15 @@ export default function UnitInstansiPage() {
                     {/* Wilayah / Cakupan */}
                     <td className="py-4 px-5 align-middle">
                       <div className="flex items-center gap-1.5 text-[#434654] text-[13px]">
-                        <span className="material-symbols-outlined text-[16px] text-[#747686] shrink-0">
-                          pin_drop
-                        </span>
+                        <MapPin className="w-3.5 h-3.5 text-[#747686] shrink-0" aria-hidden="true" />
                         <span className="truncate">{unit.work_area || '—'}</span>
                       </div>
                     </td>
 
                     {/* Pengguna Internal */}
                     <td className="py-4 px-5 align-middle text-center whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F0F3FF] text-[12px] text-[#434654] font-medium">
-                        <span className="material-symbols-outlined text-[15px] text-[#0033A7]">person</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F0F3FF] text-[12px] text-[#434654] font-medium">
+                        <Users className="w-3.5 h-3.5 text-[#0033A7]" aria-hidden="true" />
                         <span>0 Petugas</span>
                       </span>
                     </td>
@@ -277,12 +296,12 @@ export default function UnitInstansiPage() {
                     <td className="py-4 px-5 align-middle text-center whitespace-nowrap">
                       {unit.is_active ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[11px] font-semibold border border-[#B5E2CD]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16845B]" aria-hidden="true" />
                           Aktif
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] text-[11px] font-medium border border-[#D9DEE7]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#747686]" />
+                          <XCircle className="w-3.5 h-3.5 text-[#747686]" aria-hidden="true" />
                           Non-Aktif
                         </span>
                       )}
@@ -297,18 +316,20 @@ export default function UnitInstansiPage() {
                             setSelectedUnitForEdit(unit);
                             setIsModalOpen(true);
                           }}
-                          className="p-1 rounded text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
                           title="Edit Unit"
+                          aria-label={`Edit unit ${unit.name}`}
                         >
-                          <span className="material-symbols-outlined text-[17px]">edit</span>
+                          <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setUnitToDelete(unit)}
-                          className="p-1 rounded text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BA1A1A]/30"
                           title="Hapus Unit"
+                          aria-label={`Hapus unit ${unit.name}`}
                         >
-                          <span className="material-symbols-outlined text-[17px]">delete</span>
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
                     </td>

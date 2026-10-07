@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ShieldCheck, X, AlertCircle, AlertTriangle, RefreshCw, Save } from 'lucide-react';
 import {
   createAuthorityRuleAction,
   type AuthorityRuleFormData,
@@ -81,7 +82,7 @@ export function CreateRuleModal({ isOpen, onClose, formData }: CreateRuleModalPr
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#C4C5D7]/60 bg-[#F0F3FF]">
           <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-[22px]">policy</span>
+            <ShieldCheck size={22} className="text-primary" aria-hidden="true" />
             <div className="flex flex-col">
               <h2 className="font-headline-sm text-[18px] font-bold text-[#111C2D]">Tambah Aturan Kewenangan</h2>
               <span className="text-[12px] text-[#434654]">Konfigurasi perutean laporan ke instansi penanggung jawab</span>
@@ -91,8 +92,10 @@ export function CreateRuleModal({ isOpen, onClose, formData }: CreateRuleModalPr
             type="button"
             onClick={onClose}
             className="p-1 rounded-lg text-[#747686] hover:bg-[#DFE8FF] hover:text-[#111C2D] transition-colors"
+            title="Tutup"
+            aria-label="Tutup"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
@@ -100,14 +103,14 @@ export function CreateRuleModal({ isOpen, onClose, formData }: CreateRuleModalPr
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5 max-h-[80vh] overflow-y-auto">
           {error && (
             <div className="p-3.5 rounded-lg bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#BA1A1A] text-[13px] flex items-start gap-2">
-              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
+              <AlertCircle size={18} className="shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
 
           {!hasInstitutions && (
             <div className="p-4 rounded-lg bg-[#FFEACC] border border-[#FD9D33]/60 text-[#683A00] text-[13px] flex items-start gap-3">
-              <span className="material-symbols-outlined text-[20px] text-[#8C5000] shrink-0">warning</span>
+              <AlertTriangle size={20} className="text-[#8C5000] shrink-0" aria-hidden="true" />
               <div className="flex flex-col gap-1">
                 <span className="font-semibold text-[#8C5000]">Master Data Instansi Belum Tersedia</span>
                 <span>
@@ -329,12 +332,12 @@ export function CreateRuleModal({ isOpen, onClose, formData }: CreateRuleModalPr
             >
               {isPending ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                  <RefreshCw size={18} className="animate-spin" aria-hidden="true" />
                   <span>Menyimpan...</span>
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-[18px]">save</span>
+                  <Save size={18} aria-hidden="true" />
                   <span>Simpan Aturan</span>
                 </>
               )}

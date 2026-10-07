@@ -4,21 +4,27 @@ import type {
   TriageInput,
   EvidenceVerificationInput,
   DuplicateDetectionInput,
+  AuthorityRecommendationInput,
 } from './provider'
 import { AIConfigurationError, AIProviderError } from './provider'
-import type { AITriageResult, AIEvidenceAnalysis, AIDuplicateCandidate } from '@/types/ai'
+import type { AITriageResult, AIEvidenceAnalysis, AIDuplicateCandidate, AIAuthorityRecommendation } from '@/types/ai'
 import {
   aiTriageOutputSchema,
   aiEvidenceAnalysisSchema,
   aiDuplicateCandidateSchema,
+  aiAuthorityRecommendationSchema,
 } from '@/lib/validators/ai'
 import { z } from 'zod'
 
-export const GEMINI_MODEL = 'gemini-3.8-flash'
+export function getGeminiModel(): string {
+  return process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+}
+
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 
 export class GeminiProvider implements AIProvider {
   readonly name = 'Google Gemini AI'
-  private readonly client: GoogleGenAI | null = null
+  private client: GoogleGenAI | null = null
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY
@@ -28,10 +34,18 @@ export class GeminiProvider implements AIProvider {
   }
 
   get isConfigured(): boolean {
-    return this.client !== null
+    if (this.client) return true
+    const apiKey = process.env.GEMINI_API_KEY
+    return Boolean(apiKey && apiKey.trim().length > 0)
   }
 
   private ensureClient(): GoogleGenAI {
+    if (!this.client) {
+      const apiKey = process.env.GEMINI_API_KEY
+      if (apiKey && apiKey.trim().length > 0) {
+        this.client = new GoogleGenAI({ apiKey: apiKey.trim() })
+      }
+    }
     if (!this.client) {
       throw new AIConfigurationError(
         'Gemini API key is not configured. Set GEMINI_API_KEY in server environment.'
@@ -112,7 +126,7 @@ Berikan respon HANYA dalam format JSON valid sesuai schema berikut:
 
     try {
       const response = await this.generateWithRetry(ai, {
-        model: GEMINI_MODEL,
+        model: getGeminiModel(),
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -159,6 +173,128 @@ Berikan respon HANYA dalam format JSON valid sesuai schema berikut:
   }
 
   /**
+   * Second-step authority recommendation.
+   * Given pre-filtered candidates from authority_rules, asks AI to select the best match.
+   * The AI can ONLY select from the provided candidates or declare NEEDS_REVIEW.
+   */
+  async recommendAuthority(input: AuthorityRecommendationInput): Promise<AIAuthorityRecommendation> {
+    const ai = this.ensureClient()
+
+    if (input.candidates.length === 0) {
+      return {
+        rule_code: null,
+        decision: 'NEEDS_REVIEW',
+        confidence: 0,
+        reasoning: 'Tidak ada aturan kewenangan yang terdaftar untuk kategori ini.',
+        institution_name: null,
+        institution_code: null,
+        unit_name: null,
+        unit_code: null,
+        context_title: null,
+      }
+    }
+
+    const candidatesList = input.candidates
+      .map(
+        (c, idx) =>
+          `Kandidat #${idx + 1}:\n` +
+          `  rule_code: ${c.rule_code}\n` +
+          `  Instansi: ${c.institution_name} (${c.institution_code})\n` +
+          `  Unit/UPTD: ${c.unit_name || '-'}${c.unit_code ? ` (${c.unit_code})` : ''}\n` +
+          `  Konteks Kewenangan: ${c.context_title}\n` +
+          `  Deskripsi: ${c.context_description || '-'}\n` +
+          `  Dasar Hukum: ${c.regulation_basis}`
+      )
+      .join('\n\n')
+
+    const prompt = `Anda adalah sistem AI LAPORKITO untuk menentukan instansi berwenang atas aduan warga Kota Palembang.
+
+Tugas Anda: Dari daftar kandidat aturan kewenangan di bawah, pilih SATU yang paling sesuai untuk menangani aduan ini.
+
+ATURAN MUTLAK:
+1. Anda HANYA boleh memilih dari daftar kandidat yang disediakan.
+2. Jika tidak ada kandidat yang sesuai, pilih decision = "NEEDS_REVIEW" dan rule_code = null.
+3. JANGAN PERNAH mengarang rule_code, nama instansi, atau kode yang tidak ada dalam daftar.
+
+Data Pengaduan:
+- Judul: ${input.title}
+- Deskripsi: ${input.description}
+- Kategori: ${input.categorySlug}${input.categoryName ? ` (${input.categoryName})` : ''}
+- Kecamatan: ${input.districtName || '-'}
+- Kelurahan: ${input.subdistrictName || '-'}
+- Alamat: ${input.addressDetail || '-'}
+
+Daftar Kandidat Aturan Kewenangan:
+${candidatesList}
+
+Berikan respon HANYA dalam format JSON valid:
+{
+  "rule_code": "RULE_CODE dari daftar di atas, atau null jika tidak sesuai",
+  "decision": "RECOMMEND" | "NEEDS_REVIEW",
+  "confidence": 0.85,
+  "reasoning": "Penjelasan singkat alasan pemilihan atau alasan memerlukan review manual"
+}`
+
+    try {
+      const response = await this.generateWithRetry(ai, {
+        model: getGeminiModel(),
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+        },
+      })
+
+      const text = response.text?.trim()
+      if (!text) {
+        throw new AIProviderError('Gemini returned an empty response for authority recommendation.')
+      }
+
+      const parsed = JSON.parse(text)
+      const validated = aiAuthorityRecommendationSchema.parse(parsed)
+
+      // Server-side enforcement: verify rule_code is from the provided candidates
+      let matchedCandidate = null
+      if (validated.decision === 'RECOMMEND' && validated.rule_code) {
+        matchedCandidate = input.candidates.find(
+          (c) => c.rule_code === validated.rule_code
+        )
+        if (!matchedCandidate) {
+          // AI hallucinated a rule_code not in the list — override to NEEDS_REVIEW
+          return {
+            rule_code: null,
+            decision: 'NEEDS_REVIEW',
+            confidence: 0,
+            reasoning: `AI merekomendasikan rule_code "${validated.rule_code}" yang tidak ada dalam daftar kandidat. Dialihkan ke review manual.`,
+            institution_name: null,
+            institution_code: null,
+            unit_name: null,
+            unit_code: null,
+            context_title: null,
+          }
+        }
+      }
+
+      return {
+        rule_code: validated.rule_code,
+        decision: validated.decision,
+        confidence: validated.confidence,
+        reasoning: validated.reasoning,
+        institution_name: matchedCandidate?.institution_name ?? null,
+        institution_code: matchedCandidate?.institution_code ?? null,
+        unit_name: matchedCandidate?.unit_name ?? null,
+        unit_code: matchedCandidate?.unit_code ?? null,
+        context_title: matchedCandidate?.context_title ?? null,
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new AIProviderError(`Gemini authority recommendation schema validation failed: ${err.message}`, err)
+      }
+      throw new AIProviderError(`Gemini authority recommendation failed: ${(err as Error).message}`, err)
+    }
+  }
+
+  /**
    * Verify evidence validity and identify media content.
    */
   async verifyEvidence(input: EvidenceVerificationInput): Promise<AIEvidenceAnalysis> {
@@ -182,7 +318,7 @@ Keluarkan output HANYA format JSON valid:
 
     try {
       const response = await this.generateWithRetry(ai, {
-        model: GEMINI_MODEL,
+        model: getGeminiModel(),
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -258,7 +394,7 @@ Format output HANYA array JSON:
 
     try {
       const response = await this.generateWithRetry(ai, {
-        model: GEMINI_MODEL,
+        model: getGeminiModel(),
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

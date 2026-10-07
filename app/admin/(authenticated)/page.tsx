@@ -1,7 +1,34 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import type { ReportStatus } from "@/types/database";
+import { redirect } from "next/navigation";
+import {
+  Activity,
+  ArrowRight,
+  Badge,
+  BarChart3,
+  Building2,
+  CircleCheck,
+  CircleX,
+  ClipboardCheck,
+  Clock3,
+  Copy,
+  FileText,
+  History,
+  Inbox,
+  ListChecks,
+  PencilLine,
+  Send,
+  Server,
+  Settings2,
+  ShieldCheck,
+  Tags,
+  Users,
+  Warehouse,
+  type LucideIcon,
+} from "lucide-react";
 
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentInternalUser } from "@/lib/auth/session";
+import type { ReportStatus } from "@/types/database";
 export const dynamic = "force-dynamic";
 
 // ====================================================================
@@ -10,16 +37,70 @@ export const dynamic = "force-dynamic";
 
 const STATUS_CONFIG: Record<
   ReportStatus,
-  { label: string; icon: string; color: string; bgColor: string; borderColor: string }
+  {
+    label: string;
+    icon: LucideIcon;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+  }
 > = {
-  draft: { label: "Draf", icon: "edit_note", color: "#747686", bgColor: "#F0F3FF", borderColor: "#D9DEE7" },
-  submitted: { label: "Dikirim", icon: "outgoing_mail", color: "#0033A7", bgColor: "#EEF2FC", borderColor: "#C4D3F8" },
-  verifying: { label: "Verifikasi", icon: "fact_check", color: "#B2640A", bgColor: "#FEF3E6", borderColor: "#FCD7A9" },
-  verified: { label: "Terverifikasi", icon: "check_circle", color: "#16845B", bgColor: "#EDF7F2", borderColor: "#B5E2CD" },
-  in_progress: { label: "Dalam Proses", icon: "pending_actions", color: "#1749D2", bgColor: "#EEF2FC", borderColor: "#C4D3F8" },
-  resolved: { label: "Selesai", icon: "task_alt", color: "#16845B", bgColor: "#EDF7F2", borderColor: "#B5E2CD" },
-  rejected: { label: "Ditolak", icon: "cancel", color: "#BA1A1A", bgColor: "#FFDAD6", borderColor: "#FFB4AB" },
-  duplicate: { label: "Duplikat", icon: "content_copy", color: "#747686", bgColor: "#F0F3FF", borderColor: "#D9DEE7" },
+  draft: {
+    label: "Draf",
+    icon: PencilLine,
+    color: "#747686",
+    bgColor: "#F0F3FF",
+    borderColor: "#D9DEE7",
+  },
+  submitted: {
+    label: "Dikirim",
+    icon: Send,
+    color: "#0033A7",
+    bgColor: "#EEF2FC",
+    borderColor: "#C4D3F8",
+  },
+  verifying: {
+    label: "Verifikasi",
+    icon: ClipboardCheck,
+    color: "#B2640A",
+    bgColor: "#FEF3E6",
+    borderColor: "#FCD7A9",
+  },
+  verified: {
+    label: "Terverifikasi",
+    icon: CircleCheck,
+    color: "#16845B",
+    bgColor: "#EDF7F2",
+    borderColor: "#B5E2CD",
+  },
+  in_progress: {
+    label: "Dalam Proses",
+    icon: Clock3,
+    color: "#1749D2",
+    bgColor: "#EEF2FC",
+    borderColor: "#C4D3F8",
+  },
+  resolved: {
+    label: "Selesai",
+    icon: ListChecks,
+    color: "#16845B",
+    bgColor: "#EDF7F2",
+    borderColor: "#B5E2CD",
+  },
+  rejected: {
+    label: "Ditolak",
+    icon: CircleX,
+    color: "#BA1A1A",
+    bgColor: "#FFDAD6",
+    borderColor: "#FFB4AB",
+  },
+  duplicate: {
+    label: "Duplikat",
+    icon: Copy,
+    color: "#747686",
+    bgColor: "#F0F3FF",
+    borderColor: "#D9DEE7",
+  },
 };
 
 // ====================================================================
@@ -27,6 +108,11 @@ const STATUS_CONFIG: Record<
 // ====================================================================
 
 export default async function AdminDashboardPage() {
+  const { internalUser } = await getCurrentInternalUser();
+  if (internalUser?.role === "petugas") {
+    redirect("/admin/laporan");
+  }
+
   const supabase = await createClient();
 
   // Parallel queries for all metrics — real data only
@@ -91,7 +177,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#EDF7F2] border border-[#B5E2CD] rounded-lg shadow-sm self-start md:self-auto">
-          <span className="material-symbols-outlined text-[#16845B] text-[18px]">verified</span>
+          <CircleCheck size={18} strokeWidth={2} className="text-[#16845B]" />
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold text-[#111C2D]">Sistem Operasional</span>
             <span className="text-[10px] text-[#747686]">Fase 4F — Dashboard Aktif</span>
@@ -104,7 +190,7 @@ export default async function AdminDashboardPage() {
       {/* ================================================================ */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-[#1749D2] text-[20px]">assessment</span>
+          <BarChart3 size={20} strokeWidth={2} className="text-[#1749D2]" />
           <h2 className="text-[18px] font-semibold text-[#111C2D]">Ringkasan Laporan</h2>
         </div>
 
@@ -113,7 +199,7 @@ export default async function AdminDashboardPage() {
           <div className="bg-gradient-to-br from-[#1749D2] to-[#0033A7] p-5 rounded-xl shadow-sm flex flex-col justify-between sm:col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-medium text-white/80">Total Laporan</span>
-              <span className="material-symbols-outlined text-white/60 text-[20px]">description</span>
+              <FileText size={20} strokeWidth={2} className="text-white/60" />
             </div>
             <div className="mt-4">
               <span className="text-[32px] font-bold text-white">{totalReports}</span>
@@ -125,21 +211,21 @@ export default async function AdminDashboardPage() {
           <StatusCard
             label="Baru / Dikirim"
             count={statusCounts.submitted}
-            icon="outgoing_mail"
+            icon={Send}
             color="#0033A7"
             bgColor="#EEF2FC"
           />
           <StatusCard
             label="Dalam Proses"
             count={statusCounts.in_progress + statusCounts.verifying + statusCounts.verified}
-            icon="pending_actions"
+            icon={Clock3}
             color="#B2640A"
             bgColor="#FEF3E6"
           />
           <StatusCard
             label="Selesai"
             count={statusCounts.resolved}
-            icon="task_alt"
+            icon={ListChecks}
             color="#16845B"
             bgColor="#EDF7F2"
           />
@@ -151,35 +237,37 @@ export default async function AdminDashboardPage() {
             <p className="text-[13px] font-semibold text-[#111C2D] mb-3">Distribusi Status Laporan</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {(Object.entries(STATUS_CONFIG) as [ReportStatus, typeof STATUS_CONFIG[ReportStatus]][]).map(
-                ([status, cfg]) => (
-                  <div
-                    key={status}
-                    className="flex items-center gap-2.5 p-3 rounded-lg border"
-                    style={{ borderColor: cfg.borderColor, backgroundColor: cfg.bgColor }}
-                  >
-                    <span
-                      className="material-symbols-outlined text-[18px]"
-                      style={{ color: cfg.color }}
+                ([status, cfg]) => {
+                  const Icon = cfg.icon;
+                  return (
+                    <div
+                      key={status}
+                      className="flex items-center gap-2.5 p-3 rounded-lg border"
+                      style={{ borderColor: cfg.borderColor, backgroundColor: cfg.bgColor }}
                     >
-                      {cfg.icon}
-                    </span>
-                    <div>
-                      <p className="text-[12px] font-medium" style={{ color: cfg.color }}>
-                        {cfg.label}
-                      </p>
-                      <p className="text-[16px] font-bold text-[#111C2D]">
-                        {statusCounts[status]}
-                      </p>
+                      <Icon
+                        size={18}
+                        strokeWidth={2}
+                        style={{ color: cfg.color }}
+                      />
+                      <div>
+                        <p className="text-[12px] font-medium" style={{ color: cfg.color }}>
+                          {cfg.label}
+                        </p>
+                        <p className="text-[16px] font-bold text-[#111C2D]">
+                          {statusCounts[status]}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )
+                  );
+                }
               )}
             </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-8 text-center">
             <div className="w-12 h-12 rounded-xl bg-[#F0F3FF] flex items-center justify-center mx-auto mb-3">
-              <span className="material-symbols-outlined text-[#747686] text-[28px]">inbox</span>
+              <Inbox size={28} strokeWidth={2} className="text-[#747686]" />
             </div>
             <p className="text-[14px] font-medium text-[#434654]">Belum Ada Laporan</p>
             <p className="text-[12px] text-[#747686] mt-1">
@@ -194,17 +282,17 @@ export default async function AdminDashboardPage() {
       {/* ================================================================ */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-[#1749D2] text-[20px]">dns</span>
+          <Server size={20} strokeWidth={2} className="text-[#1749D2]" />
           <h2 className="text-[18px] font-semibold text-[#111C2D]">Infrastruktur Platform</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <MetricCard label="Instansi" count={institutionsCount} icon="apartment" href="/admin/instansi" />
-          <MetricCard label="Unit Teknis" count={unitsCount} icon="domain" href="/admin/unit" />
-          <MetricCard label="Pengguna Aktif" count={activeStaff} icon="badge" href="/admin/pengguna-internal" />
-          <MetricCard label="Kategori" count={categoriesCount ?? 0} icon="category" href="/admin/kategori-laporan" color="#16845B" />
-          <MetricCard label="Aturan Kewenangan" count={authorityRulesCount} icon="policy" href="/admin/data-kewenangan" />
-          <MetricCard label="Total Pengguna" count={internalUsersCount ?? 0} icon="group" href="/admin/pengguna-internal" />
+          <MetricCard label="Instansi" count={institutionsCount} icon={Building2} href="/admin/instansi" />
+          <MetricCard label="Unit Teknis" count={unitsCount} icon={Warehouse} href="/admin/unit" />
+          <MetricCard label="Pengguna Aktif" count={activeStaff} icon={Badge} href="/admin/pengguna-internal" />
+          <MetricCard label="Kategori" count={categoriesCount ?? 0} icon={Tags} href="/admin/kategori-laporan" color="#16845B" />
+          <MetricCard label="Aturan Kewenangan" count={authorityRulesCount} icon={ShieldCheck} href="/admin/data-kewenangan" />
+          <MetricCard label="Total Pengguna" count={internalUsersCount ?? 0} icon={Users} href="/admin/pengguna-internal" />
         </div>
       </div>
 
@@ -213,7 +301,7 @@ export default async function AdminDashboardPage() {
       {/* ================================================================ */}
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-[#1749D2] text-[20px]">timeline</span>
+          <Activity size={20} strokeWidth={2} className="text-[#1749D2]" />
           <h2 className="text-[18px] font-semibold text-[#111C2D]">Aktivitas Operasional</h2>
         </div>
 
@@ -233,7 +321,7 @@ export default async function AdminDashboardPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <div className="w-10 h-10 rounded-lg bg-[#F0F3FF] flex items-center justify-center mb-3">
-                  <span className="material-symbols-outlined text-[#747686] text-[22px]">history</span>
+                  <History size={22} strokeWidth={2} className="text-[#747686]" />
                 </div>
                 <p className="text-[13px] text-[#434654] font-medium">Belum Ada Aktivitas</p>
                 <p className="text-[12px] text-[#747686] mt-1 max-w-xs">
@@ -247,10 +335,11 @@ export default async function AdminDashboardPage() {
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-5">
             <p className="text-[13px] font-semibold text-[#111C2D] mb-4">Aksi Cepat</p>
             <div className="flex flex-col gap-2">
-              <QuickLink href="/admin/instansi" icon="apartment" label="Kelola Instansi" description="Tambah atau edit OPD penerima laporan" />
-              <QuickLink href="/admin/pengguna-internal" icon="badge" label="Kelola Pengguna" description="Undang atau atur akun staf internal" />
-              <QuickLink href="/admin/data-kewenangan" icon="policy" label="Aturan Kewenangan" description="Konfigurasi matriks routing laporan" />
-              <QuickLink href="/admin/pengaturan-sistem" icon="tune" label="Pengaturan Sistem" description="Konfigurasi parameter platform" />
+              <QuickLink href="/admin/laporan" icon={Inbox} label="Laporan Masuk" description="Buka antrean inspeksi operasional laporan warga" />
+              <QuickLink href="/admin/instansi" icon={Building2} label="Kelola Instansi" description="Tambah atau edit OPD penerima laporan" />
+              <QuickLink href="/admin/pengguna-internal" icon={Badge} label="Kelola Pengguna" description="Undang atau atur akun staf internal" />
+              <QuickLink href="/admin/data-kewenangan" icon={ShieldCheck} label="Aturan Kewenangan" description="Konfigurasi matriks routing laporan" />
+              <QuickLink href="/admin/pengaturan-sistem" icon={Settings2} label="Pengaturan Sistem" description="Konfigurasi parameter platform" />
             </div>
           </div>
         </div>
@@ -272,11 +361,11 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden flex flex-col divide-y divide-[#F0F3FF]">
-          <DataMasterRow href="/admin/instansi" icon="apartment" label="Instansi" badge={`${institutionsCount} Instansi Terdaftar`} description="Kelola daftar instansi penerima laporan kedinasan (PUPR, DLHK, Dishub, Perumda Tirta Musi, dll)." />
-          <DataMasterRow href="/admin/unit" icon="domain" label="Unit Instansi" badge={`${unitsCount} Unit Pelaksana`} description="Kelola unit kerja dan seksi operasional di bawah instansi (UPT Wilayah, Seksi Jalan & Jembatan, Posko Kebersihan)." />
-          <DataMasterRow href="/admin/pengguna-internal" icon="badge" label="Pengguna Internal" badge={`${internalUsersCount ?? 0} Pengguna`} description="Kelola akun ASN, verifikator lapangan, dan operator penerima pengaduan di lingkungan Pemkot Palembang." />
-          <DataMasterRow href="/admin/kategori-laporan" icon="category" label="Kategori Laporan" badge={`${categoriesCount ?? 0} Kategori Aktif`} badgeColor="green" description="Kelola taksonomi insiden sipil resmi (Infrastruktur & Jalan, Kebersihan & Sampah, Drainase & Banjir, Penerangan Jalan)." />
-          <DataMasterRow href="/admin/data-kewenangan" icon="policy" label="Data Kewenangan" badge={`${authorityRulesCount} Aturan Aktif`} description="Kelola matriks aturan routing pengaduan warga ke instansi yang berwenang secara akurat." />
+          <DataMasterRow href="/admin/instansi" icon={Building2} label="Instansi" badge={`${institutionsCount} Instansi Terdaftar`} description="Kelola daftar instansi penerima laporan kedinasan (PUPR, DLHK, Dishub, Perumda Tirta Musi, dll)." />
+          <DataMasterRow href="/admin/unit" icon={Warehouse} label="Unit Instansi" badge={`${unitsCount} Unit Pelaksana`} description="Kelola unit kerja dan seksi operasional di bawah instansi (UPT Wilayah, Seksi Jalan & Jembatan, Posko Kebersihan)." />
+          <DataMasterRow href="/admin/pengguna-internal" icon={Badge} label="Pengguna Internal" badge={`${internalUsersCount ?? 0} Pengguna`} description="Kelola akun ASN, verifikator lapangan, dan operator penerima pengaduan di lingkungan Pemkot Palembang." />
+          <DataMasterRow href="/admin/kategori-laporan" icon={Tags} label="Kategori Laporan" badge={`${categoriesCount ?? 0} Kategori Aktif`} badgeColor="green" description="Kelola taksonomi insiden sipil resmi (Infrastruktur & Jalan, Kebersihan & Sampah, Drainase & Banjir, Penerangan Jalan)." />
+          <DataMasterRow href="/admin/data-kewenangan" icon={ShieldCheck} label="Data Kewenangan" badge={`${authorityRulesCount} Aturan Aktif`} description="Kelola matriks aturan routing pengaduan warga ke instansi yang berwenang secara akurat." />
         </div>
       </div>
     </div>
@@ -290,13 +379,13 @@ export default async function AdminDashboardPage() {
 function StatusCard({
   label,
   count,
-  icon,
+  icon: Icon,
   color,
   bgColor,
 }: {
   label: string;
   count: number;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   bgColor: string;
 }) {
@@ -305,7 +394,7 @@ function StatusCard({
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-medium text-[#747686]">{label}</span>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: bgColor }}>
-          <span className="material-symbols-outlined text-[18px]" style={{ color }}>{icon}</span>
+          <Icon size={18} strokeWidth={2} style={{ color }} />
         </div>
       </div>
       <div className="mt-4">
@@ -318,13 +407,13 @@ function StatusCard({
 function MetricCard({
   label,
   count,
-  icon,
+  icon: Icon,
   href,
   color = "#1749D2",
 }: {
   label: string;
   count: number;
-  icon: string;
+  icon: LucideIcon;
   href: string;
   color?: string;
 }) {
@@ -335,13 +424,13 @@ function MetricCard({
     >
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-8 h-8 rounded-lg bg-[#F0F3FF] flex items-center justify-center" style={{ color }}>
-          <span className="material-symbols-outlined text-[18px]">{icon}</span>
+          <Icon size={18} strokeWidth={2} />
         </div>
         <span className="text-[12px] font-medium text-[#747686]">{label}</span>
       </div>
       <div className="flex items-baseline gap-2">
         <span className="text-[22px] font-bold text-[#111C2D]">{count}</span>
-        <span className="material-symbols-outlined text-[14px] text-[#747686] group-hover:text-[#1749D2] transition-colors">arrow_forward</span>
+        <ArrowRight size={14} strokeWidth={2} className="text-[#747686] group-hover:text-[#1749D2] transition-colors" />
       </div>
     </Link>
   );
@@ -349,12 +438,12 @@ function MetricCard({
 
 function QuickLink({
   href,
-  icon,
+  icon: Icon,
   label,
   description,
 }: {
   href: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
   description: string;
 }) {
@@ -364,29 +453,27 @@ function QuickLink({
       className="flex items-center gap-3 p-3 rounded-lg hover:bg-[#F0F3FF] transition-colors group"
     >
       <div className="w-9 h-9 rounded-lg bg-[#F0F3FF] flex items-center justify-center shrink-0 text-[#0033A7] group-hover:bg-[#DFE8FF] transition-colors">
-        <span className="material-symbols-outlined text-[18px]">{icon}</span>
+        <Icon size={18} strokeWidth={2} />
       </div>
       <div className="min-w-0">
         <p className="text-[13px] font-semibold text-[#111C2D] group-hover:text-[#0033A7] transition-colors">{label}</p>
         <p className="text-[12px] text-[#747686] truncate">{description}</p>
       </div>
-      <span className="material-symbols-outlined text-[16px] text-[#747686] ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        arrow_forward
-      </span>
+      <ArrowRight size={16} strokeWidth={2} className="text-[#747686] ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
     </Link>
   );
 }
 
 function DataMasterRow({
   href,
-  icon,
+  icon: Icon,
   label,
   badge,
   badgeColor,
   description,
 }: {
   href: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
   badge: string;
   badgeColor?: "green" | "blue";
@@ -401,7 +488,7 @@ function DataMasterRow({
     <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#F9F9FF] transition-colors">
       <div className="flex items-start gap-4">
         <div className="w-10 h-10 rounded-lg bg-[#F0F3FF] flex items-center justify-center shrink-0 mt-0.5 text-[#0033A7]">
-          <span className="material-symbols-outlined text-[22px]">{icon}</span>
+          <Icon size={22} strokeWidth={2} />
         </div>
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -421,7 +508,7 @@ function DataMasterRow({
           className="inline-flex items-center gap-1.5 text-[13px] text-[#0033A7] hover:text-[#1749D2] font-semibold transition-colors px-3 py-1.5 rounded-lg hover:bg-[#F0F3FF]"
         >
           <span>Buka</span>
-          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          <ArrowRight size={16} strokeWidth={2} />
         </Link>
       </div>
     </div>

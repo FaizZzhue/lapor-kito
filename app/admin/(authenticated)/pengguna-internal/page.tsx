@@ -4,14 +4,18 @@ import { useState, useCallback } from 'react';
 import {
   Users,
   Search,
-  Plus,
+  UserPlus,
   RefreshCw,
-  Edit2,
+  Pencil,
   Shield,
   ShieldCheck,
   ChevronRight,
   ArrowRight,
-  Filter,
+  ListFilter,
+  AlertCircle,
+  Mail,
+  Phone,
+  Home,
 } from 'lucide-react';
 import { getInternalUsersAction } from '@/lib/actions/internal-users';
 import { InviteUserModal } from '@/components/admin/users/invite-user-modal';
@@ -117,22 +121,30 @@ export default function PenggunaInternalPage() {
     <div className="flex flex-col w-full gap-6 max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8">
       {/* Breadcrumb / Hierarchy */}
       <div className="flex items-center gap-1.5 text-outline text-xs uppercase tracking-wider font-semibold">
-        <span>SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL</span>
-        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" />
+        <span className="inline-flex items-center gap-1">
+          <Home className="w-3.5 h-3.5" aria-hidden="true" />
+          SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL
+        </span>
+        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" aria-hidden="true" />
         <span>DATA MASTER</span>
-        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" />
+        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" aria-hidden="true" />
         <span className="text-primary font-bold">PENGGUNA INTERNAL</span>
       </div>
 
       {/* Header & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold">
-            Pengguna Internal
-          </h1>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
-            Kelola akses pengguna yang bekerja pada instansi penerima laporan di lingkungan Pemerintah Kota Palembang.
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold">
+              Pengguna Internal
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
+              Kelola akses pengguna yang bekerja pada instansi penerima laporan di lingkungan Pemerintah Kota Palembang.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -141,7 +153,7 @@ export default function PenggunaInternalPage() {
             disabled={isLoading}
             className="h-10 px-4 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors shadow-xs border border-outline-variant/60 flex items-center gap-2 font-label-md text-label-md font-medium"
           >
-            <RefreshCw className={`w-4 h-4 text-on-surface-variant ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-on-surface-variant ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Sinkronisasi ASN / Kepegawaian</span>
           </button>
           <button
@@ -149,7 +161,7 @@ export default function PenggunaInternalPage() {
             onClick={() => setIsInviteModalOpen(true)}
             className="h-10 px-4 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-xs flex items-center gap-2 font-label-md text-label-md font-semibold"
           >
-            <Plus className="w-4 h-4" />
+            <UserPlus className="w-4 h-4" aria-hidden="true" />
             <span>Tambah Pengguna</span>
           </button>
         </div>
@@ -160,7 +172,7 @@ export default function PenggunaInternalPage() {
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
           {/* Search Box */}
           <div className="relative min-w-[280px] max-w-md flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4 pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4 pointer-events-none" aria-hidden="true" />
             <input
               type="text"
               value={search}
@@ -172,7 +184,7 @@ export default function PenggunaInternalPage() {
 
           {/* Role Filter */}
           <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-outline hidden sm:block" />
+            <Shield className="w-3.5 h-3.5 text-outline hidden sm:block" aria-hidden="true" />
             <select
               value={roleFilter}
               onChange={(e) => handleRoleFilterChange(e.target.value as 'all' | 'admin' | 'petugas')}
@@ -185,7 +197,8 @@ export default function PenggunaInternalPage() {
           </div>
 
           {/* Status Filter */}
-          <div>
+          <div className="flex items-center gap-1.5">
+            <ListFilter className="w-3.5 h-3.5 text-outline hidden sm:block" aria-hidden="true" />
             <select
               value={statusFilter}
               onChange={(e) => handleStatusFilterChange(e.target.value as 'all' | 'active' | 'inactive')}
@@ -210,7 +223,7 @@ export default function PenggunaInternalPage() {
       {/* Error Alert */}
       {errorMsg && (
         <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-          <span className="font-semibold text-error shrink-0">⚠</span>
+          <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
           <span>{errorMsg}</span>
         </div>
       )}
@@ -264,7 +277,7 @@ export default function PenggunaInternalPage() {
                         onClick={() => setIsInviteModalOpen(true)}
                         className="mt-4 px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-1.5 shadow-xs"
                       >
-                        <Plus className="w-4 h-4" />
+                        <UserPlus className="w-4 h-4" aria-hidden="true" />
                         <span>Undang Pengguna Pertama</span>
                       </button>
                     )}
@@ -283,11 +296,13 @@ export default function PenggunaInternalPage() {
                           <span className="font-label-md text-label-md font-semibold text-on-surface truncate">
                             {u.full_name}
                           </span>
-                          <span className="font-body-sm text-body-sm text-on-surface-variant truncate">
+                          <span className="font-body-sm text-body-sm text-on-surface-variant truncate flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5 text-outline shrink-0" aria-hidden="true" />
                             {u.email}
                           </span>
                           {u.phone && (
-                            <span className="font-body-sm text-[12px] text-outline truncate">
+                            <span className="font-body-sm text-[12px] text-outline truncate flex items-center gap-1.5">
+                              <Phone className="w-3.5 h-3.5 text-outline shrink-0" aria-hidden="true" />
                               Kontak: {u.phone}
                             </span>
                           )}
@@ -338,7 +353,7 @@ export default function PenggunaInternalPage() {
                           onClick={() => handleOpenEdit(u)}
                           className="px-2.5 py-1 text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors flex items-center gap-1"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Edit</span>
                         </button>
                         <button
@@ -346,8 +361,8 @@ export default function PenggunaInternalPage() {
                           onClick={() => handleOpenAccess(u)}
                           className="px-3 py-1 bg-surface-container text-primary hover:bg-surface-container-high rounded text-label-sm font-label-sm font-semibold transition-colors flex items-center gap-1"
                         >
+                          <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Kelola Akses</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

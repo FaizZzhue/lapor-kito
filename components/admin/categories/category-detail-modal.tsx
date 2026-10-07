@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import {
   X,
-  Edit2,
+  Pencil,
   Trash2,
   Power,
   Road,
-  Trash2 as TrashIcon,
   Droplets,
   Lightbulb,
   Tag,
   AlertTriangle,
+  AlertCircle,
   ShieldCheck,
   CheckCircle2,
   FileText,
@@ -35,7 +35,7 @@ function renderCategoryIcon(iconName: string | null, className = 'w-6 h-6') {
     case 'road':
       return <Road className={className} />;
     case 'trash-2':
-      return <TrashIcon className={className} />;
+      return <Trash2 className={className} />;
     case 'droplets':
       return <Droplets className={className} />;
     case 'lightbulb':
@@ -149,7 +149,7 @@ export function CategoryDetailModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {error && (
             <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <span className="font-semibold text-error shrink-0">⚠</span>
+              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
@@ -322,7 +322,7 @@ export function CategoryDetailModal({
               }}
               className="h-9 px-4 rounded-lg bg-primary text-on-primary hover:bg-primary-container font-label-md text-label-md font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
             >
-              <Edit2 className="w-4 h-4" />
+              <Pencil className="w-4 h-4" />
               <span>Edit Kategori</span>
             </button>
             <button

@@ -1,4 +1,4 @@
-import type { AITriageResult, AIEvidenceAnalysis, AIDuplicateCandidate } from '@/types/ai'
+import type { AITriageResult, AIEvidenceAnalysis, AIDuplicateCandidate, AIAuthorityRecommendation } from '@/types/ai'
 import { getGeminiProvider } from './gemini'
 
 export class AIConfigurationError extends Error {
@@ -24,6 +24,32 @@ export interface AuthorityOption {
 export interface CategoryOption {
   slug: string
   name: string
+}
+
+/**
+ * Structured authority candidate provided to AI from authority_rules DB table.
+ * These are pre-filtered by category_slug and active status.
+ */
+export interface AuthorityCandidateForAI {
+  rule_code: string
+  institution_name: string
+  institution_code: string
+  unit_name: string | null
+  unit_code: string | null
+  context_title: string
+  context_description: string | null
+  regulation_basis: string
+}
+
+export interface AuthorityRecommendationInput {
+  title: string
+  description: string
+  categorySlug: string
+  categoryName?: string
+  districtName?: string
+  subdistrictName?: string
+  addressDetail?: string
+  candidates: AuthorityCandidateForAI[]
 }
 
 export interface TriageInput {
@@ -68,6 +94,7 @@ export interface AIProvider {
   readonly name: string
   readonly isConfigured: boolean
   triageReport(input: TriageInput): Promise<AITriageResult>
+  recommendAuthority(input: AuthorityRecommendationInput): Promise<AIAuthorityRecommendation>
   verifyEvidence(input: EvidenceVerificationInput): Promise<AIEvidenceAnalysis>
   detectDuplicates(input: DuplicateDetectionInput): Promise<AIDuplicateCandidate[]>
 }

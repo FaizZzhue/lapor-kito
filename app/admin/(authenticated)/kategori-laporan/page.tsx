@@ -7,15 +7,20 @@ import {
   Droplets,
   Lightbulb,
   Tag,
+  Tags,
   AlertTriangle,
+  AlertCircle,
   ShieldCheck,
   Search,
   Plus,
   RefreshCw,
-  Edit2,
+  Pencil,
   Sparkles,
   ChevronRight,
   FolderOpen,
+  Eye,
+  ListFilter,
+  Home,
 } from 'lucide-react';
 import {
   getCategoriesAction,
@@ -130,22 +135,30 @@ export default function KategoriLaporanPage() {
     <div className="flex flex-col w-full gap-6 max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8">
       {/* Breadcrumb / Hierarchy */}
       <div className="flex items-center gap-1.5 text-outline text-xs uppercase tracking-wider font-semibold">
-        <span>SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL</span>
-        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" />
+        <span className="inline-flex items-center gap-1">
+          <Home className="w-3.5 h-3.5" aria-hidden="true" />
+          SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL
+        </span>
+        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" aria-hidden="true" />
         <span>DATA MASTER</span>
-        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" />
+        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" aria-hidden="true" />
         <span className="text-primary font-bold">KATEGORI LAPORAN</span>
       </div>
 
       {/* Header & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-            Kategori Laporan
-          </h1>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
-            Kelola kategori yang digunakan dalam proses klasifikasi laporan dan perutean disposisi ke instansi berwenang.
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Tags className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold">
+              Kategori Laporan
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
+              Kelola kategori yang digunakan dalam proses klasifikasi laporan dan perutean disposisi ke instansi berwenang.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -154,7 +167,7 @@ export default function KategoriLaporanPage() {
             disabled={isLoading}
             className="h-10 px-3.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors shadow-xs border border-outline-variant/60 flex items-center gap-2 font-label-md text-label-md font-medium"
           >
-            <RefreshCw className={`w-4 h-4 text-on-surface-variant ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-on-surface-variant ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Sinkronisasi Taksonomi</span>
           </button>
           <button
@@ -162,7 +175,7 @@ export default function KategoriLaporanPage() {
             onClick={handleOpenCreate}
             className="h-10 px-4 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-xs flex items-center gap-2 font-label-md text-label-md font-semibold"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span>Tambah Kategori</span>
           </button>
         </div>
@@ -173,7 +186,7 @@ export default function KategoriLaporanPage() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Search Box */}
           <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4 pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4 pointer-events-none" aria-hidden="true" />
             <input
               type="text"
               value={search}
@@ -185,40 +198,43 @@ export default function KategoriLaporanPage() {
 
           {/* Filter Status Segment & Summary Badge */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center p-0.5 bg-surface-container-low rounded-lg border border-surface-container">
-              <button
-                type="button"
-                onClick={() => handleStatusFilterChange('all')}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
-                  statusFilter === 'all'
-                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                    : 'font-medium text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Semua Status ({totalCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStatusFilterChange('active')}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
-                  statusFilter === 'active'
-                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                    : 'font-medium text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Aktif ({activeCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStatusFilterChange('inactive')}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
-                  statusFilter === 'inactive'
-                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                    : 'font-medium text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Non-Aktif ({inactiveCount})
-              </button>
+            <div className="flex items-center gap-1.5">
+              <ListFilter className="w-4 h-4 text-outline hidden sm:block" aria-hidden="true" />
+              <div className="flex items-center p-0.5 bg-surface-container-low rounded-lg border border-surface-container">
+                <button
+                  type="button"
+                  onClick={() => handleStatusFilterChange('all')}
+                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
+                    statusFilter === 'all'
+                      ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
+                      : 'font-medium text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  Semua Status ({totalCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStatusFilterChange('active')}
+                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
+                    statusFilter === 'active'
+                      ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
+                      : 'font-medium text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  Aktif ({activeCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStatusFilterChange('inactive')}
+                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
+                    statusFilter === 'inactive'
+                      ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
+                      : 'font-medium text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  Non-Aktif ({inactiveCount})
+                </button>
+              </div>
             </div>
 
             <div className="h-5 w-px bg-surface-container-high hidden sm:block" />
@@ -233,7 +249,7 @@ export default function KategoriLaporanPage() {
         {/* Error Alert */}
         {errorMsg && (
           <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-            <span className="font-semibold text-error shrink-0">⚠</span>
+            <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -384,16 +400,17 @@ export default function KategoriLaporanPage() {
                             onClick={() => handleOpenEdit(cat)}
                             className="font-label-md text-label-md font-semibold text-primary hover:text-on-primary-fixed-variant transition-colors flex items-center gap-1"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>Edit</span>
                           </button>
                           <span className="text-outline-variant">•</span>
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(cat)}
-                            className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors"
+                            className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1"
                           >
-                            Kelola Detail
+                            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                            <span>Kelola Detail</span>
                           </button>
                         </div>
                       </td>

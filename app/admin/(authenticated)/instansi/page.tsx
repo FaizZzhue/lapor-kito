@@ -2,6 +2,20 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import {
+  Home,
+  ChevronRight,
+  Building2,
+  RefreshCw,
+  Plus,
+  Search,
+  Users,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  ListFilter,
+} from 'lucide-react';
 import { getInstitutionsAction, type InstitutionWithUnitsCount } from '@/lib/actions/institutions';
 import { InstitutionFormModal } from '@/components/admin/institutions/institution-form-modal';
 
@@ -59,18 +73,24 @@ export default function InstansiPage() {
   return (
     <div className="flex flex-col w-full gap-6">
       {/* Breadcrumb / Context Tag */}
-      <div className="flex items-center gap-1.5 text-[#747686]">
-        <span className="material-symbols-outlined text-[16px]">account_tree</span>
-        <p className="text-[11px] uppercase tracking-wider font-semibold">
-          SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL <span className="text-[#C4C5D7] mx-1">&gt;</span>{' '}
-          <span className="text-[#0033A7] font-bold">DATA MASTER</span>
-        </p>
-      </div>
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[#747686] text-[11px] uppercase tracking-wider font-semibold">
+        <div className="flex items-center gap-1">
+          <Home className="w-3.5 h-3.5 shrink-0 text-[#747686]" aria-hidden="true" />
+          <span>SISTEM PUSAT</span>
+        </div>
+        <ChevronRight className="w-3 h-3 text-[#C4C5D7] shrink-0" aria-hidden="true" />
+        <span className="text-[#747686]">DATA MASTER</span>
+        <ChevronRight className="w-3 h-3 text-[#C4C5D7] shrink-0" aria-hidden="true" />
+        <span className="text-[#0033A7] font-bold">INSTANSI</span>
+      </nav>
 
       {/* Header & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">Instansi</h1>
+          <div className="flex items-center gap-2">
+            <Building2 className="w-6 h-6 text-[#1749D2]" aria-hidden="true" />
+            <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">Instansi</h1>
+          </div>
           <p className="text-[14px] text-[#434654] mt-0.5">
             Kelola daftar instansi penerima laporan dari ekosistem LAPORKITO Kota Palembang.
           </p>
@@ -79,17 +99,19 @@ export default function InstansiPage() {
           <button
             type="button"
             onClick={() => loadData()}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] hover:bg-[#F0F3FF] transition-colors shadow-sm text-[13px] font-medium"
+            disabled={isLoading}
+            aria-label="Segarkan data instansi"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] hover:bg-[#F0F3FF] transition-colors shadow-sm text-[13px] font-medium disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
           >
-            <span className="material-symbols-outlined text-[18px] text-[#747686]">sync</span>
+            <RefreshCw className={`w-4 h-4 text-[#747686] ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Segarkan</span>
           </button>
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white transition-colors shadow-sm text-[13px] font-semibold"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white transition-colors shadow-sm text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>Tambah Instansi</span>
           </button>
         </div>
@@ -100,14 +122,13 @@ export default function InstansiPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
           {/* Search Input */}
           <div className="relative w-full sm:w-80">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-[#747686]">
-              search
-            </span>
+            <Search className="w-4 h-4 text-[#747686] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari instansi, kode dinas, tupoksi..."
+              aria-label="Cari instansi"
               className="w-full h-10 pl-9 pr-3 rounded-lg bg-[#F0F3FF] text-[#111C2D] placeholder:text-[#747686] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2]"
             />
           </div>
@@ -164,7 +185,7 @@ export default function InstansiPage() {
       {/* Error Alert */}
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[13px] flex items-start gap-2.5">
-          <span className="material-symbols-outlined text-[20px] shrink-0">error</span>
+          <AlertCircle className="w-5 h-5 shrink-0 text-[#BA1A1A]" aria-hidden="true" />
           <span>{errorMsg}</span>
         </div>
       )}
@@ -173,17 +194,14 @@ export default function InstansiPage() {
       <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden flex flex-col">
         {isLoading ? (
           <div className="p-12 text-center text-[#747686] flex flex-col items-center justify-center gap-3">
-            <svg className="animate-spin h-6 w-6 text-[#1749D2]" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
+            <RefreshCw className="animate-spin h-6 w-6 text-[#1749D2]" aria-hidden="true" />
             <p className="text-[14px]">Memuat data master instansi...</p>
           </div>
         ) : institutions.length === 0 ? (
           /* Institutional Empty State */
           <div className="p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-[#F0F3FF] text-[#0033A7] flex items-center justify-center mb-4">
-              <span className="material-symbols-outlined text-[36px]">apartment</span>
+              <Building2 className="w-8 h-8 text-[#0033A7]" aria-hidden="true" />
             </div>
             <h3 className="text-[17px] font-semibold text-[#111C2D] mb-1.5">
               Belum Ada Instansi Terdaftar
@@ -196,9 +214,9 @@ export default function InstansiPage() {
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
+              <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span>Tambah Instansi Baru</span>
             </button>
           </div>
@@ -234,7 +252,7 @@ export default function InstansiPage() {
                     <td className="py-4 px-5">
                       <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg bg-[#F0F3FF] flex items-center justify-center text-[#0033A7] mt-0.5 shrink-0">
-                          <span className="material-symbols-outlined text-[20px]">apartment</span>
+                          <Building2 className="w-5 h-5 text-[#0033A7]" aria-hidden="true" />
                         </div>
                         <div>
                           <span className="text-[15px] text-[#111C2D] block font-semibold leading-tight">
@@ -259,7 +277,7 @@ export default function InstansiPage() {
                     {/* Pengguna Internal */}
                     <td className="py-4 px-5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 text-[13px] text-[#434654]">
-                        <span className="material-symbols-outlined text-[16px] text-[#747686]">badge</span>
+                        <Users className="w-4 h-4 text-[#747686]" aria-hidden="true" />
                         <span>0 Petugas</span>
                       </div>
                     </td>
@@ -275,12 +293,12 @@ export default function InstansiPage() {
                     <td className="py-4 px-5 whitespace-nowrap">
                       {inst.is_active ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[12px] font-semibold border border-[#B5E2CD]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16845B]" aria-hidden="true" />
                           Aktif
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] text-[12px] font-medium border border-[#D9DEE7]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#747686]" />
+                          <XCircle className="w-3.5 h-3.5 text-[#747686]" aria-hidden="true" />
                           Non-Aktif
                         </span>
                       )}
@@ -290,10 +308,10 @@ export default function InstansiPage() {
                     <td className="py-4 px-5 text-right whitespace-nowrap">
                       <Link
                         href={`/admin/instansi/${inst.id}`}
-                        className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#0033A7] hover:text-[#1749D2] hover:underline transition-colors"
+                        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0033A7] hover:text-[#1749D2] hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30 rounded px-1.5 py-0.5"
                       >
+                        <Eye className="w-4 h-4" aria-hidden="true" />
                         <span>Buka Detail</span>
-                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                       </Link>
                     </td>
                   </tr>

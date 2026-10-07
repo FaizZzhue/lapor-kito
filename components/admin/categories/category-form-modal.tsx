@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, Sparkles, Tag, Road, Trash2, Droplets, Lightbulb, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { X, Loader2, Sparkles, Tag, Road, Trash2, Droplets, Lightbulb, AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react';
 import { createCategoryAction, updateCategoryAction } from '@/lib/actions/categories';
 import type { CategoryWithReportsCount } from '@/lib/actions/categories';
 
@@ -151,7 +151,7 @@ export function CategoryFormModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {error && (
             <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <span className="font-semibold text-error shrink-0">⚠</span>
+              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}

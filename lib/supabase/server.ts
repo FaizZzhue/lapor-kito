@@ -4,7 +4,13 @@ import { cookies } from 'next/headers'
 import type { Database } from '@/types/database'
 
 export async function createClient() {
-  const cookieStore = await cookies()
+  let cookieStore: Awaited<ReturnType<typeof cookies>> | null = null
+  try {
+    cookieStore = await cookies()
+  } catch {
+    // Graceful fallback when executed outside Next.js request context (e.g. testing/scripts)
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 
@@ -14,13 +20,15 @@ export async function createClient() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll()
+          return cookieStore ? cookieStore.getAll() : []
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            if (cookieStore) {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore?.set(name, value, options)
+              )
+            }
           } catch {
             // Can happen in Server Components; ignored if middleware refreshes sessions
           }

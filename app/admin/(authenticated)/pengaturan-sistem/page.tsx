@@ -1,12 +1,17 @@
+import { redirect } from "next/navigation";
 import { SystemSettingsManager } from "@/components/admin/system-settings/SystemSettingsManager";
 import { getSystemSettingsAction } from "@/lib/actions/system-settings";
 import { getCurrentInternalUser } from "@/lib/auth/session";
+import { ShieldCheck, Eye } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function PengaturanSistemPage() {
   const { internalUser } = await getCurrentInternalUser();
-  const isAdmin = internalUser?.role === "admin";
+  if (internalUser?.role !== "admin") {
+    redirect("/admin/laporan");
+  }
+  const isAdmin = true;
 
   const { data: settings } = await getSystemSettingsAction();
 
@@ -33,9 +38,11 @@ export default async function PengaturanSistemPage() {
         </div>
 
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg shadow-sm self-start md:self-auto">
-          <span className="material-symbols-outlined text-[#16845B] text-[18px]">
-            {isAdmin ? "admin_panel_settings" : "visibility"}
-          </span>
+          {isAdmin ? (
+            <ShieldCheck size={18} className="text-[#16845B]" aria-hidden="true" />
+          ) : (
+            <Eye size={18} className="text-[#16845B]" aria-hidden="true" />
+          )}
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold text-[#111C2D]">
               {isAdmin ? "Akses Penuh" : "Hanya Baca"}

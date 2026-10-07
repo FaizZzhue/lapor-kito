@@ -235,11 +235,11 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
 
     const aiMetadata = aiResult
       ? {
-          confidence: aiResult.confidence,
-          summary: aiResult.summary,
-          authorityTarget: aiResult.recommendedAuthority || undefined,
-          priority: aiResult.priority,
-        }
+        confidence: aiResult.confidence,
+        summary: aiResult.summary,
+        authorityTarget: aiResult.recommendedAuthority || undefined,
+        priority: aiResult.priority,
+      }
       : undefined;
 
     const res = await submitReportAction(payload, aiMetadata);
@@ -270,22 +270,20 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
           </div>
 
           <div
-            className={`flex items-center gap-3 rounded-lg border p-2.5 ${
-              aiResult
+            className={`flex items-center gap-3 rounded-lg border p-2.5 ${aiResult
                 ? "border-[#16845B] bg-[#E6F7EF]"
                 : isAnalyzing
-                ? "border-[#E58A1F] bg-[#FFF8EF]"
-                : "border-[#D9DEE7] bg-[#F9F9FF]"
-            }`}
+                  ? "border-[#E58A1F] bg-[#FFF8EF]"
+                  : "border-[#D9DEE7] bg-[#F9F9FF]"
+              }`}
           >
             <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${
-                aiResult
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${aiResult
                   ? "bg-[#16845B] text-white"
                   : isAnalyzing
-                  ? "bg-[#E58A1F] text-white"
-                  : "bg-white border border-[#D9DEE7] text-[#667085]"
-              }`}
+                    ? "bg-[#E58A1F] text-white"
+                    : "bg-white border border-[#D9DEE7] text-[#667085]"
+                }`}
             >
               02
             </div>
@@ -300,18 +298,16 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
           </div>
 
           <div
-            className={`flex items-center gap-3 rounded-lg border p-2.5 ${
-              aiResult?.recommendedAuthority
+            className={`flex items-center gap-3 rounded-lg border p-2.5 ${aiResult?.recommendedAuthority
                 ? "border-[#0033A7] bg-[#F0F3FF]"
                 : "border-[#D9DEE7] bg-[#F9F9FF]"
-            }`}
+              }`}
           >
             <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${
-                aiResult?.recommendedAuthority
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${aiResult?.recommendedAuthority
                   ? "bg-[#0033A7] text-white"
                   : "bg-white border border-[#D9DEE7] text-[#667085]"
-              }`}
+                }`}
             >
               03
             </div>
@@ -344,9 +340,9 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
           <div className="rounded-xl border border-[#D9DEE7] bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between pb-4 border-b border-[#D9DEE7]">
               <div>
-                <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#1749D2] uppercase tracking-wider">
+                {/* <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#1749D2] uppercase tracking-wider">
                   Borang Pra-Pelaporan Warga
-                </span>
+                </span> */}
                 <h2 className="text-xl font-bold text-[#111C2D] mt-1">
                   Ada masalah apa di sekitar Anda?
                 </h2>
@@ -796,13 +792,12 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                           Tingkat Urgensi:
                         </span>
                         <span
-                          className={`font-mono text-[11px] font-semibold uppercase px-2 py-0.5 rounded ${
-                            aiResult.priority === "critical"
+                          className={`font-mono text-[11px] font-semibold uppercase px-2 py-0.5 rounded ${aiResult.priority === "critical"
                               ? "bg-[#FFF5F5] text-[#BA1A1A] border border-[#FFDAD6]"
                               : aiResult.priority === "high"
-                              ? "bg-[#FFF8EF] text-[#8C5000] border border-[#E58A1F]/40"
-                              : "bg-[#F0F3FF] text-[#1749D2] border border-[#D9DEE7]"
-                          }`}
+                                ? "bg-[#FFF8EF] text-[#8C5000] border border-[#E58A1F]/40"
+                                : "bg-[#F0F3FF] text-[#1749D2] border border-[#D9DEE7]"
+                            }`}
                         >
                           {aiResult.priority}
                         </span>

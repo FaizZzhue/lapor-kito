@@ -4,6 +4,19 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
+  ArrowLeft,
+  ShieldCheck,
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  Save,
+  Trash2,
+  ChevronRight,
+  Home,
+} from 'lucide-react';
+import {
   updateAuthorityRuleAction,
   deleteAuthorityRuleAction,
   type AuthorityRuleWithRelations,
@@ -101,18 +114,21 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
           href="/admin/data-kewenangan"
           className="inline-flex items-center gap-2 text-[13px] text-[#434654] hover:text-primary transition-colors group font-medium"
         >
-          <span className="material-symbols-outlined text-[18px] transition-transform group-hover:-translate-x-0.5">
-            arrow_back
-          </span>
+          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
           <span>Kembali ke Data Kewenangan</span>
         </Link>
-        <div className="flex items-center gap-2 text-[11px] text-[#747686] tracking-wider font-semibold uppercase">
-          <span>SISTEM PUSAT</span>
-          <span>•</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-[#747686] tracking-wider font-semibold uppercase">
+          <Link href="/admin" className="inline-flex items-center gap-1 hover:text-[#0033A7] transition-colors">
+            <Home size={12} aria-hidden="true" />
+            <span>SISTEM PUSAT</span>
+          </Link>
+          <ChevronRight size={11} className="text-[#C4C5D7]" aria-hidden="true" />
           <span>DATA MASTER</span>
-          <span>•</span>
-          <span>DATA KEWENANGAN</span>
-          <span>•</span>
+          <ChevronRight size={11} className="text-[#C4C5D7]" aria-hidden="true" />
+          <Link href="/admin/data-kewenangan" className="hover:text-[#0033A7] transition-colors">
+            DATA KEWENANGAN
+          </Link>
+          <ChevronRight size={11} className="text-[#C4C5D7]" aria-hidden="true" />
           <span className="text-[#111C2D] font-bold">EDIT ATURAN #{rule.rule_code}</span>
         </div>
       </div>
@@ -140,7 +156,7 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
         </div>
 
         <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/50 self-start lg:self-center">
-          <span className="material-symbols-outlined text-[20px] text-primary">policy</span>
+          <ShieldCheck size={20} className="text-primary" aria-hidden="true" />
           <div className="flex flex-col text-left">
             <span className="text-[12px] font-semibold text-[#111C2D] tracking-wide font-mono">
               ID Aturan: {rule.rule_code}
@@ -155,14 +171,14 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
       {/* Alerts */}
       {error && (
         <div className="mb-6 p-4 rounded-xl bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#BA1A1A] text-[13px] flex items-start gap-3">
-          <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">error</span>
+          <AlertCircle size={20} className="shrink-0 mt-0.5" aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
 
       {successMessage && (
         <div className="mb-6 p-4 rounded-xl bg-[#E8EEFF] border border-primary/30 text-primary text-[13px] flex items-start gap-3 animate-in fade-in">
-          <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">check_circle</span>
+          <CheckCircle2 size={20} className="shrink-0 mt-0.5" aria-hidden="true" />
           <span>{successMessage}</span>
         </div>
       )}
@@ -378,7 +394,7 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
         {/* Civic Note Callout */}
         <div className="rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/60 p-4 flex items-start gap-3.5">
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-            <span className="material-symbols-outlined text-[19px] text-primary">verified_user</span>
+            <ShieldCheck size={19} className="text-primary" aria-hidden="true" />
           </div>
           <div className="flex flex-col gap-0.5 leading-relaxed">
             <span className="text-[13px] text-[#111C2D] font-semibold">
@@ -395,7 +411,7 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
         {/* Footer Actions & Metadata */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
           <div className="flex items-center gap-2 text-[#747686] text-[12px]">
-            <span className="material-symbols-outlined text-[16px]">history</span>
+            <Clock size={16} aria-hidden="true" />
             <span>Terakhir diperbarui: {formattedDate}</span>
           </div>
 
@@ -421,12 +437,12 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
             >
               {isPending ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                  <RefreshCw size={18} className="animate-spin" aria-hidden="true" />
                   <span>Menyimpan...</span>
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-[18px]">save</span>
+                  <Save size={18} aria-hidden="true" />
                   <span>Simpan Perubahan</span>
                 </>
               )}
@@ -441,7 +457,7 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
           <div className="bg-white rounded-xl shadow-2xl border border-red-200 p-6 max-w-md w-full flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-red-600 text-[22px]">warning</span>
+                <AlertTriangle size={22} className="text-red-600" aria-hidden="true" />
               </div>
               <div className="flex flex-col">
                 <h3 className="text-[16px] font-bold text-[#111C2D]">Hapus Aturan Kewenangan?</h3>

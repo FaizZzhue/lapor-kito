@@ -6,6 +6,19 @@ import {
   upsertSettingAction,
   deleteSettingAction,
 } from "@/lib/actions/system-settings";
+import {
+  BadgeCheck,
+  Wrench,
+  Upload,
+  Bell,
+  CheckCircle2,
+  AlertCircle,
+  ShieldAlert,
+  Pencil,
+  Trash2,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
 // ====================================================================
 // KNOWN SETTING DEFINITIONS
@@ -15,7 +28,7 @@ interface KnownSetting {
   key: string;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   defaultValue: Record<string, unknown>;
   fields: { name: string; label: string; type: "text" | "number" | "boolean"; placeholder?: string }[];
 }
@@ -25,7 +38,7 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     key: "platform_name",
     label: "Nama Platform",
     description: "Nama resmi platform yang ditampilkan kepada publik.",
-    icon: "badge",
+    icon: BadgeCheck,
     defaultValue: { value: "LAPORKITO" },
     fields: [{ name: "value", label: "Nama", type: "text", placeholder: "LAPORKITO" }],
   },
@@ -33,7 +46,7 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     key: "maintenance_mode",
     label: "Mode Pemeliharaan",
     description: "Aktifkan untuk menonaktifkan sementara penerimaan laporan publik.",
-    icon: "engineering",
+    icon: Wrench,
     defaultValue: { enabled: false, message: "" },
     fields: [
       { name: "enabled", label: "Aktif", type: "boolean" },
@@ -44,7 +57,7 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     key: "report_limits",
     label: "Batas Laporan",
     description: "Konfigurasi batas unggahan dan pengiriman laporan.",
-    icon: "upload_file",
+    icon: Upload,
     defaultValue: { max_file_size_mb: 10, max_files_per_report: 5 },
     fields: [
       { name: "max_file_size_mb", label: "Maks. Ukuran File (MB)", type: "number", placeholder: "10" },
@@ -55,7 +68,7 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     key: "notification_settings",
     label: "Notifikasi",
     description: "Pengaturan notifikasi email dan pemberitahuan sistem.",
-    icon: "notifications",
+    icon: Bell,
     defaultValue: { email_enabled: true, admin_digest: false },
     fields: [
       { name: "email_enabled", label: "Notifikasi Email Aktif", type: "boolean" },
@@ -162,9 +175,11 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
               : "bg-[#FFDAD6] border-[#FFB4AB] text-[#BA1A1A]"
           }`}
         >
-          <span className="material-symbols-outlined text-[18px]">
-            {message.type === "success" ? "check_circle" : "error"}
-          </span>
+          {message.type === "success" ? (
+            <CheckCircle2 size={18} aria-hidden="true" />
+          ) : (
+            <AlertCircle size={18} aria-hidden="true" />
+          )}
           <span>{message.text}</span>
           <button
             onClick={() => setMessage(null)}
@@ -177,7 +192,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
 
       {/* Security Notice */}
       <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9]">
-        <span className="material-symbols-outlined text-[#B2640A] text-[18px] mt-0.5">shield</span>
+        <ShieldAlert size={18} className="text-[#B2640A] mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p className="text-[13px] font-semibold text-[#B2640A]">Keamanan Pengaturan</p>
           <p className="text-[12px] text-[#8B6914] mt-0.5">
@@ -198,7 +213,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
             <div key={ks.key} className="p-5">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg bg-[#F0F3FF] flex items-center justify-center shrink-0 text-[#0033A7]">
-                  <span className="material-symbols-outlined text-[22px]">{ks.icon}</span>
+                  <ks.icon size={22} aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap">
@@ -307,7 +322,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
                       className="p-2 text-[#0033A7] hover:bg-[#F0F3FF] rounded-lg transition-colors"
                       title="Edit pengaturan"
                     >
-                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                      <Pencil size={18} aria-hidden="true" />
                     </button>
                     {hasSavedValue && (
                       <button
@@ -316,7 +331,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
                         className="p-2 text-[#BA1A1A] hover:bg-[#FFDAD6] rounded-lg transition-colors disabled:opacity-50"
                         title="Hapus pengaturan"
                       >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        <Trash2 size={18} aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -364,7 +379,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
       {settings.length === 0 && (
         <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-8 text-center">
           <div className="w-14 h-14 rounded-2xl bg-[#F0F3FF] flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-[#747686] text-[32px]">settings</span>
+            <Settings size={32} className="text-[#747686]" aria-hidden="true" />
           </div>
           <p className="text-[15px] font-semibold text-[#111C2D] mb-1">Belum Dikonfigurasi</p>
           <p className="text-[13px] text-[#434654] max-w-md mx-auto leading-relaxed">

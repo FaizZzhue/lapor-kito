@@ -6,13 +6,14 @@ import {
   Shield,
   ShieldAlert,
   Power,
-  Edit2,
+  AlertCircle,
   Mail,
   Phone,
   Clock,
   Key,
   Loader2,
   CheckCircle2,
+  Pencil,
 } from 'lucide-react';
 import { toggleInternalUserStatusAction } from '@/lib/actions/internal-users';
 import type { InternalUserRow } from '@/types/database';
@@ -97,7 +98,7 @@ export function UserAccessModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {error && (
             <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <span className="font-semibold text-error shrink-0">⚠</span>
+              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
@@ -234,7 +235,7 @@ export function UserAccessModal({
               }}
               className="h-9 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5" />
               <span>Edit Profil</span>
             </button>
             <button

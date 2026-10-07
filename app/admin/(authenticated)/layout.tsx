@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { UserX, Ban, ShieldAlert } from "lucide-react";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminHeader } from "@/components/admin/header";
@@ -24,7 +25,7 @@ export default async function AdminAuthenticatedLayout({
       <div className="min-h-screen bg-[#F9F9FF] flex flex-col items-center justify-center p-6 text-[#111C2D]">
         <div className="w-full max-w-md bg-white p-8 rounded-xl border border-[#D9DEE7] shadow-sm text-center">
           <div className="w-12 h-12 rounded-full bg-[#FFDAD6] text-[#BA1A1A] flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-[28px]">no_accounts</span>
+            <UserX className="w-6 h-6 text-[#BA1A1A]" aria-hidden="true" />
           </div>
           <h1 className="text-xl font-bold tracking-tight mb-2">Profil Staf Tidak Ditemukan</h1>
           <p className="text-sm text-[#434654] leading-relaxed mb-6">
@@ -49,7 +50,7 @@ export default async function AdminAuthenticatedLayout({
       <div className="min-h-screen bg-[#F9F9FF] flex flex-col items-center justify-center p-6 text-[#111C2D]">
         <div className="w-full max-w-md bg-white p-8 rounded-xl border border-[#D9DEE7] shadow-sm text-center">
           <div className="w-12 h-12 rounded-full bg-[#FFDAD6] text-[#BA1A1A] flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-[28px]">block</span>
+            <Ban className="w-6 h-6 text-[#BA1A1A]" aria-hidden="true" />
           </div>
           <h1 className="text-xl font-bold tracking-tight mb-2">Akun Non-Aktif</h1>
           <p className="text-sm text-[#434654] leading-relaxed mb-6">
@@ -68,17 +69,17 @@ export default async function AdminAuthenticatedLayout({
     );
   }
 
-  // 4. Role Authorization: Admin Console is strictly reserved for 'admin' role
-  if (internalUser.role !== "admin") {
+  // 4. Role Authorization: Must be 'admin' or 'petugas'
+  if (internalUser.role !== "admin" && internalUser.role !== "petugas") {
     return (
       <div className="min-h-screen bg-[#F9F9FF] flex flex-col items-center justify-center p-6 text-[#111C2D]">
         <div className="w-full max-w-md bg-white p-8 rounded-xl border border-[#D9DEE7] shadow-sm text-center">
-          <div className="w-12 h-12 rounded-full bg-[#FEF3E6] text-[#B2640A] flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-[28px]">lock_person</span>
+          <div className="w-12 h-12 rounded-full bg-[#FFDAD6] text-[#BA1A1A] flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="w-6 h-6 text-[#BA1A1A]" aria-hidden="true" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight mb-2">Akses Terbatas: Bukan Administrator</h1>
+          <h1 className="text-xl font-bold tracking-tight mb-2">Akses Terbatas</h1>
           <p className="text-sm text-[#434654] leading-relaxed mb-6">
-            Peran Anda terdaftar sebagai <span className="font-semibold text-[#0033A7]">Petugas Instansi</span>. Konsol Admin Pusat hanya dapat diakses oleh akun dengan wewenang <span className="font-semibold text-[#0033A7]">Administrator Sistem</span>.
+            Peran akun Anda tidak memiliki izin untuk mengakses konsol operasional internal.
           </p>
           <form action={signOutAction}>
             <button

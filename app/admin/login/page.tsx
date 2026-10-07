@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
 
 function AdminLoginForm() {
   const router = useRouter();
@@ -90,19 +91,19 @@ function AdminLoginForm() {
             <span className="text-xl font-bold tracking-tight text-[#111C2D]">LAPORKITO</span>
           </div>
         </div>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#DFE8FF] text-[#0033A7] tracking-wide">
+        {/* <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#DFE8FF] text-[#0033A7] tracking-wide">
           Portal Internal & Konsol Admin
-        </span>
+        </span> */}
       </div>
 
       {/* Title & Context Description */}
       <div className="mb-6 text-center">
-        <h1 className="text-[22px] sm:text-[24px] leading-tight font-semibold tracking-tight text-[#111C2D]">
+        {/* <h1 className="text-[22px] sm:text-[24px] leading-tight font-semibold tracking-tight text-[#111C2D]">
           Masuk ke LAPORKITO
-        </h1>
-        <p className="text-[13px] sm:text-[14px] text-[#434654] mt-1.5 leading-relaxed">
+        </h1> */}
+        {/* <p className="text-[13px] sm:text-[14px] text-[#434654] mt-1.5 leading-relaxed">
           Gunakan akun internal untuk mengelola laporan atau konfigurasi platform.
-        </p>
+        </p> */}
       </div>
 
       {/* Error Message Alert */}
@@ -118,7 +119,7 @@ function AdminLoginForm() {
         {/* Email Field */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[#111C2D]" htmlFor="internal-email">
-            Surel Akun Internal
+            Username
           </label>
           <div className="relative">
             <input
@@ -173,7 +174,9 @@ function AdminLoginForm() {
               className="absolute right-2.5 p-1 text-[#747686] hover:text-[#111C2D] focus:outline-none transition-colors"
             >
               <span className="material-symbols-outlined text-[19px]">
-                {showPassword ? "visibility_off" : "visibility"}
+                {showPassword
+                  ? (<EyeOff size={19} strokeWidth={2} />)
+                  : (<Eye size={19} strokeWidth={2} />)}
               </span>
             </button>
           </div>
@@ -214,20 +217,19 @@ function AdminLoginForm() {
             </>
           ) : (
             <>
-              <span>Masuk ke Sistem</span>
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              <span>Masuk</span>
             </>
           )}
         </button>
       </form>
 
       {/* Institutional Notice Banner */}
-      <div className="mt-6 p-3.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/50 flex items-start gap-3 text-left">
+      {/* <div className="mt-6 p-3.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/50 flex items-start gap-3 text-left">
         <span className="material-symbols-outlined text-[#747686] text-[18px] mt-0.5 shrink-0">lock</span>
         <p className="text-[12px] leading-relaxed text-[#434654]">
           Area ini khusus untuk Administrator Platform dan Petugas Instansi Penerima Resmi. Warga publik tidak memerlukan akun untuk membuat atau memantau laporan.
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -236,7 +238,7 @@ export default function AdminLoginPage() {
   return (
     <div className="bg-[#F9F9FF] font-sans text-[#111C2D] antialiased min-h-screen flex flex-col justify-between">
       {/* Top Institutional Header Bar */}
-      <div className="w-full py-2 bg-[#F0F3FF] border-b border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+      {/* <div className="w-full py-2 bg-[#F0F3FF] border-b border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[16px] text-[#0033A7]">verified_user</span>
@@ -249,7 +251,7 @@ export default function AdminLoginPage() {
             <span className="text-[11px] font-medium text-[#434654]">Sistem Aman v2.4</span>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Main Form Area */}
       <main className="w-full flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
@@ -288,13 +290,13 @@ export default function AdminLoginPage() {
       <footer className="w-full py-4 bg-white border-t border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
           <p className="text-[12px] text-[#434654]">
-            © 2026 LAPORKITO Portal Administrasi Pemerintahan. Hak Cipta Dilindungi Undang-Undang.
+            © 2026 LAPORKITO. All Right Reserve
           </p>
-          <div className="flex items-center gap-4 text-[11px] text-[#434654]">
+          {/* <div className="flex items-center gap-4 text-[11px] text-[#434654]">
             <span>Kepatuhan Standar Siber BSSN</span>
             <span>•</span>
             <span>Akses Terenkripsi TLS 1.3</span>
-          </div>
+          </div> */}
         </div>
       </footer>
     </div>

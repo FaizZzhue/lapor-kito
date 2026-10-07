@@ -3,6 +3,19 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
+  ShieldCheck,
+  Search,
+  Plus,
+  RefreshCw,
+  Info,
+  ChevronRight,
+  ChevronDown,
+  Home,
+  Building2,
+  Pencil,
+  Eye,
+} from 'lucide-react';
+import {
   type AuthorityRuleWithRelations,
   type AuthorityRuleFormData,
 } from '@/lib/actions/authority-rules';
@@ -83,24 +96,34 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
   return (
     <div className="flex flex-col w-full">
       {/* 1. Breadcrumbs */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[11px] text-[#747686] tracking-wider font-semibold uppercase">
-          SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL &gt; DATA MASTER &gt; DATA KEWENANGAN
-        </span>
+      <div className="flex items-center gap-1.5 text-[11px] text-[#747686] tracking-wider font-semibold uppercase mb-3">
+        <Link href="/admin" className="inline-flex items-center gap-1 hover:text-[#0033A7] transition-colors">
+          <Home size={13} aria-hidden="true" />
+          <span>SISTEM PUSAT</span>
+        </Link>
+        <ChevronRight size={12} className="text-[#C4C5D7]" aria-hidden="true" />
+        <span>DATA MASTER</span>
+        <ChevronRight size={12} className="text-[#C4C5D7]" aria-hidden="true" />
+        <span className="text-[#111C2D]">DATA KEWENANGAN</span>
       </div>
 
       {/* 2. Page Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-6">
-        <div className="flex flex-col">
-          <h1 className="text-[26px] font-bold text-[#111C2D] tracking-tight">Data Kewenangan</h1>
-          <p className="text-[14px] text-[#434654] mt-1">
-            Atur hubungan antara jenis masalah, wilayah, dan pihak penerima laporan.
-          </p>
-          <div className="inline-flex items-center gap-2 mt-2.5 px-3 py-1.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/60 w-fit">
-            <span className="material-symbols-outlined text-[#747686] text-[16px]">info</span>
-            <span className="text-[12px] text-[#434654]">
-              Data ini digunakan sebagai salah satu dasar rekomendasi pihak penerima laporan.
-            </span>
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+            <ShieldCheck size={22} aria-hidden="true" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-[26px] font-bold text-[#111C2D] tracking-tight">Data Kewenangan</h1>
+            <p className="text-[14px] text-[#434654] mt-0.5">
+              Atur hubungan antara jenis masalah, wilayah, dan pihak penerima laporan.
+            </p>
+            <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/60 w-fit">
+              <Info size={16} className="text-[#747686] shrink-0" aria-hidden="true" />
+              <span className="text-[12px] text-[#434654]">
+                Data ini digunakan sebagai salah satu dasar rekomendasi pihak penerima laporan.
+              </span>
+            </div>
           </div>
         </div>
 
@@ -111,7 +134,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
             onClick={() => setShowSyncNotice(true)}
             className="h-10 px-4 rounded-lg bg-white border border-[#C4C5D7] hover:bg-[#F0F3FF] text-[#111C2D] text-[13px] font-medium inline-flex items-center gap-2 transition-colors"
           >
-            <span className="material-symbols-outlined text-[18px] text-[#747686]">sync</span>
+            <RefreshCw size={16} className="text-[#747686]" aria-hidden="true" />
             <span>Sinkronisasi Matriks Regulasi</span>
           </button>
           <button
@@ -119,7 +142,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
             onClick={() => setIsCreateModalOpen(true)}
             className="h-10 px-4 rounded-lg bg-primary hover:bg-[#1749D2] text-white text-[13px] font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <Plus size={16} aria-hidden="true" />
             <span>Tambah Aturan</span>
           </button>
         </div>
@@ -130,9 +153,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Search Input */}
           <div className="relative w-full sm:w-72">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#747686] text-[18px]">
-              search
-            </span>
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#747686] pointer-events-none" aria-hidden="true" />
             <input
               type="text"
               value={search}
@@ -156,9 +177,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                 </option>
               ))}
             </select>
-            <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] text-[16px] pointer-events-none">
-              expand_more
-            </span>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Institution Dropdown */}
@@ -175,9 +194,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                 </option>
               ))}
             </select>
-            <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] text-[16px] pointer-events-none">
-              expand_more
-            </span>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Wilayah Dropdown */}
@@ -195,9 +212,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                 </option>
               ))}
             </select>
-            <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] text-[16px] pointer-events-none">
-              expand_more
-            </span>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Status Dropdown */}
@@ -211,9 +226,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
               <option value="active">Aktif</option>
               <option value="inactive">Nonaktif / Ditangguhkan</option>
             </select>
-            <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] text-[16px] pointer-events-none">
-              expand_more
-            </span>
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#747686] pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
@@ -233,7 +246,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
         {filteredRules.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-[#F0F3FF] border border-[#C4C5D7]/50 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[28px]">policy</span>
+              <ShieldCheck size={28} aria-hidden="true" />
             </div>
             <h3 className="text-[17px] font-bold text-[#111C2D]">
               {rules.length === 0
@@ -251,7 +264,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                 onClick={() => setIsCreateModalOpen(true)}
                 className="mt-2 h-10 px-5 rounded-lg bg-primary hover:bg-[#1749D2] text-white text-[13px] font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">add</span>
+                <Plus size={16} aria-hidden="true" />
                 <span>Buat Aturan Pertama</span>
               </button>
             )}
@@ -331,7 +344,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                     {/* Instansi Berwenang */}
                     <td className="py-3.5 px-4 align-top">
                       <div className="flex items-center gap-1.5 font-medium text-[#111C2D]">
-                        <span className="material-symbols-outlined text-[16px] text-primary">domain</span>
+                        <Building2 size={16} className="text-primary" aria-hidden="true" />
                         <span>{rule.institution?.name || 'Instansi Terhapus'}</span>
                       </div>
                     </td>
@@ -365,16 +378,18 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                       <div className="inline-flex items-center gap-2">
                         <Link
                           href={`/admin/data-kewenangan/${rule.id}`}
-                          className="text-primary hover:text-[#1749D2] text-[12px] font-semibold hover:underline"
+                          className="text-primary hover:text-[#1749D2] text-[12px] font-semibold hover:underline inline-flex items-center gap-1"
                         >
-                          Edit
+                          <Pencil size={12} aria-hidden="true" />
+                          <span>Edit</span>
                         </Link>
                         <span className="text-[#C4C5D7]">•</span>
                         <Link
                           href={`/admin/data-kewenangan/${rule.id}`}
-                          className="text-[#434654] hover:text-[#111C2D] text-[12px] font-medium hover:underline"
+                          className="text-[#434654] hover:text-[#111C2D] text-[12px] font-medium hover:underline inline-flex items-center gap-1"
                         >
-                          Detail Aturan
+                          <Eye size={12} aria-hidden="true" />
+                          <span>Detail Aturan</span>
                         </Link>
                       </div>
                     </td>
@@ -398,7 +413,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
       {/* 5. Bottom Institutional Context Banner */}
       <div className="bg-[#F0F3FF] border border-[#C4C5D7]/60 p-5 rounded-xl flex items-start gap-4 mt-6">
         <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-          <span className="material-symbols-outlined text-[22px]">policy</span>
+          <ShieldCheck size={22} aria-hidden="true" />
         </div>
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -428,7 +443,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
           <div className="bg-white rounded-xl shadow-2xl border border-[#C4C5D7] p-6 max-w-md w-full flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#E8EEFF] flex items-center justify-center shrink-0 text-primary">
-                <span className="material-symbols-outlined text-[22px]">sync</span>
+                <RefreshCw size={20} aria-hidden="true" />
               </div>
               <div className="flex flex-col">
                 <h3 className="text-[16px] font-bold text-[#111C2D]">Status Sinkronisasi Regulasi</h3>

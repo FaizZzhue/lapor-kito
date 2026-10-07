@@ -3,10 +3,11 @@ import {
   type TriageInput,
   type EvidenceVerificationInput,
   type DuplicateDetectionInput,
+  type AuthorityRecommendationInput,
 } from './provider'
-import type { AITriageResult, AIEvidenceAnalysis, AIDuplicateCandidate } from '@/types/ai'
+import type { AITriageResult, AIEvidenceAnalysis, AIDuplicateCandidate, AIAuthorityRecommendation } from '@/types/ai'
 
-export type { TriageInput, EvidenceVerificationInput, DuplicateDetectionInput }
+export type { TriageInput, EvidenceVerificationInput, DuplicateDetectionInput, AuthorityRecommendationInput }
 
 /**
  * Triage civic complaint via the configured AI provider abstraction.
@@ -16,6 +17,17 @@ export type { TriageInput, EvidenceVerificationInput, DuplicateDetectionInput }
 export async function triageReportWithAI(input: TriageInput): Promise<AITriageResult> {
   const provider = getAIProvider()
   return await provider.triageReport(input)
+}
+
+/**
+ * Second-step authority recommendation using pre-filtered authority_rules candidates.
+ * Called after triageReport determines the categorySlug.
+ */
+export async function recommendAuthorityWithAI(
+  input: AuthorityRecommendationInput
+): Promise<AIAuthorityRecommendation> {
+  const provider = getAIProvider()
+  return await provider.recommendAuthority(input)
 }
 
 /**
