@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Home,
   ChevronRight,
@@ -31,6 +31,7 @@ export default function UnitInstansiPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedInstId, setSelectedInstId] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
@@ -38,25 +39,19 @@ export default function UnitInstansiPage() {
   const [selectedUnitForEdit, setSelectedUnitForEdit] = useState<InstitutionUnitRow | null>(null);
   const [unitToDelete, setUnitToDelete] = useState<InstitutionUnitRow | null>(null);
 
-  const [initialized, setInitialized] = useState(false);
-
-  const loadInstitutions = useCallback(async () => {
-    try {
-      const res = await getInstitutionsAction({ status: 'all' });
-      if (res.success) {
-        setInstitutionsList(res.data.map((i) => ({ id: i.id, name: i.name, code: i.code })));
-      }
-    } catch {
-      // Ignored
-    }
-  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const loadUnits = useCallback(async () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
       const res = await getUnitsAction({
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         institutionId: selectedInstId !== 'all' ? selectedInstId : undefined,
         status: statusFilter,
       });
@@ -71,14 +66,46 @@ export default function UnitInstansiPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, selectedInstId, statusFilter]);
+  }, [debouncedSearch, selectedInstId, statusFilter]);
 
-  // Initial fetch — derived-state-from-render pattern
-  if (!initialized) {
-    setInitialized(true);
-    loadInstitutions();
-    loadUnits();
-  }
+  useEffect(() => {
+    let isMounted = true;
+
+    async function runFetch() {
+      try {
+        const [instRes, unitsRes] = await Promise.all([
+          getInstitutionsAction({ status: 'all' }),
+          getUnitsAction({
+            search: debouncedSearch.trim() || undefined,
+            institutionId: selectedInstId !== 'all' ? selectedInstId : undefined,
+            status: statusFilter,
+          }),
+        ]);
+        if (!isMounted) return;
+        if (instRes.success) {
+          setInstitutionsList(instRes.data.map((i) => ({ id: i.id, name: i.name, code: i.code })));
+        }
+        if (!unitsRes.success) {
+          setErrorMsg(unitsRes.error || 'Gagal memuat daftar unit');
+        } else {
+          setUnits(unitsRes.data);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kegagalan komunikasi');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    runFetch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, selectedInstId, statusFilter]);
 
   const totalCount = units.length;
 

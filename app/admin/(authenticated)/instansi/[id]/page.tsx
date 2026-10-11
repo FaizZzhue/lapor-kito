@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, use } from 'react';
+import { useState, useCallback, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -38,8 +38,6 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
 
   const [unitToDelete, setUnitToDelete] = useState<InstitutionUnitRow | null>(null);
 
-  const [initialized, setInitialized] = useState(false);
-
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -57,11 +55,34 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
     }
   }, [id]);
 
-  // Initial fetch — derived-state-from-render pattern
-  if (!initialized) {
-    setInitialized(true);
-    loadData();
-  }
+  useEffect(() => {
+    let isMounted = true;
+
+    async function runFetch() {
+      try {
+        const res = await getInstitutionByIdAction(id);
+        if (!isMounted) return;
+        if (!res.success || !res.data) {
+          setErrorMsg(res.error || 'Data instansi tidak ditemukan');
+        } else {
+          setInstitution(res.data);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kegagalan komunikasi');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    runFetch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   if (isLoading) {
     return (

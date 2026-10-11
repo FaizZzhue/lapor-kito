@@ -116,8 +116,8 @@ async function runE2E() {
   assert(repDetailRes.data !== null, 'Reporter contact resolved internally: ' + repDetailRes.data?.email);
   assert(evRes.data !== null && evRes.data.length > 0, `Evidence files resolved: ${evRes.data?.length} files`);
   assert(tlRes.data !== null && tlRes.data.length > 0, `Timeline audit resolved: ${tlRes.data?.length} events`);
-  assert(aiRes.data !== null, 'AI triage log resolved: confidence=' + (aiRes.data?.raw_response as any)?.confidence);
-  assert(authRuleRes.data !== null, 'Authority rule resolved: ' + (authRuleRes.data?.institutions as any)?.name);
+  assert(aiRes.data !== null, 'AI triage log resolved: confidence=' + (aiRes.data?.raw_response as Record<string, unknown>)?.confidence);
+  assert(authRuleRes.data !== null, 'Authority rule resolved: ' + (authRuleRes.data?.institutions as Record<string, unknown>)?.name);
 
   // ------------------------------------------------------------------
   // 4. PETUGAS ROLE BOUNDARY & PERMISSIONS
@@ -132,7 +132,7 @@ async function runE2E() {
       rule_code: 'TEST-UNAUTH',
       category_id: targetReport.category_id,
       context_title: 'Test',
-      institution_id: (authRuleRes.data as any)?.institution_id,
+      institution_id: (authRuleRes.data as Record<string, unknown>)?.institution_id as string,
       regulation_basis: 'Test',
     });
   assert(!!anonRuleErr, 'Anon user cannot insert authority rules (Blocked by RLS)');

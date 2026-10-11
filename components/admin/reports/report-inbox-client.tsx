@@ -40,10 +40,16 @@ export function ReportInboxClient({
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<ReportPriority | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "priority_desc">("newest");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "priority_desc" | "attention">("newest");
+  const [attentionOnly, setAttentionOnly] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [isPending, startTransition] = useTransition();
+
+  // Count reports with latest citizen replies requiring attention
+  const attentionCount = useMemo(() => {
+    return reports.filter((r) => r.latest_response_is_citizen).length;
+  }, [reports]);
 
   // Helper to refresh data from server
   const refreshData = () => {
@@ -55,6 +61,7 @@ export function ReportInboxClient({
           priority: priorityFilter,
           categoryId: categoryFilter,
           sortBy,
+          attentionOnly: attentionOnly || undefined,
           search: search.trim() || undefined,
         });
 
@@ -72,6 +79,11 @@ export function ReportInboxClient({
   // Client-side instant filtering over loaded data
   const filteredReports = useMemo(() => {
     let result = [...reports];
+
+    // Attention-only filter
+    if (attentionOnly) {
+      result = result.filter((r) => r.latest_response_is_citizen);
+    }
 
     // Status filter
     if (statusFilter !== "all") {
@@ -114,19 +126,26 @@ export function ReportInboxClient({
         low: 1,
       };
       result.sort((a, b) => weight[b.priority] - weight[a.priority]);
+    } else if (sortBy === "attention") {
+      result.sort((a, b) => {
+        if (a.latest_response_is_citizen && !b.latest_response_is_citizen) return -1;
+        if (!a.latest_response_is_citizen && b.latest_response_is_citizen) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     } else {
       // Default: newest
       result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
     return result;
-  }, [reports, search, statusFilter, priorityFilter, categoryFilter, sortBy]);
+  }, [reports, search, statusFilter, priorityFilter, categoryFilter, sortBy, attentionOnly]);
 
   const hasActiveFilters =
     search.trim() !== "" ||
     statusFilter !== "all" ||
     priorityFilter !== "all" ||
     categoryFilter !== "all" ||
+    attentionOnly ||
     sortBy !== "newest";
 
   const resetFilters = () => {
@@ -134,6 +153,7 @@ export function ReportInboxClient({
     setStatusFilter("all");
     setPriorityFilter("all");
     setCategoryFilter("all");
+    setAttentionOnly(false);
     setSortBy("newest");
   };
 
@@ -292,20 +312,46 @@ export function ReportInboxClient({
 
         {/* Secondary row: Sort and active filter pills */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#F0F3FF]">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[#747686] font-medium">Urutkan:</span>
-            <select
-              value={sortBy}
-              onChange={(e) =>
-                setSortBy(e.target.value as "newest" | "oldest" | "priority_desc")
-              }
-              aria-label="Urutkan daftar laporan"
-              className="py-1 px-2.5 text-[12px] bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg text-[#111C2D] focus:outline-none cursor-pointer"
-            >
-              <option value="newest">Waktu Masuk: Terbaru</option>
-              <option value="oldest">Waktu Masuk: Terlama</option>
-              <option value="priority_desc">Prioritas Tertinggi</option>
-            </select>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] text-[#747686] font-medium">Urutkan:</span>
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(
+                    e.target.value as "newest" | "oldest" | "priority_desc" | "attention"
+                  )
+                }
+                aria-label="Urutkan daftar laporan"
+                className="py-1 px-2.5 text-[12px] bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg text-[#111C2D] focus:outline-none cursor-pointer"
+              >
+                <option value="newest">Waktu Masuk: Terbaru</option>
+                <option value="oldest">Waktu Masuk: Terlama</option>
+                <option value="priority_desc">Prioritas Tertinggi</option>
+                <option value="attention">Perlu Ditinjau (Balasan Warga)</option>
+              </select>
+            </div>
+
+            {/* Quick attention filter toggle */}
+            {attentionCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setAttentionOnly(!attentionOnly)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold rounded-lg border transition-all cursor-pointer ${
+                  attentionOnly
+                    ? "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] shadow-xs"
+                    : "bg-white text-[#434654] border-[#D9DEE7] hover:bg-[#F9F9FF]"
+                }`}
+                aria-pressed={attentionOnly}
+                aria-label="Filter laporan yang memiliki balasan warga"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                <span>Perlu Ditinjau</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#D97706] text-white">
+                  {attentionCount}
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -377,13 +423,32 @@ export function ReportInboxClient({
 
                     {/* Title & Description preview */}
                     <td className="py-3.5 px-4 max-w-xs md:max-w-md">
-                      <Link
-                        href={`/admin/laporan/${report.id}`}
-                        className="font-semibold text-[#111C2D] group-hover:text-[#0033A7] transition-colors block truncate"
-                        title={report.title}
-                      >
-                        {report.title}
-                      </Link>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          href={`/admin/laporan/${report.id}`}
+                          className="font-semibold text-[#111C2D] group-hover:text-[#0033A7] transition-colors truncate"
+                          title={report.title}
+                        >
+                          {report.title}
+                        </Link>
+                        {report.latest_response_is_citizen && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] rounded-full shrink-0 shadow-xs"
+                            title="Ada tanggapan terbaru dari warga yang memerlukan perhatian petugas"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] animate-pulse" />
+                            Balasan Warga
+                          </span>
+                        )}
+                        {!report.latest_response_is_citizen && report.has_citizen_reply && (
+                          <span
+                            className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-medium bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] rounded shrink-0"
+                            title={`${report.citizen_reply_count || 1} balasan warga telah ditanggapi`}
+                          >
+                            {report.citizen_reply_count} tanggapan warga
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[12px] text-[#747686] truncate mt-0.5">
                         {report.description}
                       </p>

@@ -107,6 +107,22 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     if (!file) return;
 
     setUploadError(null);
+
+    // Client-side file type validation
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Format berkas harus JPG, PNG, atau WebP.");
+      e.target.value = "";
+      return;
+    }
+
+    // Client-side file size validation (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("Ukuran foto maksimal 10 MB per berkas.");
+      e.target.value = "";
+      return;
+    }
+
     setIsUploading(true);
 
     const formData = new FormData();
@@ -114,6 +130,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
 
     const res = await uploadEvidenceAction(formData);
     setIsUploading(false);
+    e.target.value = "";
 
     if (res.success && res.fileUrl && res.storagePath && res.fileType && res.fileSize) {
       setEvidenceFiles([
@@ -271,18 +288,18 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
 
           <div
             className={`flex items-center gap-3 rounded-lg border p-2.5 ${aiResult
-                ? "border-[#16845B] bg-[#E6F7EF]"
-                : isAnalyzing
-                  ? "border-[#E58A1F] bg-[#FFF8EF]"
-                  : "border-[#D9DEE7] bg-[#F9F9FF]"
+              ? "border-[#16845B] bg-[#E6F7EF]"
+              : isAnalyzing
+                ? "border-[#E58A1F] bg-[#FFF8EF]"
+                : "border-[#D9DEE7] bg-[#F9F9FF]"
               }`}
           >
             <div
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${aiResult
-                  ? "bg-[#16845B] text-white"
-                  : isAnalyzing
-                    ? "bg-[#E58A1F] text-white"
-                    : "bg-white border border-[#D9DEE7] text-[#667085]"
+                ? "bg-[#16845B] text-white"
+                : isAnalyzing
+                  ? "bg-[#E58A1F] text-white"
+                  : "bg-white border border-[#D9DEE7] text-[#667085]"
                 }`}
             >
               02
@@ -299,14 +316,14 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
 
           <div
             className={`flex items-center gap-3 rounded-lg border p-2.5 ${aiResult?.recommendedAuthority
-                ? "border-[#0033A7] bg-[#F0F3FF]"
-                : "border-[#D9DEE7] bg-[#F9F9FF]"
+              ? "border-[#0033A7] bg-[#F0F3FF]"
+              : "border-[#D9DEE7] bg-[#F9F9FF]"
               }`}
           >
             <div
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${aiResult?.recommendedAuthority
-                  ? "bg-[#0033A7] text-white"
-                  : "bg-white border border-[#D9DEE7] text-[#667085]"
+                ? "bg-[#0033A7] text-white"
+                : "bg-white border border-[#D9DEE7] text-[#667085]"
                 }`}
             >
               03
@@ -346,13 +363,13 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                 <h2 className="text-xl font-bold text-[#111C2D] mt-1">
                   Ada masalah apa di sekitar Anda?
                 </h2>
-                <p className="text-xs text-[#434654] mt-1 leading-relaxed">
+                {/* <p className="text-xs text-[#434654] mt-1 leading-relaxed">
                   Ceritakan kondisi dengan bahasa sehari-hari. Sistem AI akan membantu menyusun rincian teknisnya.
-                </p>
+                </p> */}
               </div>
-              <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2.5 py-1 font-mono text-xs font-semibold text-[#434654]">
-                TAHAP 01
-              </span>
+              {/* <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2.5 py-1 font-mono text-xs font-semibold text-[#434654]">
+                01
+              </span> */}
             </div>
 
             {/* Error Banner */}
@@ -508,7 +525,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                       className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-gray-100 px-3 text-xs text-[#667085] cursor-not-allowed"
                     >
                       <option value="">
-                        {kecamatanId ? "-- Tidak ada data kelurahan --" : "-- Pilih kecamatan dahulu --"}
+                        {kecamatanId ? "-- Tidak ada kelurahan terdaftar --" : "-- Pilih kecamatan terlebih dahulu --"}
                       </option>
                     </select>
                   )}
@@ -573,6 +590,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                               src={ev.fileUrl}
                               alt="Bukti Laporan"
                               fill
+                              unoptimized
                               className="object-cover"
                             />
                           </div>
@@ -629,9 +647,9 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                   <span className="font-mono text-xs font-semibold uppercase text-[#111C2D]">
                     Identitas Pelapor (Opsional)
                   </span>
-                  <span className="font-mono text-[10px] text-[#16845B] bg-[#E6F7EF] px-2 py-0.5 rounded border border-[#78D9AA]/50">
+                  {/* <span className="font-mono text-[10px] text-[#16845B] bg-[#E6F7EF] px-2 py-0.5 rounded border border-[#78D9AA]/50">
                     Bukan Akun Login
-                  </span>
+                  </span> */}
                 </div>
                 <p className="text-xs text-[#434654] leading-relaxed">
                   Warga tidak perlu membuat akun. Jika Anda menyertakan email atau nomor HP, sistem
@@ -725,7 +743,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
         <div className="lg:col-span-5 space-y-5">
           <div className="rounded-xl border border-[#D9DEE7] bg-white shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="bg-[#F0F3FF] border-b border-[#D9DEE7] px-5 py-3 flex items-center justify-between">
+            {/* <div className="bg-[#F0F3FF] border-b border-[#D9DEE7] px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#E58A1F] animate-pulse" />
                 <span className="font-mono text-xs font-semibold text-[#111C2D]">
@@ -735,7 +753,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
               <span className="rounded bg-white border border-[#D9DEE7] px-2 py-0.5 font-mono text-[10px] text-[#667085]">
                 PRA-PELAPORAN
               </span>
-            </div>
+            </div> */}
 
             <div className="p-5 space-y-5">
               {/* AI Status / Error Notice */}
@@ -793,10 +811,10 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                         </span>
                         <span
                           className={`font-mono text-[11px] font-semibold uppercase px-2 py-0.5 rounded ${aiResult.priority === "critical"
-                              ? "bg-[#FFF5F5] text-[#BA1A1A] border border-[#FFDAD6]"
-                              : aiResult.priority === "high"
-                                ? "bg-[#FFF8EF] text-[#8C5000] border border-[#E58A1F]/40"
-                                : "bg-[#F0F3FF] text-[#1749D2] border border-[#D9DEE7]"
+                            ? "bg-[#FFF5F5] text-[#BA1A1A] border border-[#FFDAD6]"
+                            : aiResult.priority === "high"
+                              ? "bg-[#FFF8EF] text-[#8C5000] border border-[#E58A1F]/40"
+                              : "bg-[#F0F3FF] text-[#1749D2] border border-[#D9DEE7]"
                             }`}
                         >
                           {aiResult.priority}
@@ -852,11 +870,11 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                       <h4 className="text-sm font-bold text-[#111C2D] leading-tight mt-0.5">
                         {aiResult?.recommendedAuthority || "Menunggu Verifikasi Instansi"}
                       </h4>
-                      {!aiResult?.recommendedAuthority && (
+                      {/* {!aiResult?.recommendedAuthority && (
                         <p className="text-[10px] text-[#667085] mt-0.5 leading-relaxed">
                           Data master instansi/OPD resmi belum tersedia. Instansi akan ditentukan oleh petugas verifikator setelah laporan diterima.
                         </p>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -917,13 +935,13 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
               </div>
 
               {/* Institutional Principle */}
-              <div className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-3 flex items-start gap-2 text-xs text-[#434654]">
+              {/* <div className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-3 flex items-start gap-2 text-xs text-[#434654]">
                 <Shield className="h-4 w-4 text-[#1749D2] shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-relaxed">
                   <strong>Prinsip Kedaulatan Warga:</strong> AI hanya memberikan rekomendasi awal. Anda
                   dapat mengoreksi atau mengubah data sebelum laporan disimpan secara resmi.
                 </p>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

@@ -36,12 +36,12 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
   const menuUtama: NavItem[] = isAdmin
     ? [
-        { label: "Ringkasan Platform", href: "/admin", icon: LayoutDashboard, exact: true },
-        { label: "Laporan Masuk", href: "/admin/laporan", icon: Inbox },
-      ]
+      { label: "Ringkasan Platform", href: "/admin", icon: LayoutDashboard, exact: true },
+      { label: "Laporan Masuk", href: "/admin/laporan", icon: Inbox },
+    ]
     : [
-        { label: "Laporan Masuk", href: "/admin/laporan", icon: Inbox },
-      ];
+      { label: "Laporan Masuk", href: "/admin/laporan", icon: Inbox },
+    ];
 
   const dataMaster: NavItem[] = [
     { label: "Instansi", href: "/admin/instansi", icon: Building2 },
@@ -78,7 +78,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
             <span className="text-lg font-bold text-[#0033A7] tracking-tight">LAPORKITO</span>
           </Link>
           <span className="text-[11px] px-2 py-0.5 rounded bg-[#DFE8FF] text-[#0033A7] font-semibold">
-            {isAdmin ? "Konsol Admin" : "Konsol Petugas"}
+            {isAdmin ? "Admin" : "Petugas"}
           </span>
         </div>
 
@@ -95,11 +95,10 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${
-                    active
-                      ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
-                      : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
-                  }`}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${active
+                    ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
+                    : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
+                    }`}
                 >
                   <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
                   <span>{item.label}</span>
@@ -123,11 +122,10 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${
-                      active
-                        ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
-                        : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
-                    }`}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${active
+                      ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
+                      : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
+                      }`}
                   >
                     <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
                     <span>{item.label}</span>
@@ -152,11 +150,10 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${
-                      active
-                        ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
-                        : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
-                    }`}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${active
+                      ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
+                      : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
+                      }`}
                   >
                     <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
                     <span>{item.label}</span>

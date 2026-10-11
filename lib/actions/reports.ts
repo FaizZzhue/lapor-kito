@@ -1,19 +1,22 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import {
   createReportSchema,
   type CreateReportSchemaType,
   reportAIMetadataSchema,
   type ReportAIMetadataType,
+  updateReportStatusSchema,
+  type UpdateReportStatusSchemaType,
 } from "@/lib/validators/report";
 import { triageReportWithAI, recommendAuthorityWithAI, type TriageInput } from "@/lib/ai/triage";
 import type { AuthorityOption, AuthorityCandidateForAI, CategoryOption } from "@/lib/ai/provider";
 import { getGeminiModel } from "@/lib/ai/gemini";
-import { sendReportSubmittedEmail } from "@/lib/email/resend";
+import { sendReportSubmittedEmail, sendStatusChangeEmail } from "@/lib/email/resend";
 import { getAuthorityCandidatesByCategorySlug } from "@/lib/data/authority-rules";
 import type { AITriageResult } from "@/types/ai";
-import type { ReportPriority, ReportStatus } from "@/types/database";
+import type { ReportPriority, ReportStatus, ResponseType } from "@/types/database";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import crypto from "crypto";
 
@@ -676,6 +679,11 @@ export interface InternalReportListItem {
   ai_confidence: number | null;
   created_at: string;
   updated_at: string;
+  // Phase 6D: Reporter communication attention state
+  has_citizen_reply?: boolean;
+  latest_response_is_citizen?: boolean;
+  citizen_reply_count?: number;
+  latest_response_at?: string | null;
 }
 
 export interface InternalReportsFilter {
@@ -683,7 +691,8 @@ export interface InternalReportsFilter {
   status?: ReportStatus | "all";
   priority?: ReportPriority | "all";
   categoryId?: string | "all";
-  sortBy?: "newest" | "oldest" | "priority_desc";
+  sortBy?: "newest" | "oldest" | "priority_desc" | "attention";
+  attentionOnly?: boolean;
 }
 
 export interface InternalReportsResponse {
@@ -744,6 +753,17 @@ export interface InternalReportDetailData {
     action: string;
     notes: string | null;
     metadata: Record<string, unknown> | null;
+    created_at: string;
+  }>;
+  responses: Array<{
+    id: string;
+    responder_id: string | null;
+    responder_name: string | null;
+    responder_role: string | null;
+    response_type: ResponseType;
+    message: string;
+    attachments: unknown[] | null;
+    is_public: boolean;
     created_at: string;
   }>;
   aiTriage: {
@@ -838,11 +858,19 @@ export async function getInternalReportsAction(
       return { success: false, data: [], totalCount: 0, error: "Gagal memuat daftar laporan dari basis data." };
     }
 
-    // Load category and geographic reference lookups in parallel
-    const [catRes, kelRes, kecRes] = await Promise.all([
+    // Load category, geographic, and communication reference lookups in parallel
+    const reportIds = (reports || []).map((r) => r.id);
+    const [catRes, kelRes, kecRes, responsesRes] = await Promise.all([
       adminSupabase.from("categories").select("id, name_id, slug"),
       adminSupabase.from("kelurahan").select("id, name, kecamatan_id"),
       adminSupabase.from("kecamatan").select("id, name"),
+      reportIds.length > 0
+        ? adminSupabase
+            .from("report_responses")
+            .select("report_id, responder_id, response_type, created_at")
+            .in("report_id", reportIds)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     const catMap = new Map((catRes.data || []).map((c) => [c.id, { name: c.name_id, slug: c.slug }]));
@@ -854,9 +882,34 @@ export async function getInternalReportsAction(
       ])
     );
 
+    // Group responses by report_id
+    const responsesMap = new Map<
+      string,
+      Array<{
+        responder_id: string | null;
+        response_type: string;
+        created_at: string;
+      }>
+    >();
+
+    for (const resp of responsesRes.data || []) {
+      const list = responsesMap.get(resp.report_id) || [];
+      list.push(resp);
+      responsesMap.set(resp.report_id, list);
+    }
+
     let items: InternalReportListItem[] = (reports || []).map((r) => {
       const catInfo = r.category_id ? catMap.get(r.category_id) : undefined;
       const kelInfo = r.kelurahan_id ? kelMap.get(r.kelurahan_id) : undefined;
+      const repResponses = responsesMap.get(r.id) || [];
+      const citizenReplies = repResponses.filter(
+        (rp) => rp.responder_id === null || rp.response_type === "clarification"
+      );
+      const latestResp = repResponses[0];
+      const latestIsCitizen = latestResp
+        ? latestResp.responder_id === null || latestResp.response_type === "clarification"
+        : false;
+
       return {
         id: r.id,
         tracking_code: r.tracking_code,
@@ -874,6 +927,10 @@ export async function getInternalReportsAction(
         ai_confidence: r.ai_confidence,
         created_at: r.created_at,
         updated_at: r.updated_at,
+        has_citizen_reply: citizenReplies.length > 0,
+        latest_response_is_citizen: latestIsCitizen,
+        citizen_reply_count: citizenReplies.length,
+        latest_response_at: latestResp?.created_at || null,
       };
     });
 
@@ -893,7 +950,12 @@ export async function getInternalReportsAction(
       });
     }
 
-    // Priority sort if requested
+    // Filter attention only if requested
+    if (filters?.attentionOnly) {
+      items = items.filter((item) => item.latest_response_is_citizen);
+    }
+
+    // Sort order
     if (filters?.sortBy === "priority_desc") {
       const priorityWeight: Record<ReportPriority, number> = {
         critical: 4,
@@ -902,6 +964,12 @@ export async function getInternalReportsAction(
         low: 1,
       };
       items.sort((a, b) => priorityWeight[b.priority] - priorityWeight[a.priority]);
+    } else if (filters?.sortBy === "attention") {
+      items.sort((a, b) => {
+        if (a.latest_response_is_citizen && !b.latest_response_is_citizen) return -1;
+        if (!a.latest_response_is_citizen && b.latest_response_is_citizen) return 1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     }
 
     return {
@@ -945,8 +1013,8 @@ export async function getInternalReportDetailAction(
       };
     }
 
-    // Fetch related records in parallel: category, kelurahan, reporter, evidence, timeline, ai log
-    const [catRes, kelRes, reporterRes, evRes, tlRes, aiLogRes] = await Promise.all([
+    // Fetch related records in parallel: category, kelurahan, reporter, evidence, timeline, ai log, responses
+    const [catRes, kelRes, reporterRes, evRes, tlRes, aiLogRes, respRes] = await Promise.all([
       report.category_id
         ? adminSupabase
             .from("categories")
@@ -985,6 +1053,24 @@ export async function getInternalReportDetailAction(
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      adminSupabase
+        .from("report_responses")
+        .select(`
+          id,
+          responder_id,
+          response_type,
+          message,
+          attachments,
+          is_public,
+          created_at,
+          internal_users (
+            id,
+            full_name,
+            role
+          )
+        `)
+        .eq("report_id", report.id)
+        .order("created_at", { ascending: true }),
     ]);
 
     // Resolve kecamatan if kelurahan exists
@@ -1190,12 +1276,248 @@ export async function getInternalReportDetailAction(
           metadata: t.metadata as Record<string, unknown> | null,
           created_at: t.created_at,
         })),
+        responses: (respRes.data || []).map((r) => {
+          const user = r.internal_users as unknown as { id: string; full_name: string; role: string } | null;
+          return {
+            id: r.id,
+            responder_id: r.responder_id,
+            responder_name: user ? user.full_name : null,
+            responder_role: user ? user.role : null,
+            response_type: r.response_type as ResponseType,
+            message: r.message,
+            attachments: (r.attachments as unknown[]) || [],
+            is_public: r.is_public,
+            created_at: r.created_at,
+          };
+        }),
         aiTriage: aiTriageData,
         authorityRule: authorityRuleData,
       },
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Kesalahan saat memuat detail laporan";
+    return { success: false, error: msg };
+  }
+}
+
+// ====================================================================
+// PHASE 6B: PETUGAS OPERATIONAL ACTION & STATUS MANAGEMENT
+// ====================================================================
+import {
+  VALID_STATUS_TRANSITIONS,
+  STATUS_TRANSITIONS_METADATA,
+  REPORT_STATUS_LABELS,
+  REPORT_STATUS_DESCRIPTIONS,
+} from "@/lib/constants/report-status";
+
+export interface UpdateReportStatusResult {
+  success: boolean;
+  previousStatus?: ReportStatus;
+  newStatus?: ReportStatus;
+  trackingCode?: string;
+  timelineId?: string;
+  emailSent?: boolean;
+  emailReason?: string;
+  error?: string;
+}
+
+/**
+ * Server Action for mutating report status strictly by authorized staff (Admin & Petugas).
+ * 
+ * Enforces:
+ * 1. Active staff session verification (requireStaff)
+ * 2. Zod validation of input
+ * 3. Authoritative DB status lookup (never trusts browser)
+ * 4. Strict transition matrix verification
+ * 5. Mandatory notes for destructive actions (rejected, duplicate)
+ * 6. Atomic/Compensated timeline audit logging
+ * 7. Path revalidation for both admin and public tracking
+ */
+export async function updateReportStatusAction(
+  input: UpdateReportStatusSchemaType
+): Promise<UpdateReportStatusResult> {
+  try {
+    // 1. Authorize: user must be active staff (admin or petugas)
+    const staff = await requireStaff();
+
+    // 2. Validate payload with Zod
+    const parsed = updateReportStatusSchema.safeParse(input);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]?.message || "Data permintaan tidak valid";
+      return { success: false, error: issue };
+    }
+    const { reportId, nextStatus, notes } = parsed.data;
+
+    const adminSupabase = createAdminClient();
+
+    // 3. Load report strictly from database (never trust client status)
+    const { data: dbReport, error: fetchErr } = await adminSupabase
+      .from("reports")
+      .select("id, tracking_code, status, title, reporter_id")
+      .eq("id", reportId)
+      .maybeSingle();
+
+    if (fetchErr || !dbReport) {
+      return {
+        success: false,
+        error: `Laporan dengan ID tersebut tidak ditemukan dalam sistem.`,
+      };
+    }
+
+    const currentStatus = dbReport.status as ReportStatus;
+
+    // 4. Validate transition matrix
+    const allowedTargets = VALID_STATUS_TRANSITIONS[currentStatus] || [];
+    if (!allowedTargets.includes(nextStatus)) {
+      return {
+        success: false,
+        error: `Transisi status tidak diizinkan: dari '${currentStatus}' ke '${nextStatus}'.`,
+      };
+    }
+
+    // Require reason notes for destructive terminal actions (rejected & duplicate)
+    if ((nextStatus === "rejected" || nextStatus === "duplicate") && (!notes || !notes.trim())) {
+      return {
+        success: false,
+        error: `Alasan atau catatan wajib diisi saat menolak atau menandai laporan sebagai duplikat.`,
+      };
+    }
+
+    // Find metadata config for timeline
+    const transMeta = STATUS_TRANSITIONS_METADATA[currentStatus]?.find(
+      (m) => m.targetStatus === nextStatus
+    );
+    const actionTitle = transMeta?.actionTitle || "Status Laporan Diperbarui";
+    const finalNotes =
+      notes?.trim() ||
+      transMeta?.defaultNotes ||
+      `Status diubah dari ${currentStatus} ke ${nextStatus}`;
+
+    // 5. Concurrency check & status update
+    const nowIso = new Date().toISOString();
+    const { error: updateErr } = await adminSupabase
+      .from("reports")
+      .update({
+        status: nextStatus,
+        updated_at: nowIso,
+      })
+      .eq("id", reportId)
+      .eq("status", currentStatus);
+
+    if (updateErr) {
+      console.error("updateReportStatusAction error:", updateErr);
+      return {
+        success: false,
+        error: "Gagal memperbarui status laporan pada basis data.",
+      };
+    }
+
+    // 6. Insert timeline audit record
+    const { data: insertedTimeline, error: timelineErr } = await adminSupabase
+      .from("report_timeline")
+      .insert({
+        report_id: reportId,
+        actor_id: staff.id,
+        actor_role: staff.role,
+        action: actionTitle,
+        notes: finalNotes,
+        metadata: {
+          previous_status: currentStatus,
+          next_status: nextStatus,
+          actor_name: staff.full_name,
+          actor_email: staff.email,
+          is_internal: false, // Visible in public tracking timeline
+        },
+      })
+      .select("id")
+      .single();
+
+    if (timelineErr || !insertedTimeline) {
+      console.error("Timeline insert failed, executing compensating rollback:", timelineErr);
+      // Compensating rollback: revert status back to previous status
+      await adminSupabase
+        .from("reports")
+        .update({
+          status: currentStatus,
+          updated_at: nowIso,
+        })
+        .eq("id", reportId);
+
+      return {
+        success: false,
+        error: "Gagal mencatat riwayat linimasa operasional. Perubahan status dibatalkan.",
+      };
+    }
+
+    // 6.5 Status Change Email Notification (Non-fatal, server-side triggered)
+    let emailSent: boolean | undefined = undefined;
+    let emailReason: string | undefined = undefined;
+
+    // 'submitted' is handled by submission email; other operational statuses notify reporter
+    if (nextStatus !== "submitted" && dbReport.reporter_id) {
+      try {
+        const { data: reporterData } = await adminSupabase
+          .from("reporters")
+          .select("email, full_name")
+          .eq("id", dbReport.reporter_id)
+          .maybeSingle();
+
+        if (reporterData?.email) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://laporkito.id";
+          const trackingUrl = `${appUrl}/pantau/${dbReport.tracking_code}`;
+          const statusLabel = REPORT_STATUS_LABELS[nextStatus] || nextStatus;
+          const statusDescription =
+            REPORT_STATUS_DESCRIPTIONS[nextStatus] || "Status laporan Anda telah diperbarui.";
+
+          const emailRes = await sendStatusChangeEmail({
+            to: reporterData.email,
+            reporterName: reporterData.full_name || "Warga Palembang",
+            trackingCode: dbReport.tracking_code,
+            reportTitle: dbReport.title,
+            newStatus: nextStatus,
+            statusLabel,
+            statusDescription,
+            notes: notes?.trim() || undefined,
+            trackingUrl,
+          });
+
+          if (emailRes.success) {
+            emailSent = true;
+          } else {
+            emailSent = false;
+            emailReason = (emailRes as { reason?: string }).reason || "EMAIL_DELIVERY_FAILED";
+            console.warn("Status change email sending failed:", emailRes);
+          }
+        } else {
+          emailSent = false;
+          emailReason = "NO_REPORTER_EMAIL";
+        }
+      } catch (emailErr) {
+        console.warn("Non-fatal error dispatching status change email:", emailErr);
+        emailSent = false;
+        emailReason = "EMAIL_EXCEPTION";
+      }
+    }
+
+    // 7. Cache revalidation
+    revalidatePath("/admin/laporan");
+    revalidatePath(`/admin/laporan/${reportId}`);
+    if (dbReport.tracking_code) {
+      revalidatePath(`/admin/laporan/${dbReport.tracking_code}`);
+      revalidatePath(`/pantau/${dbReport.tracking_code}`);
+    }
+
+    return {
+      success: true,
+      previousStatus: currentStatus,
+      newStatus: nextStatus,
+      trackingCode: dbReport.tracking_code,
+      timelineId: insertedTimeline.id,
+      emailSent,
+      emailReason,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Kesalahan sistem saat memperbarui status";
     return { success: false, error: msg };
   }
 }

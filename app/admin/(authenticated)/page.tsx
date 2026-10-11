@@ -176,13 +176,13 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#EDF7F2] border border-[#B5E2CD] rounded-lg shadow-sm self-start md:self-auto">
+        {/* <div className="flex items-center gap-2 px-3 py-1.5 bg-[#EDF7F2] border border-[#B5E2CD] rounded-lg shadow-sm self-start md:self-auto">
           <CircleCheck size={18} strokeWidth={2} className="text-[#16845B]" />
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold text-[#111C2D]">Sistem Operasional</span>
             <span className="text-[10px] text-[#747686]">Fase 4F — Dashboard Aktif</span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* ================================================================ */}

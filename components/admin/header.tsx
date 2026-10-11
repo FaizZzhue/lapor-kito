@@ -18,10 +18,10 @@ export function AdminHeader({ user }: AdminHeaderProps) {
 
       {/* Status & Identity Right */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EDF7F2] border border-[#B5E2CD]">
+        {/* <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EDF7F2] border border-[#B5E2CD]">
           <ShieldCheck className="w-3.5 h-3.5 text-[#16845B] shrink-0" aria-hidden="true" />
           <span className="text-[11px] font-medium text-[#16845B]">Koneksi Audit Aktif • v2.4</span>
-        </div>
+        </div> */}
 
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-[#0033A7] flex items-center justify-center text-white text-[13px] font-semibold">

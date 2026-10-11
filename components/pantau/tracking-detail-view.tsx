@@ -338,49 +338,67 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
 
             {responses && responses.length > 0 ? (
               <div className="space-y-4">
-                {responses.map((resp) => (
-                  <div
-                    key={resp.id}
-                    className="rounded-xl border border-[#D9DEE7] bg-[#F0F3FF] p-4 space-y-3"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#0033A7] text-white">
-                          <Building2 className="h-4 w-4" />
+                {responses.map((resp) => {
+                  const isCitizen = resp.response_type === "clarification";
+
+                  return (
+                    <div
+                      key={resp.id}
+                      className={`rounded-xl border p-4 space-y-3 ${
+                        isCitizen
+                          ? "bg-[#FFFDF5] border-[#F4E3B5] ml-2 sm:ml-6"
+                          : "bg-[#F0F3FF] border-[#C4D3F8] mr-2 sm:mr-6"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`flex h-7 w-7 items-center justify-center rounded-md text-white ${
+                              isCitizen ? "bg-[#D97706]" : "bg-[#0033A7]"
+                            }`}
+                          >
+                            {isCitizen ? (
+                              <Reply className="h-4 w-4" />
+                            ) : (
+                              <Building2 className="h-4 w-4" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-[#111C2D]">
+                              {isCitizen ? "Pelapor (Warga)" : "Petugas Instansi / OPD"}
+                            </h4>
+                            <span className="font-mono text-[10px] text-[#667085] uppercase">
+                              {isCitizen ? "Klarifikasi Warga" : `Tipe: ${resp.response_type}`}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-[#111C2D]">
-                            Petugas Teknis Instansi
-                          </h4>
-                          <span className="font-mono text-[10px] text-[#667085] uppercase">
-                            Tipe: {resp.response_type}
-                          </span>
-                        </div>
+                        <span className="font-mono text-[11px] text-[#667085]">
+                          {new Date(resp.created_at).toLocaleString("id-ID", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}{" "}
+                          WIB
+                        </span>
                       </div>
-                      <span className="font-mono text-[11px] text-[#667085]">
-                        {new Date(resp.created_at).toLocaleString("id-ID", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}{" "}
-                        WIB
-                      </span>
-                    </div>
 
-                    <blockquote className="rounded-lg bg-white p-3.5 border border-[#D9DEE7] text-xs text-[#111C2D] leading-relaxed">
-                      &quot;{resp.message}&quot;
-                    </blockquote>
+                      <blockquote className="rounded-lg bg-white p-3.5 border border-[#D9DEE7] text-xs text-[#111C2D] leading-relaxed whitespace-pre-line">
+                        &quot;{resp.message}&quot;
+                      </blockquote>
 
-                    <div className="flex justify-end pt-1">
-                      <Link
-                        href={`/pantau/${report.tracking_code}/tanggapan`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#D9DEE7] bg-white px-3 py-1.5 font-mono text-xs font-semibold text-[#111C2D] hover:bg-[#F9F9FF] shadow-xs"
-                      >
-                        <Reply className="h-3.5 w-3.5 text-[#1749D2]" />
-                        <span>Balas Tanggapan</span>
-                      </Link>
+                      {!isCitizen && (
+                        <div className="flex justify-end pt-1">
+                          <Link
+                            href={`/pantau/${report.tracking_code}/tanggapan`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#D9DEE7] bg-white px-3 py-1.5 font-mono text-xs font-semibold text-[#111C2D] hover:bg-[#F9F9FF] shadow-xs"
+                          >
+                            <Reply className="h-3.5 w-3.5 text-[#1749D2]" />
+                            <span>Balas Tanggapan</span>
+                          </Link>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-[#D9DEE7] bg-[#F9F9FF] p-6 text-center space-y-2">
@@ -470,6 +488,7 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
                         src={ev.file_url}
                         alt={ev.caption || "Bukti Laporan"}
                         fill
+                        unoptimized
                         className="object-cover group-hover:scale-105 transition-transform duration-200"
                       />
                     </div>

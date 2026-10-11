@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -10,7 +10,6 @@ import {
   Shield,
   ShieldCheck,
   ChevronRight,
-  ArrowRight,
   ListFilter,
   AlertCircle,
   Mail,
@@ -23,17 +22,40 @@ import { EditUserModal } from '@/components/admin/users/edit-user-modal';
 import { UserAccessModal } from '@/components/admin/users/user-access-modal';
 import type { InternalUserRow } from '@/types/database';
 
-function useInternalUserData() {
+function useInternalUserData(
+  searchQuery: string,
+  roleFilter: 'all' | 'admin' | 'petugas',
+  statusFilter: 'all' | 'active' | 'inactive'
+) {
   const [users, setUsers] = useState<InternalUserRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fetchData = useCallback(
-    async (
-      searchQuery: string,
-      roleFilter: 'all' | 'admin' | 'petugas',
-      statusFilter: 'all' | 'active' | 'inactive'
-    ) => {
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await getInternalUsersAction({
+        search: searchQuery.trim() || undefined,
+        role: roleFilter,
+        status: statusFilter,
+      });
+      if (!res.success) {
+        setErrorMsg(res.error || 'Gagal memuat daftar pengguna internal');
+      } else {
+        setUsers(res.data);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Terjadi kegagalan komunikasi sistem');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function runFetch() {
       setIsLoading(true);
       setErrorMsg(null);
       try {
@@ -42,30 +64,50 @@ function useInternalUserData() {
           role: roleFilter,
           status: statusFilter,
         });
+        if (!isMounted) return;
         if (!res.success) {
           setErrorMsg(res.error || 'Gagal memuat daftar pengguna internal');
         } else {
           setUsers(res.data);
         }
       } catch (err: unknown) {
+        if (!isMounted) return;
         setErrorMsg(err instanceof Error ? err.message : 'Terjadi kegagalan komunikasi sistem');
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-    },
-    []
-  );
+    }
+
+    runFetch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [searchQuery, roleFilter, statusFilter]);
 
   return { users, isLoading, errorMsg, fetchData };
 }
 
 export default function PenggunaInternalPage() {
-  const { users, isLoading, errorMsg, fetchData } = useInternalUserData();
-
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'petugas'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { users, isLoading, errorMsg, fetchData } = useInternalUserData(
+    debouncedSearch,
+    roleFilter,
+    statusFilter
+  );
 
   // Modals state
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -73,29 +115,20 @@ export default function PenggunaInternalPage() {
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<InternalUserRow | null>(null);
 
-  // Initial fetch pattern
-  if (!initialized) {
-    setInitialized(true);
-    fetchData(search, roleFilter, statusFilter);
-  }
-
   const loadData = useCallback(() => {
-    fetchData(search, roleFilter, statusFilter);
-  }, [fetchData, search, roleFilter, statusFilter]);
+    fetchData();
+  }, [fetchData]);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
-    fetchData(val, roleFilter, statusFilter);
   };
 
   const handleRoleFilterChange = (role: 'all' | 'admin' | 'petugas') => {
     setRoleFilter(role);
-    fetchData(search, role, statusFilter);
   };
 
   const handleStatusFilterChange = (status: 'all' | 'active' | 'inactive') => {
     setStatusFilter(status);
-    fetchData(search, roleFilter, status);
   };
 
   const handleOpenEdit = (user: InternalUserRow) => {

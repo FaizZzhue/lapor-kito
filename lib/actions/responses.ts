@@ -1,18 +1,207 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
-import { createResponseSchema, type CreateResponseSchemaType } from "@/lib/validators/tanggapan";
+import {
+  createResponseSchema,
+  createOfficialResponseSchema,
+  type CreateResponseSchemaType,
+  type CreateOfficialResponseSchemaType,
+} from "@/lib/validators/tanggapan";
 import { trackingSearchSchema } from "@/lib/validators/report";
+import { getCurrentInternalUser } from "@/lib/auth/session";
+import { sendOfficialResponseEmail } from "@/lib/email/resend";
+
+export interface CreateOfficialResponseResult {
+  success: boolean;
+  responseId?: string;
+  timelineId?: string;
+  emailSent?: boolean;
+  error?: string;
+}
 
 export interface SubmitReporterResponseResult {
   success: boolean;
+  responseId?: string;
+  timelineId?: string;
   error?: string;
   isBlockedByAuth?: boolean;
 }
 
 /**
+ * Verify caller is an active internal staff member (admin or petugas).
+ */
+async function requireStaff() {
+  const { isAuthenticated, internalUser } = await getCurrentInternalUser();
+  if (!isAuthenticated || !internalUser) {
+    throw new Error("Sesi kedinasan tidak valid. Silakan masuk kembali.");
+  }
+  if (!internalUser.is_active) {
+    throw new Error("Akun Anda dinonaktifkan. Hubungi Administrator Sistem.");
+  }
+  if (internalUser.role !== "admin" && internalUser.role !== "petugas") {
+    throw new Error("Akses ditolak: Bukan staf kedinasan yang berwenang.");
+  }
+  return internalUser;
+}
+
+/**
+ * Creates an official response from authorized Petugas/Admin to citizens.
+ * 
+ * Enforces:
+ * 1. Active staff session verification (requireStaff)
+ * 2. Zod validation of message and responseType
+ * 3. Report existence verification
+ * 4. Atomic insertion of response and report_timeline (with compensating rollback)
+ * 5. Email notification to reporter (non-fatal if email fails)
+ * 6. Cache revalidation across internal and public tracking routes
+ */
+export async function createReportResponseAction(
+  input: CreateOfficialResponseSchemaType
+): Promise<CreateOfficialResponseResult> {
+  try {
+    // 1. Authorize staff
+    const staff = await requireStaff();
+
+    // 2. Validate input schema
+    const parsed = createOfficialResponseSchema.safeParse(input);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]?.message || "Format tanggapan tidak valid";
+      return { success: false, error: issue };
+    }
+
+    const { reportId, message, responseType } = parsed.data;
+    const adminSupabase = createAdminClient();
+
+    // 3. Verify report exists
+    const { data: report, error: repError } = await adminSupabase
+      .from("reports")
+      .select("id, tracking_code, title, reporter_id")
+      .eq("id", reportId)
+      .maybeSingle();
+
+    if (repError || !report) {
+      return {
+        success: false,
+        error: "Laporan tidak ditemukan dalam sistem.",
+      };
+    }
+
+    // 4. Persist response in report_responses
+    const { data: insertedResponse, error: respError } = await adminSupabase
+      .from("report_responses")
+      .insert({
+        report_id: report.id,
+        responder_id: staff.id,
+        response_type: responseType || "official",
+        message: message.trim(),
+        attachments: [],
+        is_public: true,
+      })
+      .select("id")
+      .single();
+
+    if (respError || !insertedResponse) {
+      console.error("Failed to insert report response:", respError);
+      return {
+        success: false,
+        error: "Gagal menyimpan tanggapan resmi ke basis data.",
+      };
+    }
+
+    // 5. Atomic timeline audit recording
+    const { data: insertedTimeline, error: timelineError } = await adminSupabase
+      .from("report_timeline")
+      .insert({
+        report_id: report.id,
+        actor_id: staff.id,
+        actor_role: staff.role,
+        action: "Tanggapan Resmi Dikirim",
+        notes: message.trim(),
+        metadata: {
+          is_internal: false,
+          response_type: responseType || "official",
+          responder_name: staff.full_name,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (timelineError || !insertedTimeline) {
+      console.error(
+        "Timeline insert failed for official response. Executing compensating rollback:",
+        timelineError
+      );
+      // Compensating rollback: delete created response
+      await adminSupabase.from("report_responses").delete().eq("id", insertedResponse.id);
+      return {
+        success: false,
+        error: "Gagal mencatat linimasa tanggapan resmi. Operasi dibatalkan.",
+      };
+    }
+
+    // 6. Non-fatal Email Notification
+    let emailSent = false;
+    if (report.reporter_id) {
+      try {
+        const { data: reporterData } = await adminSupabase
+          .from("reporters")
+          .select("email, full_name")
+          .eq("id", report.reporter_id)
+          .maybeSingle();
+
+        if (reporterData?.email) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://laporkito.id";
+          const trackingUrl = `${appUrl}/pantau/${report.tracking_code}`;
+
+          const emailRes = await sendOfficialResponseEmail({
+            to: reporterData.email,
+            reporterName: reporterData.full_name || "Warga Palembang",
+            trackingCode: report.tracking_code,
+            reportTitle: report.title,
+            responseMessage: message.trim(),
+            trackingUrl,
+          });
+
+          emailSent = emailRes.success;
+          if (!emailRes.success) {
+            console.warn(
+              "Official response notification email non-fatal failure:",
+              emailRes.error || emailRes.reason
+            );
+          }
+        }
+      } catch (emailErr) {
+        console.warn("Email notification error (non-fatal):", emailErr);
+      }
+    }
+
+    // 7. Cache revalidation
+    try {
+      revalidatePath("/admin/laporan");
+      revalidatePath(`/admin/laporan/${report.id}`);
+      revalidatePath(`/admin/laporan/${report.tracking_code}`);
+      revalidatePath(`/pantau/${report.tracking_code}`);
+      revalidatePath(`/pantau/${report.tracking_code}/tanggapan`);
+    } catch {
+      // Safe fallback when executed outside Next.js request context (e.g. CLI E2E tests)
+    }
+
+    return {
+      success: true,
+      responseId: insertedResponse.id,
+      timelineId: insertedTimeline.id,
+      emailSent,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Kesalahan sistem saat membuat tanggapan";
+    return { success: false, error: msg };
+  }
+}
+
+/**
  * Handles public citizen/reporter responses.
- * Enforces ownership verification: requires reporter email verification matching the report.
+ * Enforces ownership verification: requires reporter email/phone verification matching the report.
  * Does not allow arbitrary guests to post responses on another person's report.
  */
 export async function submitReporterResponseAction(
@@ -128,16 +317,20 @@ export async function submitReporterResponseAction(
     }
 
     // 5. Persist response in report_responses
-    const { error: insertErr } = await adminSupabase.from("report_responses").insert({
-      report_id: report.id,
-      responder_id: null, // Citizen clarification (non-internal staff)
-      response_type: "clarification",
-      message: parsedResponse.data.message,
-      attachments: parsedResponse.data.attachments,
-      is_public: true,
-    });
+    const { data: insertedResp, error: insertErr } = await adminSupabase
+      .from("report_responses")
+      .insert({
+        report_id: report.id,
+        responder_id: null, // Citizen clarification (non-internal staff)
+        response_type: "clarification",
+        message: parsedResponse.data.message,
+        attachments: parsedResponse.data.attachments,
+        is_public: true,
+      })
+      .select("id")
+      .single();
 
-    if (insertErr) {
+    if (insertErr || !insertedResp) {
       console.error("Failed to insert report response:", insertErr);
       return {
         success: false,
@@ -145,20 +338,47 @@ export async function submitReporterResponseAction(
       };
     }
 
-    // 6. Record in report_timeline
-    try {
-      await adminSupabase.from("report_timeline").insert({
+    // 6. Record in report_timeline with compensating rollback
+    const { data: insertedTimeline, error: timelineErr } = await adminSupabase
+      .from("report_timeline")
+      .insert({
         report_id: report.id,
         actor_role: "reporter",
-        action: "Tanggapan Warga",
-        notes: "Warga memberikan keterangan atau klarifikasi tambahan.",
+        action: "Balasan Pelapor Diterima",
+        notes: parsedResponse.data.message,
         metadata: { is_internal: false },
-      });
-    } catch {
-      // Non-fatal audit log warning
+      })
+      .select("id")
+      .single();
+
+    if (timelineErr || !insertedTimeline) {
+      console.error(
+        "Timeline insert failed for citizen response. Executing compensating rollback:",
+        timelineErr
+      );
+      await adminSupabase.from("report_responses").delete().eq("id", insertedResp.id);
+      return {
+        success: false,
+        error: "Gagal mencatat riwayat linimasa balasan. Tanggapan dibatalkan.",
+      };
     }
 
-    return { success: true };
+    // 7. Cache revalidation
+    try {
+      revalidatePath("/admin/laporan");
+      revalidatePath(`/admin/laporan/${report.id}`);
+      revalidatePath(`/admin/laporan/${cleanCode}`);
+      revalidatePath(`/pantau/${cleanCode}`);
+      revalidatePath(`/pantau/${cleanCode}/tanggapan`);
+    } catch {
+      // Safe fallback when executed outside Next.js request context (e.g. CLI E2E tests)
+    }
+
+    return {
+      success: true,
+      responseId: insertedResp.id,
+      timelineId: insertedTimeline.id,
+    };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Kesalahan sistem tanggapan";
     return { success: false, error: message };

@@ -119,7 +119,7 @@ export function CategoryFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white backdrop-blur-xs animate-in fade-in duration-200">
       <div className="w-full max-w-xl bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low/40 shrink-0">
@@ -207,11 +207,10 @@ export function CategoryFormModal({
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 placeholder="infrastruktur-jalan"
-                className={`w-full h-10 px-3.5 rounded-lg border font-mono text-sm outline-none transition-all ${
-                  isCoreCategory
+                className={`w-full h-10 px-3.5 rounded-lg border font-mono text-sm outline-none transition-all ${isCoreCategory
                     ? 'bg-surface-container-low text-on-surface-variant border-surface-container cursor-not-allowed'
                     : 'bg-surface-container-lowest border-outline-variant text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20'
-                }`}
+                  }`}
               />
             </div>
 
@@ -266,11 +265,10 @@ export function CategoryFormModal({
                     key={ic.name}
                     type="button"
                     onClick={() => setIcon(ic.name)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all ${
-                      isSelected
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all ${isSelected
                         ? 'border-primary bg-surface-container text-primary font-semibold shadow-xs'
                         : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline'
-                    }`}
+                      }`}
                   >
                     <IconComponent className="w-4 h-4" />
                     <span>{ic.label}</span>

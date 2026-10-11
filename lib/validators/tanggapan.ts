@@ -23,3 +23,18 @@ export const createResponseSchema = z.object({
 })
 
 export type CreateResponseSchemaType = z.infer<typeof createResponseSchema>
+
+export const createOfficialResponseSchema = z.object({
+  reportId: z.string().uuid('ID laporan tidak valid'),
+  message: z
+    .string()
+    .trim()
+    .min(5, 'Pesan tanggapan resmi minimal 5 karakter')
+    .max(2000, 'Pesan tanggapan resmi maksimal 2000 karakter')
+    .refine((val) => !/<[^>]*script/i.test(val), {
+      message: 'Pesan tidak boleh mengandung tag script atau kode berbahaya',
+    }),
+  responseType: z.enum(['official', 'update']).default('official'),
+})
+
+export type CreateOfficialResponseSchemaType = z.infer<typeof createOfficialResponseSchema>

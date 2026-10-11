@@ -17,17 +17,17 @@ export default function PantauPage() {
         <div className="rounded-xl border border-[#D9DEE7] bg-white p-6 sm:p-8 shadow-sm space-y-6">
           <div className="space-y-2 border-b border-[#D9DEE7] pb-5">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F0F3FF] text-[#1749D2]">
+              {/* <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F0F3FF] text-[#1749D2]">
                 <Search className="h-4 w-4" />
-              </div>
+              </div> */}
               <h1 className="text-xl sm:text-2xl font-bold text-[#111C2D] tracking-tight">
                 Pantau Status Laporan
               </h1>
             </div>
-            <p className="text-xs text-[#434654] leading-relaxed">
+            {/* <p className="text-xs text-[#434654] leading-relaxed">
               Lihat perkembangan verifikasi lapangan dan tanggapan resmi dari instansi terkait di
               Kota Palembang menggunakan kode lacak Anda.
-            </p>
+            </p> */}
           </div>
 
           <div className="space-y-4">
@@ -70,7 +70,7 @@ export default function PantauPage() {
                 className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-[#1749D2] hover:underline"
               >
                 <span>Buat Laporan Sekarang</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                {/* <ArrowRight className="h-3.5 w-3.5" /> */}
               </Link>
             </div>
           </div>

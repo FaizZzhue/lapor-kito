@@ -59,3 +59,23 @@ export const reportAIMetadataSchema = z.object({
 })
 
 export type ReportAIMetadataType = z.infer<typeof reportAIMetadataSchema>
+
+export const reportStatusEnum = z.enum([
+  'draft',
+  'submitted',
+  'verifying',
+  'verified',
+  'in_progress',
+  'resolved',
+  'rejected',
+  'duplicate',
+])
+
+export const updateReportStatusSchema = z.object({
+  reportId: z.string().uuid('ID laporan tidak valid'),
+  nextStatus: reportStatusEnum,
+  notes: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional(),
+})
+
+export type UpdateReportStatusSchemaType = z.infer<typeof updateReportStatusSchema>
+

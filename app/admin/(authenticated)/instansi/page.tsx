@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Home,
@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  ListFilter,
 } from 'lucide-react';
 import { getInstitutionsAction, type InstitutionWithUnitsCount } from '@/lib/actions/institutions';
 import { InstitutionFormModal } from '@/components/admin/institutions/institution-form-modal';
@@ -24,14 +23,11 @@ function useInstitutionData() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fetchData = useCallback(async (search: string, statusFilter: 'all' | 'active' | 'inactive') => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await getInstitutionsAction({
-        search: search.trim() || undefined,
-        status: statusFilter,
-      });
+      const res = await getInstitutionsAction();
       if (!res.success) {
         setErrorMsg(res.error || 'Gagal memuat daftar instansi');
       } else {
@@ -44,6 +40,37 @@ function useInstitutionData() {
     }
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initialLoad() {
+      setIsLoading(true);
+      setErrorMsg(null);
+      try {
+        const res = await getInstitutionsAction();
+        if (!isMounted) return;
+        if (!res.success) {
+          setErrorMsg(res.error || 'Gagal memuat daftar instansi');
+        } else {
+          setInstitutions(res.data);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kegagalan komunikasi');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    initialLoad();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return { institutions, isLoading, errorMsg, fetchData };
 }
 
@@ -53,22 +80,37 @@ export default function InstansiPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [initialized, setInitialized] = useState(false);
-
-  // Initial fetch — uses derived-state-from-render pattern
-  if (!initialized) {
-    setInitialized(true);
-    fetchData(search, statusFilter);
-  }
 
   const loadData = useCallback(() => {
-    fetchData(search, statusFilter);
-  }, [fetchData, search, statusFilter]);
+    fetchData();
+  }, [fetchData]);
 
-  // Status counts
+  // Status counts computed from full dataset
   const totalCount = institutions.length;
-  const activeCount = institutions.filter((i) => i.is_active).length;
-  const inactiveCount = institutions.filter((i) => !i.is_active).length;
+  const activeCount = useMemo(() => institutions.filter((i) => i.is_active).length, [institutions]);
+  const inactiveCount = useMemo(() => institutions.filter((i) => !i.is_active).length, [institutions]);
+
+  // Memoized client-side filtering for instantaneous search & filter feedback
+  const filteredInstitutions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return institutions.filter((inst) => {
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && inst.is_active) ||
+        (statusFilter === 'inactive' && !inst.is_active);
+
+      if (!matchesStatus) return false;
+
+      if (!q) return true;
+      return (
+        inst.name.toLowerCase().includes(q) ||
+        inst.code.toLowerCase().includes(q) ||
+        (inst.short_name && inst.short_name.toLowerCase().includes(q)) ||
+        (inst.mandate && inst.mandate.toLowerCase().includes(q)) ||
+        (inst.category && inst.category.toLowerCase().includes(q))
+      );
+    });
+  }, [institutions, search, statusFilter]);
 
   return (
     <div className="flex flex-col w-full gap-6">
@@ -197,56 +239,71 @@ export default function InstansiPage() {
             <RefreshCw className="animate-spin h-6 w-6 text-[#1749D2]" aria-hidden="true" />
             <p className="text-[14px]">Memuat data master instansi...</p>
           </div>
-        ) : institutions.length === 0 ? (
+        ) : filteredInstitutions.length === 0 ? (
           /* Institutional Empty State */
           <div className="p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-[#F0F3FF] text-[#0033A7] flex items-center justify-center mb-4">
               <Building2 className="w-8 h-8 text-[#0033A7]" aria-hidden="true" />
             </div>
             <h3 className="text-[17px] font-semibold text-[#111C2D] mb-1.5">
-              Belum Ada Instansi Terdaftar
+              {institutions.length === 0
+                ? 'Belum Ada Instansi Terdaftar'
+                : 'Tidak Ada Hasil yang Cocok'}
             </h3>
             <p className="text-[13px] text-[#434654] leading-relaxed mb-6">
-              {search || statusFilter !== 'all'
-                ? 'Tidak ada instansi yang cocok dengan filter pencarian saat ini.'
-                : 'Data master instansi dinas/badan penerima laporan di lingkungan Pemerintah Kota Palembang belum ditambahkan. Klik tombol di bawah untuk mendaftarkan instansi resmi pertama.'}
+              {institutions.length === 0
+                ? 'Data master instansi dinas/badan penerima laporan di lingkungan Pemerintah Kota Palembang belum ditambahkan. Klik tombol di bawah untuk mendaftarkan instansi resmi pertama.'
+                : 'Tidak ada data instansi yang cocok dengan filter atau kata kunci pencarian saat ini.'}
             </p>
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
-            >
-              <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>Tambah Instansi Baru</span>
-            </button>
+            {institutions.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+              >
+                <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>Tambah Instansi Baru</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('all');
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#F0F3FF] hover:bg-[#DFE8FF] text-[#0033A7] text-[13px] font-semibold transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+              >
+                <span>Reset Pencarian &amp; Filter</span>
+              </button>
+            )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr className="bg-[#F8F9FB] text-[#747686] text-[11px] font-semibold uppercase tracking-wider border-b border-[#D9DEE7]">
-                  <th className="py-3 px-5" scope="col">
+                  <th className="py-3 px-5 min-w-[240px]" scope="col">
                     Instansi
                   </th>
-                  <th className="py-3 px-5" scope="col">
+                  <th className="py-3 px-5 w-[140px]" scope="col">
                     Unit Pelaksana
                   </th>
-                  <th className="py-3 px-5" scope="col">
+                  <th className="py-3 px-5 w-[140px]" scope="col">
                     Pengguna Internal
                   </th>
-                  <th className="py-3 px-5" scope="col">
+                  <th className="py-3 px-5 min-w-[200px]" scope="col">
                     Cakupan Tugas / Kewenangan
                   </th>
-                  <th className="py-3 px-5" scope="col">
+                  <th className="py-3 px-5 w-[120px]" scope="col">
                     Status
                   </th>
-                  <th className="py-3 px-5 text-right" scope="col">
+                  <th className="py-3 px-5 w-[120px] text-right" scope="col">
                     Aksi
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F3FF] text-[14px] text-[#111C2D]">
-                {institutions.map((inst) => (
+                {filteredInstitutions.map((inst) => (
                   <tr key={inst.id} className="hover:bg-[#F9F9FF] transition-colors">
                     {/* Instansi Info */}
                     <td className="py-4 px-5">
@@ -254,8 +311,8 @@ export default function InstansiPage() {
                         <div className="w-9 h-9 rounded-lg bg-[#F0F3FF] flex items-center justify-center text-[#0033A7] mt-0.5 shrink-0">
                           <Building2 className="w-5 h-5 text-[#0033A7]" aria-hidden="true" />
                         </div>
-                        <div>
-                          <span className="text-[15px] text-[#111C2D] block font-semibold leading-tight">
+                        <div className="min-w-0">
+                          <span className="text-[15px] text-[#111C2D] block font-semibold leading-tight break-words">
                             {inst.name}
                           </span>
                           <span className="text-[12px] text-[#747686] mt-0.5 block">

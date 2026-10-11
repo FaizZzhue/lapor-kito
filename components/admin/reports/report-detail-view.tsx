@@ -20,7 +20,6 @@ import {
   Phone,
   Mail,
   ShieldAlert,
-  Info,
   Maximize2,
   X,
   FileText,
@@ -30,20 +29,78 @@ import {
 import type { InternalReportDetailData } from "@/lib/actions/reports";
 import { ReportStatusBadge } from "./report-status-badge";
 import { ReportPriorityBadge } from "./report-priority-badge";
+import { ReportStatusManager } from "./report-status-manager";
+import { ReportResponseManager } from "./report-response-manager";
+import type { ReportStatus } from "@/types/database";
 
 interface ReportDetailViewProps {
   data: InternalReportDetailData;
   userRole?: "admin" | "petugas";
 }
 
-export function ReportDetailView({ data }: ReportDetailViewProps) {
-  const { report, category, location, reporter, evidence, timeline, aiTriage, authorityRule } =
-    data;
+export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailViewProps) {
+  const {
+    report,
+    category,
+    location,
+    reporter,
+    evidence,
+    timeline,
+    aiTriage,
+    authorityRule,
+    responses,
+  } = data;
+
+  const [currentStatus, setCurrentStatus] = useState<ReportStatus>(report.status);
+  const [timelineItems, setTimelineItems] = useState(timeline);
 
   const [previewImage, setPreviewImage] = useState<{
     url: string;
     caption: string | null;
   } | null>(null);
+
+  const handleStatusChange = (
+    newStatus: ReportStatus,
+    newTimelineEntry: {
+      id: string;
+      action: string;
+      notes: string | null;
+      actor_role: string;
+      created_at: string;
+    }
+  ) => {
+    setCurrentStatus(newStatus);
+    setTimelineItems((prev) => [
+      ...prev,
+      {
+        id: newTimelineEntry.id,
+        actor_id: null,
+        actor_role: newTimelineEntry.actor_role,
+        action: newTimelineEntry.action,
+        notes: newTimelineEntry.notes,
+        metadata: null,
+        created_at: newTimelineEntry.created_at,
+      },
+    ]);
+  };
+
+  const handleResponseAdded = (newResp: {
+    message: string;
+    created_at: string;
+  }) => {
+    setTimelineItems((prev) => [
+      ...prev,
+      {
+        id: `tl-resp-${Date.now()}`,
+        actor_id: null,
+        actor_role: userRole,
+        action: "Tanggapan Resmi Dikirim",
+        notes: newResp.message,
+        metadata: { is_internal: false },
+        created_at: newResp.created_at,
+      },
+    ]);
+  };
 
   const formatDate = (isoString: string) => {
     try {
@@ -79,13 +136,13 @@ export function ReportDetailView({ data }: ReportDetailViewProps) {
       {/* Top Navigation & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D9DEE7]/80">
         <div className="flex items-center gap-3">
-          <Link
+          {/* <Link
             href="/admin/laporan"
             className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-[#D9DEE7] text-[#434654] hover:text-[#0033A7] hover:bg-[#F0F3FF] hover:border-[#C4D3F8] shadow-sm transition-all"
             aria-label="Kembali ke antrean laporan masuk"
           >
             <ArrowLeft size={18} aria-hidden="true" />
-          </Link>
+          </Link> */}
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider">
@@ -104,23 +161,18 @@ export function ReportDetailView({ data }: ReportDetailViewProps) {
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
           <ReportPriorityBadge priority={report.priority} size="md" />
-          <ReportStatusBadge status={report.status} size="md" />
+          <ReportStatusBadge status={currentStatus} size="md" />
         </div>
       </div>
 
-      {/* Operational Inspection Notice (Phase 6A Read-Only) */}
-      <div className="bg-[#EEF2FC] border border-[#C4D3F8] rounded-xl p-4 flex items-start gap-3">
-        <Info size={18} className="text-[#0033A7] shrink-0 mt-0.5" aria-hidden="true" />
-        <div className="text-[13px] text-[#111C2D] leading-relaxed">
-          <p className="font-semibold text-[#0033A7]">
-            Fase 6A — Mode Inspeksi Operasional (Hanya Baca)
-          </p>
-          <p className="text-[#434654] mt-0.5">
-            Halaman ini menampilkan seluruh data berkas pengaduan warga secara lengkap dan terverifikasi dari basis data.
-            Tindakan transisi status laporan (Fase 6B) dan pengiriman tanggapan resmi (Fase 6C) akan diaktifkan pada tahapan berikutnya.
-          </p>
-        </div>
-      </div>
+      {/* Operational Status Management Panel (Phase 6B Action Workflow) */}
+      <ReportStatusManager
+        reportId={report.id}
+        trackingCode={report.tracking_code}
+        currentStatus={currentStatus}
+        userRole={userRole}
+        onStatusChange={handleStatusChange}
+      />
 
       {/* Main Grid: Left Column (Content & Evidence), Right Column (Category, Reporter, AI, Authority) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -155,6 +207,15 @@ export function ReportDetailView({ data }: ReportDetailViewProps) {
               )}
             </div>
           </div>
+
+          {/* Section: Official Response & Communication Thread */}
+          <ReportResponseManager
+            reportId={report.id}
+            trackingCode={report.tracking_code}
+            responses={responses || []}
+            reporterEmail={reporter?.email}
+            onResponseAdded={handleResponseAdded}
+          />
 
           {/* Section C: Location */}
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-6">
@@ -315,15 +376,15 @@ export function ReportDetailView({ data }: ReportDetailViewProps) {
               <div className="flex items-center gap-2">
                 <History size={18} className="text-[#0033A7]" aria-hidden="true" />
                 <h2 className="text-[15px] font-bold text-[#111C2D]">
-                  Riwayat & Linimasa ({timeline.length})
+                  Riwayat & Linimasa ({timelineItems.length})
                 </h2>
               </div>
               <span className="text-[12px] text-[#747686]">Urutan Kronologis</span>
             </div>
 
-            {timeline.length > 0 ? (
+            {timelineItems.length > 0 ? (
               <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#D9DEE7]">
-                {timeline.map((item, idx) => (
+                {timelineItems.map((item, idx) => (
                   <div key={item.id || idx} className="relative">
                     {/* Timeline bullet */}
                     <span className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-[#DFE8FF] border-2 border-[#0033A7] flex items-center justify-center">
@@ -471,17 +532,16 @@ export function ReportDetailView({ data }: ReportDetailViewProps) {
                   <div className="bg-[#F0F3FF] p-3 rounded-lg border border-[#C4D3F8]/60">
                     <span className="text-[11px] text-[#747686] block">Keputusan Rekomendasi</span>
                     <span
-                      className={`text-[13px] font-bold ${
-                        aiTriage.decision === "RECOMMEND"
+                      className={`text-[13px] font-bold ${aiTriage.decision === "RECOMMEND"
                           ? "text-[#16845B]"
                           : "text-[#B2640A]"
-                      }`}
+                        }`}
                     >
                       {aiTriage.decision === "RECOMMEND"
                         ? "SIAP TERUSKAN"
                         : aiTriage.decision === "NEEDS_REVIEW"
-                        ? "PERLU DITELAAH"
-                        : "OTOMATIS"}
+                          ? "PERLU DITELAAH"
+                          : "OTOMATIS"}
                     </span>
                   </div>
                 </div>

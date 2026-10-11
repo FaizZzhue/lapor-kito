@@ -1,6 +1,9 @@
-import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
+
+if (typeof window !== 'undefined') {
+  throw new Error('createAdminClient must only be called on the server.');
+}
 
 /**
  * Server-only Supabase client with Service Role privileges.

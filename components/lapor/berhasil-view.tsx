@@ -154,7 +154,7 @@ export function BerhasilView({
               Rincian Laporan Terdaftar
             </span>
             <span className="rounded bg-[#E6F7EF] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#006443]">
-              STATUS: SUBMITTED
+              Status: Laporan Masuk
             </span>
           </div>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, MapPin, FileCheck } from "lucide-react";
+import { Shield, MapPin, FileCheck, Lock } from "lucide-react";
 
 export function Footer() {
   const pathname = usePathname();
@@ -37,14 +37,14 @@ export function Footer() {
               merekomendasikan instansi yang berwenang sebelum diteruskan ke kanal penanganan.
             </p>
             <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-[#667085]">
-              <span className="flex items-center gap-1">
+              {/* <span className="flex items-center gap-1">
                 <Shield className="h-3.5 w-3.5 text-[#16845B]" /> Tanpa Login untuk Warga
+              </span> */}
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 text-[#1749D2]" /> 18 Kecamatan Palembang
               </span>
               <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-[#1749D2]" /> Lingkup Wilayah Palembang
-              </span>
-              <span className="flex items-center gap-1">
-                <FileCheck className="h-3.5 w-3.5 text-[#E58A1F]" /> Verifikasi Berkas Mandiri
+                <Lock className="h-3.5 w-3.5 text-[#E58A1F]" /> Data Pribadi Terlindungi
               </span>
             </div>
           </div>
@@ -79,7 +79,7 @@ export function Footer() {
           </div>
 
           {/* Institutional Integrity Note */}
-          <div className="md:col-span-3 space-y-2">
+          {/* <div className="md:col-span-3 space-y-2">
             <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#111C2D]">
               Integritas & Keamanan
             </h4>
@@ -87,7 +87,7 @@ export function Footer() {
               Data pribadi pelapor (nama, telepon, email) dilindungi dan tidak dipublikasikan ke publik.
               Pelacakan publik hanya menampilkan kode lacak, deskripsi kejadian, dan status penanganan.
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* Bottom Notice */}

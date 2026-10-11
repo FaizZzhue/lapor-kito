@@ -2,12 +2,12 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Eye, EyeOff } from "lucide-react";
+import { requestPasswordResetAction } from "@/lib/actions/auth";
+import { Eye, EyeOff, KeyRound, X, ExternalLink, CheckCircle2, AlertCircle } from "lucide-react";
 
 function AdminLoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get("redirect") || "/admin";
 
@@ -18,31 +18,135 @@ function AdminLoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Password Reset Modal State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isResetLoading, setIsResetLoading] = useState(false);
+  const [resetStatus, setResetStatus] = useState<{
+    type: "idle" | "success" | "error";
+    message: string;
+    isLocalDomain?: boolean;
+    recoveryUrl?: string;
+  }>({ type: "idle", message: "" });
+
+  const handleOpenResetModal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setResetEmail(email.trim() || "");
+    setResetStatus({ type: "idle", message: "" });
+    setIsResetModalOpen(true);
+  };
+
+  const handlePasswordResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) return;
+
+    setIsResetLoading(true);
+    setResetStatus({ type: "idle", message: "" });
+
+    try {
+      const res = await requestPasswordResetAction(
+        resetEmail.trim(),
+        typeof window !== "undefined" ? window.location.origin : undefined
+      );
+
+      if (res.success) {
+        setResetStatus({
+          type: "success",
+          message: res.message,
+          isLocalDomain: res.isLocalDomain,
+          recoveryUrl: res.recoveryUrl,
+        });
+      } else {
+        setResetStatus({
+          type: "error",
+          message: res.message,
+        });
+      }
+    } catch (err: unknown) {
+      setResetStatus({
+        type: "error",
+        message: err instanceof Error ? err.message : "Gagal memproses pemulihan kata sandi.",
+      });
+    } finally {
+      setIsResetLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
+      let loginEmail = email.trim();
+      // Allow username shorthand e.g. "admin" -> "admin@laporkito.local"
+      if (!loginEmail.includes("@")) {
+        loginEmail = `${loginEmail}@laporkito.local`;
+      } else if (loginEmail.toLowerCase().endsWith("@laporkito.id")) {
+        // Normalize mistyped domain @laporkito.id to @laporkito.local
+        loginEmail = loginEmail.replace(/@laporkito\.id$/i, "@laporkito.local");
+      }
+
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: loginEmail,
         password,
       });
 
+      let supabaseHost = "unknown";
+      try {
+        if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname;
+        }
+      } catch {
+        // ignore host parsing error
+      }
+
+      const isNormalized = loginEmail !== email;
+      const isExpected = loginEmail.toLowerCase() === "admin@laporkito.local";
+
       if (error) {
-        if (error.message.toLowerCase().includes("invalid login credentials")) {
-          setErrorMessage("Surel atau kata sandi tidak cocok. Pastikan akun terdaftar sebagai staf internal.");
-        } else if (error.message.toLowerCase().includes("email not confirmed")) {
-          setErrorMessage("Surel akun belum dikonfirmasi. Silakan periksa kotak masuk email Anda.");
+        const errCode = (error as { code?: string }).code || "unknown";
+        console.warn("[AUTH_DIAGNOSTIC]", {
+          operation: "signInWithPassword",
+          httpStatus: error.status,
+          errorName: error.name,
+          errorCode: errCode,
+          sanitizedMessage: error.message,
+          supabaseHost,
+          inputNormalized: isNormalized,
+          sentEmail: loginEmail,
+          isExpectedEmail: isExpected,
+        });
+
+        if (error.message.toLowerCase().includes("invalid login credentials") || errCode === "invalid_credentials") {
+          setErrorMessage(
+            `Kredensial tidak cocok [${errCode} HTTP ${error.status || 400}]. ` +
+            `Surel atau kata sandi tidak sesuai dengan data terdaftar di Supabase Auth untuk "${loginEmail}".`
+          );
+        } else if (error.message.toLowerCase().includes("email not confirmed") || errCode === "email_not_confirmed") {
+          setErrorMessage("Surel akun belum dikonfirmasi di Supabase Auth. Silakan periksa kotak masuk email Anda.");
+        } else if (errCode === "over_request_rate_limit") {
+          setErrorMessage("Terlalu banyak percobaan masuk. Silakan tunggu beberapa saat sebelum mencoba lagi.");
         } else {
-          setErrorMessage(error.message || "Gagal masuk ke sistem. Silakan coba beberapa saat lagi.");
+          setErrorMessage(
+            `Autentikasi gagal [${errCode} HTTP ${error.status || 500}]: ${error.message}`
+          );
         }
         setIsLoading(false);
         return;
       }
 
       if (data?.user) {
+        console.info("[AUTH_DIAGNOSTIC]", {
+          operation: "signInWithPassword",
+          httpStatus: 200,
+          userId: data.user.id,
+          emailConfirmed: !!data.user.email_confirmed_at,
+          supabaseHost,
+          sentEmail: loginEmail,
+          isExpectedEmail: isExpected,
+        });
         // Query internal_users to verify authorization
         const { data: internalUser, error: roleError } = await supabase
           .from("internal_users")
@@ -64,9 +168,8 @@ function AdminLoginForm() {
           return;
         }
 
-        // Successfully authorized
-        router.push(redirectTarget);
-        router.refresh();
+        // Successfully authorized - use full navigation to ensure cookies sync with server session
+        window.location.href = redirectTarget;
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan internal saat autentikasi.";
@@ -116,25 +219,29 @@ function AdminLoginForm() {
 
       {/* Credentials Form */}
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* Email Field */}
+        {/* Email / Username Field */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[#111C2D]" htmlFor="internal-email">
-            Username
+            Username / Email Kedinasan
           </label>
           <div className="relative">
             <input
               id="internal-email"
               name="email"
-              type="email"
-              autoComplete="email"
+              type="text"
+              inputMode="email"
+              autoComplete="username"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@laporkito.id"
+              placeholder="admin@laporkito.local atau admin"
               disabled={isLoading}
               className="w-full h-[42px] px-3 text-[14px] text-[#111C2D] bg-white border border-[#C4C5D7] rounded-lg transition-colors placeholder:text-[#747686] focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15 disabled:bg-[#F0F3FF]"
             />
           </div>
+          <p className="text-[11px] text-[#747686]">
+            Gunakan akun resmi staf (contoh: <span className="font-mono text-[#1749D2] font-semibold">admin@laporkito.local</span> atau <span className="font-mono text-[#1749D2] font-semibold">admin</span>)
+          </p>
         </div>
 
         {/* Password Field */}
@@ -143,16 +250,13 @@ function AdminLoginForm() {
             <label className="text-[13px] font-medium text-[#111C2D]" htmlFor="internal-password">
               Kata Sandi
             </label>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("Untuk pengaturan ulang kata sandi dinas, silakan hubungi Administrator TI Pemkot Palembang.");
-              }}
-              className="text-[12px] text-[#1749D2] hover:underline transition-colors"
+            <button
+              type="button"
+              onClick={handleOpenResetModal}
+              className="text-[12px] text-[#1749D2] hover:underline transition-colors focus:outline-none"
             >
               Lupa kata sandi?
-            </a>
+            </button>
           </div>
           <div className="relative flex items-center">
             <input
@@ -223,13 +327,129 @@ function AdminLoginForm() {
         </button>
       </form>
 
-      {/* Institutional Notice Banner */}
-      {/* <div className="mt-6 p-3.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/50 flex items-start gap-3 text-left">
-        <span className="material-symbols-outlined text-[#747686] text-[18px] mt-0.5 shrink-0">lock</span>
-        <p className="text-[12px] leading-relaxed text-[#434654]">
-          Area ini khusus untuk Administrator Platform dan Petugas Instansi Penerima Resmi. Warga publik tidak memerlukan akun untuk membuat atau memantau laporan.
-        </p>
-      </div> */}
+      {/* Password Reset Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl border border-[#C4C5D7] shadow-xl w-full max-w-[440px] p-6 relative">
+            <button
+              type="button"
+              onClick={() => setIsResetModalOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-md text-[#747686] hover:text-[#111C2D] hover:bg-slate-100 transition-colors"
+              aria-label="Tutup modal"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-lg bg-[#DFE8FF] text-[#1749D2] flex items-center justify-center">
+                <KeyRound size={20} />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-bold text-[#111C2D]">
+                  Pemulihan Kata Sandi
+                </h3>
+                <p className="text-[12px] text-[#434654]">
+                  Portal Akun Petugas & Administrator Dinas
+                </p>
+              </div>
+            </div>
+
+            {resetStatus.type === "success" ? (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-lg bg-[#E8F5E9] border border-[#2E7D32]/30 text-[#1B5E20] text-[13px] flex items-start gap-2.5">
+                  <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-[#2E7D32]" />
+                  <div className="space-y-1">
+                    <p className="font-semibold">{resetStatus.message}</p>
+                    {resetStatus.isLocalDomain ? (
+                      <p className="text-[12px] text-[#2E7D32]/90 leading-relaxed">
+                        Akun internal dengan domain lokal telah divalidasi. Anda dapat langsung melanjutkan ke formulir pengaturan kata sandi baru.
+                      </p>
+                    ) : (
+                      <p className="text-[12px] text-[#2E7D32]/90 leading-relaxed">
+                        Silakan periksa kotak masuk email kedinasan Anda dan buka tautan pemulihan untuk mengatur kata sandi baru.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {resetStatus.recoveryUrl && (
+                  <div className="pt-1">
+                    <a
+                      href={resetStatus.recoveryUrl}
+                      className="w-full h-[40px] inline-flex items-center justify-center gap-2 rounded-lg bg-[#1749D2] hover:bg-[#10358F] text-white text-[13px] font-medium transition-colors"
+                    >
+                      <span>Buka Halaman Atur Ulang Sandi</span>
+                      <ExternalLink size={15} />
+                    </a>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsResetModalOpen(false)}
+                  className="w-full h-[38px] rounded-lg border border-[#C4C5D7] text-[#434654] hover:bg-slate-50 text-[13px] font-medium transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handlePasswordResetSubmit} className="space-y-4">
+                <p className="text-[13px] text-[#434654] leading-relaxed">
+                  Masukkan surel kedinasan atau nama pengguna staf internal yang terdaftar untuk menerima tautan pemulihan kata sandi.
+                </p>
+
+                {resetStatus.type === "error" && (
+                  <div className="p-3 rounded-lg bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[12px] flex items-start gap-2">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                    <span>{resetStatus.message}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-medium text-[#111C2D]" htmlFor="reset-email">
+                    Email / Username Staf
+                  </label>
+                  <input
+                    id="reset-email"
+                    type="text"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="admin@laporkito.local atau admin"
+                    disabled={isResetLoading}
+                    className="w-full h-[40px] px-3 text-[13px] text-[#111C2D] bg-white border border-[#C4C5D7] rounded-lg focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsResetModalOpen(false)}
+                    disabled={isResetLoading}
+                    className="h-[38px] px-4 rounded-lg border border-[#C4C5D7] text-[#434654] hover:bg-slate-50 text-[13px] font-medium transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isResetLoading}
+                    className="h-[38px] px-4 rounded-lg bg-[#1749D2] hover:bg-[#10358F] text-white text-[13px] font-medium transition-colors flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {isResetLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                        <span>Memproses...</span>
+                      </>
+                    ) : (
+                      <span>Kirim Tautan Pemulihan</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

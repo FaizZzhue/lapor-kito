@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Road,
   Trash2,
@@ -29,37 +29,6 @@ import {
 import { CategoryFormModal } from '@/components/admin/categories/category-form-modal';
 import { CategoryDetailModal } from '@/components/admin/categories/category-detail-modal';
 
-function useCategoryData() {
-  const [categories, setCategories] = useState<CategoryWithReportsCount[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const fetchData = useCallback(
-    async (searchQuery: string, statusFilter: 'all' | 'active' | 'inactive') => {
-      setIsLoading(true);
-      setErrorMsg(null);
-      try {
-        const res = await getCategoriesAction({
-          search: searchQuery.trim() || undefined,
-          status: statusFilter,
-        });
-        if (!res.success) {
-          setErrorMsg(res.error || 'Gagal memuat daftar kategori laporan');
-        } else {
-          setCategories(res.data);
-        }
-      } catch (err: unknown) {
-        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan sistem');
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    []
-  );
-
-  return { categories, isLoading, errorMsg, fetchData };
-}
-
 function renderCategoryIcon(iconName: string | null, className = 'w-4 h-4') {
   switch (iconName) {
     case 'road':
@@ -80,35 +49,84 @@ function renderCategoryIcon(iconName: string | null, className = 'w-4 h-4') {
 }
 
 export default function KategoriLaporanPage() {
-  const { categories, isLoading, errorMsg, fetchData } = useCategoryData();
+  const [categories, setCategories] = useState<CategoryWithReportsCount[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [initialized, setInitialized] = useState(false);
 
   // Modals state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryWithReportsCount | null>(null);
 
-  // Initial fetch pattern
-  if (!initialized) {
-    setInitialized(true);
-    fetchData(search, statusFilter);
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const loadData = useCallback(() => {
-    fetchData(search, statusFilter);
-  }, [fetchData, search, statusFilter]);
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await getCategoriesAction({
+        search: debouncedSearch.trim() || undefined,
+        status: statusFilter,
+      });
+      if (!res.success) {
+        setErrorMsg(res.error || 'Gagal memuat daftar kategori laporan');
+      } else {
+        setCategories(res.data);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan sistem');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedSearch, statusFilter]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function runFetch() {
+      try {
+        const res = await getCategoriesAction({
+          search: debouncedSearch.trim() || undefined,
+          status: statusFilter,
+        });
+        if (!isMounted) return;
+        if (!res.success) {
+          setErrorMsg(res.error || 'Gagal memuat daftar kategori laporan');
+        } else {
+          setCategories(res.data);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan sistem');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    runFetch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, statusFilter]);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
-    fetchData(val, statusFilter);
   };
 
   const handleStatusFilterChange = (newStatus: 'all' | 'active' | 'inactive') => {
     setStatusFilter(newStatus);
-    fetchData(search, newStatus);
   };
 
   const handleOpenCreate = () => {
@@ -204,33 +222,30 @@ export default function KategoriLaporanPage() {
                 <button
                   type="button"
                   onClick={() => handleStatusFilterChange('all')}
-                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
-                    statusFilter === 'all'
-                      ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                      : 'font-medium text-on-surface-variant hover:text-on-surface'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${statusFilter === 'all'
+                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
+                    : 'font-medium text-on-surface-variant hover:text-on-surface'
+                    }`}
                 >
                   Semua Status ({totalCount})
                 </button>
                 <button
                   type="button"
                   onClick={() => handleStatusFilterChange('active')}
-                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
-                    statusFilter === 'active'
-                      ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                      : 'font-medium text-on-surface-variant hover:text-on-surface'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${statusFilter === 'active'
+                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
+                    : 'font-medium text-on-surface-variant hover:text-on-surface'
+                    }`}
                 >
                   Aktif ({activeCount})
                 </button>
                 <button
                   type="button"
                   onClick={() => handleStatusFilterChange('inactive')}
-                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${
-                    statusFilter === 'inactive'
-                      ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                      : 'font-medium text-on-surface-variant hover:text-on-surface'
-                  }`}
+                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${statusFilter === 'inactive'
+                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
+                    : 'font-medium text-on-surface-variant hover:text-on-surface'
+                    }`}
                 >
                   Non-Aktif ({inactiveCount})
                 </button>
@@ -346,23 +361,23 @@ export default function KategoriLaporanPage() {
                           {cat.slug === 'infrastruktur-jalan'
                             ? 'Dinas SDA BMBK (PUPR)'
                             : cat.slug === 'penerangan-jalan'
-                            ? 'Dinas Perkimtan'
-                            : cat.slug === 'kebersihan-lingkungan'
-                            ? 'Dinas LHK (DLHK)'
-                            : cat.slug === 'drainase-saluran-air'
-                            ? 'Dinas SDA BMBK'
-                            : 'Ditentukan via Data Kewenangan'}
+                              ? 'Dinas Perkimtan'
+                              : cat.slug === 'kebersihan-lingkungan'
+                                ? 'Dinas LHK (DLHK)'
+                                : cat.slug === 'drainase-saluran-air'
+                                  ? 'Dinas SDA BMBK'
+                                  : 'Ditentukan via Data Kewenangan'}
                         </div>
                         <div className="font-label-sm text-label-sm text-outline mt-0.5">
                           {cat.slug === 'infrastruktur-jalan'
                             ? 'Unit Preservasi Jalan Kota'
                             : cat.slug === 'penerangan-jalan'
-                            ? 'Bidang Prasarana & PJU'
-                            : cat.slug === 'kebersihan-lingkungan'
-                            ? 'Bidang Pengelolaan Sampah'
-                            : cat.slug === 'drainase-saluran-air'
-                            ? 'Seksi Saluran Sekunder & Banjir'
-                            : 'Aturan Perutean Otomatis'}
+                              ? 'Bidang Prasarana & PJU'
+                              : cat.slug === 'kebersihan-lingkungan'
+                                ? 'Bidang Pengelolaan Sampah'
+                                : cat.slug === 'drainase-saluran-air'
+                                  ? 'Seksi Saluran Sekunder & Banjir'
+                                  : 'Aturan Perutean Otomatis'}
                         </div>
                       </td>
 
@@ -370,23 +385,21 @@ export default function KategoriLaporanPage() {
                       <td className="py-4 px-4 align-top">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm border border-surface-container">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                          <span>Prioritas MVP • Analisis Citra &amp; GPS</span>
+                          <span>Analisis Citra</span>
                         </span>
                       </td>
 
                       {/* 5. Status */}
                       <td className="py-4 px-4 align-top">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold ${
-                            cat.is_active
-                              ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
-                              : 'bg-surface-container text-on-surface-variant'
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold ${cat.is_active
+                            ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                            : 'bg-surface-container text-on-surface-variant'
+                            }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              cat.is_active ? 'bg-tertiary' : 'bg-outline'
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${cat.is_active ? 'bg-tertiary' : 'bg-outline'
+                              }`}
                           />
                           <span>{cat.is_active ? 'Aktif' : 'Non-Aktif'}</span>
                         </span>
