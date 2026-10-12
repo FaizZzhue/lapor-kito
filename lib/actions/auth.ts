@@ -4,6 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPasswordResetEmail } from '@/lib/email/resend'
 import { redirect } from 'next/navigation'
+import { getCurrentInternalUser } from '@/lib/auth/session'
+import {
+  changePasswordSchema,
+  adminResetPasswordSchema,
+  type ChangePasswordInput,
+  type AdminResetPasswordInput,
+} from '@/lib/validators/auth'
 
 /**
  * Server action to sign out current authenticated user and redirect to login page.
@@ -200,6 +207,221 @@ export async function requestPasswordResetAction(
       success: false,
       message: msg,
     }
+  }
+}
+
+/**
+ * Server action for authenticated internal user to change their own password.
+ * Strictly verifies current password before updating to the new password.
+ */
+export async function changeOwnPasswordAction(
+  rawData: ChangePasswordInput
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const { isAuthenticated, authUser, internalUser } = await getCurrentInternalUser()
+    if (!isAuthenticated || !authUser || !internalUser) {
+      return { success: false, error: 'Sesi kedinasan tidak valid. Silakan masuk kembali.' }
+    }
+    if (!internalUser.is_active) {
+      return { success: false, error: 'Akun Anda dinonaktifkan. Hubungi Administrator Sistem.' }
+    }
+
+    const parsed = changePasswordSchema.safeParse(rawData)
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message || 'Data kata sandi tidak valid.' }
+    }
+
+    const email = authUser.email || internalUser.email
+    const supabase = await createClient()
+
+    // 1. Verify current password
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email,
+      password: parsed.data.currentPassword,
+    })
+
+    if (verifyError) {
+      return {
+        success: false,
+        error: 'Kata sandi saat ini tidak cocok. Mohon periksa kembali kata sandi lama Anda.',
+      }
+    }
+
+    // 2. Update to new password
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: parsed.data.newPassword,
+    })
+
+    if (updateError) {
+      return {
+        success: false,
+        error: updateError.message || 'Gagal memperbarui kata sandi di sistem autentikasi.',
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Kata sandi Anda berhasil diperbarui. Gunakan kata sandi baru untuk sesi masuk berikutnya.',
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Kesalahan sistem saat memperbarui kata sandi'
+    return { success: false, error: msg }
+  }
+}
+
+/**
+ * Server action for active administrators to reset an internal staff member's password.
+ * Uses Supabase Auth Admin API without exposing service keys to client or mutating other profile attributes.
+ */
+export async function adminResetUserPasswordAction(
+  rawData: AdminResetPasswordInput
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const { isAuthenticated, internalUser: currentAdmin } = await getCurrentInternalUser()
+    if (!isAuthenticated || !currentAdmin) {
+      return { success: false, error: 'Sesi kedinasan tidak valid. Silakan masuk kembali.' }
+    }
+    if (!currentAdmin.is_active) {
+      return { success: false, error: 'Akun Anda dinonaktifkan. Hubungi Administrator Sistem.' }
+    }
+    if (currentAdmin.role !== 'admin') {
+      return { success: false, error: 'Akses ditolak: Hanya Administrator Sistem yang berhak mereset kata sandi staf.' }
+    }
+
+    const parsed = adminResetPasswordSchema.safeParse(rawData)
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message || 'Data kata sandi tidak valid.' }
+    }
+
+    const adminSupabase = createAdminClient()
+
+    // Verify target exists in public.internal_users
+    const { data: targetUser, error: targetError } = await adminSupabase
+      .from('internal_users')
+      .select('id, email, full_name, role, is_active')
+      .eq('id', parsed.data.userId)
+      .maybeSingle()
+
+    if (targetError || !targetUser) {
+      return { success: false, error: 'Pengguna target tidak ditemukan di direktori internal.' }
+    }
+
+    // Verify target exists in auth.users
+    const { data: authUserRecord, error: authUserError } = await adminSupabase.auth.admin.getUserById(targetUser.id)
+    if (authUserError || !authUserRecord?.user) {
+      return { success: false, error: 'Akun autentikasi Supabase tidak ditemukan untuk pengguna ini.' }
+    }
+
+    // Update password only via Supabase Auth Admin API (preserving email, role, and profile)
+    const { error: resetError } = await adminSupabase.auth.admin.updateUserById(targetUser.id, {
+      password: parsed.data.newPassword,
+    })
+
+    if (resetError) {
+      return { success: false, error: `Gagal mereset kata sandi: ${resetError.message}` }
+    }
+
+    return {
+      success: true,
+      message: `Kata sandi untuk "${targetUser.full_name}" (${targetUser.email}) berhasil diatur ulang.`,
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Kesalahan sistem saat mereset kata sandi staf'
+    return { success: false, error: msg }
+  }
+}
+
+/**
+ * Server action for active administrators to generate a password recovery email or link for a staff user.
+ */
+export async function adminSendUserRecoveryEmailAction(
+  targetUserId: string,
+  originUrl?: string
+): Promise<{
+  success: boolean
+  message: string
+  isLocalDomain?: boolean
+  recoveryUrl?: string
+  error?: string
+}> {
+  try {
+    const { isAuthenticated, internalUser: currentAdmin } = await getCurrentInternalUser()
+    if (!isAuthenticated || !currentAdmin) {
+      return { success: false, error: 'Sesi kedinasan tidak valid. Silakan masuk kembali.', message: 'Sesi tidak valid' }
+    }
+    if (!currentAdmin.is_active) {
+      return { success: false, error: 'Akun Anda dinonaktifkan.', message: 'Akun dinonaktifkan' }
+    }
+    if (currentAdmin.role !== 'admin') {
+      return { success: false, error: 'Akses ditolak: Hanya Administrator Sistem yang berhak mengirim tautan pemulihan.', message: 'Akses ditolak' }
+    }
+
+    const adminSupabase = createAdminClient()
+
+    const { data: targetUser, error: targetError } = await adminSupabase
+      .from('internal_users')
+      .select('id, email, full_name, role, is_active')
+      .eq('id', targetUserId)
+      .maybeSingle()
+
+    if (targetError || !targetUser) {
+      return { success: false, error: 'Pengguna target tidak ditemukan di direktori internal.', message: 'Pengguna tidak ditemukan' }
+    }
+
+    const baseUrl = originUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const redirectTo = `${baseUrl}/admin/reset-password`
+
+    const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
+      type: 'recovery',
+      email: targetUser.email,
+      options: {
+        redirectTo,
+      },
+    })
+
+    if (linkError || !linkData?.properties?.action_link) {
+      return {
+        success: false,
+        error: `Gagal membuat tautan pemulihan: ${linkError?.message || 'Layanan autentikasi gagal'}.`,
+        message: 'Gagal membuat tautan pemulihan',
+      }
+    }
+
+    const recoveryActionLink = linkData.properties.action_link
+    const isLocal = targetUser.email.endsWith('.local')
+
+    if (isLocal) {
+      return {
+        success: true,
+        isLocalDomain: true,
+        recoveryUrl: recoveryActionLink,
+        message: `Tautan pemulihan untuk akun internal (.local) "${targetUser.email}" berhasil dibuat.`,
+      }
+    }
+
+    if (process.env.RESEND_API_KEY) {
+      const emailResult = await sendPasswordResetEmail({
+        to: targetUser.email,
+        fullName: targetUser.full_name || 'Staf Kedinasan',
+        resetUrl: recoveryActionLink,
+      })
+
+      if (emailResult.success) {
+        return {
+          success: true,
+          message: `Tautan pengaturan ulang kata sandi berhasil dikirimkan ke surel "${targetUser.email}".`,
+        }
+      }
+    }
+
+    return {
+      success: true,
+      recoveryUrl: recoveryActionLink,
+      message: `Tautan pemulihan untuk "${targetUser.email}" berhasil dibuat.`,
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Kesalahan sistem saat membuat tautan pemulihan'
+    return { success: false, error: msg, message: msg }
   }
 }
 

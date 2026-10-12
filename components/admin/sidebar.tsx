@@ -15,6 +15,7 @@ import {
   LogOut,
   Inbox,
   X,
+  KeyRound,
   type LucideIcon,
 } from "lucide-react";
 import { signOutAction } from "@/lib/actions/auth";
@@ -24,6 +25,7 @@ interface AdminSidebarProps {
   user: UserProfile;
   isOpen?: boolean;
   onClose?: () => void;
+  onOpenChangePassword?: () => void;
 }
 
 interface NavItem {
@@ -33,7 +35,7 @@ interface NavItem {
   exact?: boolean;
 }
 
-export function AdminSidebar({ user, isOpen = false, onClose }: AdminSidebarProps) {
+export function AdminSidebar({ user, isOpen = false, onClose, onOpenChangePassword }: AdminSidebarProps) {
   const pathname = usePathname();
   const isAdmin = user.role === "admin";
 
@@ -193,7 +195,7 @@ export function AdminSidebar({ user, isOpen = false, onClose }: AdminSidebarProp
       {/* User Profile Card & Sign Out */}
       <div className="p-4 bg-[#F0F3FF] border-t border-[#D9DEE7]">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-[#0033A7] flex items-center justify-center text-white shrink-0">
               <User className="w-4 h-4" aria-hidden="true" />
             </div>
@@ -207,17 +209,30 @@ export function AdminSidebar({ user, isOpen = false, onClose }: AdminSidebarProp
             </div>
           </div>
 
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              aria-label="Keluar dari sistem"
-              title="Keluar dari sesi"
-              className="flex items-center gap-1.5 text-[12px] font-medium text-[#BA1A1A] hover:underline transition-all p-1.5 rounded hover:bg-[#FFDAD6]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BA1A1A]/30"
-            >
-              <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span className="hidden sm:inline">Keluar</span>
-            </button>
-          </form>
+          <div className="flex items-center gap-1 shrink-0">
+            {onOpenChangePassword && (
+              <button
+                type="button"
+                onClick={onOpenChangePassword}
+                aria-label="Ubah kata sandi saya"
+                title="Ubah kata sandi akun"
+                className="p-1.5 rounded text-[#747686] hover:text-[#0033A7] hover:bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30 cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" aria-hidden="true" />
+              </button>
+            )}
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Keluar dari sistem"
+                title="Keluar dari sesi"
+                className="flex items-center gap-1.5 text-[12px] font-medium text-[#BA1A1A] hover:underline transition-all p-1.5 rounded hover:bg-[#FFDAD6]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BA1A1A]/30 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="hidden sm:inline">Keluar</span>
+              </button>
+            </form>
+          </div>
         </div>
 
         <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#DFE8FF] text-[#0033A7]">

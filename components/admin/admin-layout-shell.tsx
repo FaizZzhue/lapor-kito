@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { AdminSidebar } from "./sidebar";
 import { AdminHeader } from "./header";
+import { ChangePasswordModal } from "./users/change-password-modal";
 import type { UserProfile } from "@/types/auth";
 
 interface AdminLayoutShellProps {
@@ -13,6 +14,7 @@ interface AdminLayoutShellProps {
 
 export function AdminLayoutShell({ user, children }: AdminLayoutShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const pathname = usePathname();
   const [prevPathname, setPrevPathname] = useState(pathname);
 
@@ -62,6 +64,7 @@ export function AdminLayoutShell({ user, children }: AdminLayoutShellProps) {
         user={user}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -69,6 +72,7 @@ export function AdminLayoutShell({ user, children }: AdminLayoutShellProps) {
         <AdminHeader
           user={user}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         />
         <main className="pt-16 min-h-screen bg-[#F9F9FF] flex-1">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-w-0">
@@ -76,6 +80,13 @@ export function AdminLayoutShell({ user, children }: AdminLayoutShellProps) {
           </div>
         </main>
       </div>
+
+      {/* Global Change Password Modal for Current Authenticated User */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        user={user}
+      />
     </div>
   );
 }

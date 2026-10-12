@@ -23,6 +23,7 @@ interface UserAccessModalProps {
   onClose: () => void;
   user: InternalUserRow | null;
   onEdit: (u: InternalUserRow) => void;
+  onResetPassword?: (u: InternalUserRow) => void;
   onSuccess: () => void;
 }
 
@@ -31,6 +32,7 @@ export function UserAccessModal({
   onClose,
   user,
   onEdit,
+  onResetPassword,
   onSuccess,
 }: UserAccessModalProps) {
   const [loading, setLoading] = useState(false);
@@ -229,6 +231,20 @@ export function UserAccessModal({
           </button>
 
           <div className="flex items-center gap-2">
+            {onResetPassword && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onResetPassword(user);
+                }}
+                className="h-9 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#BA1A1A] hover:bg-[#FFDAD6]/30 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                title="Reset kata sandi akun ini"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>Reset Kata Sandi</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

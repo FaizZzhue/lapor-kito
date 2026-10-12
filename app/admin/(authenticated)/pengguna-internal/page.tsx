@@ -14,11 +14,13 @@ import {
   Mail,
   Phone,
   Home,
+  KeyRound,
 } from 'lucide-react';
 import { getInternalUsersAction } from '@/lib/actions/internal-users';
 import { InviteUserModal } from '@/components/admin/users/invite-user-modal';
 import { EditUserModal } from '@/components/admin/users/edit-user-modal';
 import { UserAccessModal } from '@/components/admin/users/user-access-modal';
+import { ResetPasswordModal } from '@/components/admin/users/reset-password-modal';
 import type { InternalUserRow } from '@/types/database';
 
 function useInternalUserData(
@@ -112,6 +114,7 @@ export default function PenggunaInternalPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<InternalUserRow | null>(null);
 
   const loadData = useCallback(() => {
@@ -138,6 +141,11 @@ export default function PenggunaInternalPage() {
   const handleOpenAccess = (user: InternalUserRow) => {
     setSelectedUser(user);
     setIsAccessModalOpen(true);
+  };
+
+  const handleOpenResetPassword = (user: InternalUserRow) => {
+    setSelectedUser(user);
+    setIsResetModalOpen(true);
   };
 
   const getInitials = (name: string) => {
@@ -384,8 +392,17 @@ export default function PenggunaInternalPage() {
                       <div className="inline-flex items-center justify-end gap-1">
                         <button
                           type="button"
+                          onClick={() => handleOpenResetPassword(u)}
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BA1A1A]/30 cursor-pointer"
+                          title="Reset Kata Sandi"
+                          aria-label={`Reset kata sandi pengguna ${u.full_name}`}
+                        >
+                          <KeyRound className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleOpenAccess(u)}
-                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30 cursor-pointer"
                           title="Kelola Akses Pengguna"
                           aria-label={`Kelola akses pengguna ${u.full_name}`}
                         >
@@ -394,7 +411,7 @@ export default function PenggunaInternalPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(u)}
-                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30 cursor-pointer"
                           title="Edit Pengguna"
                           aria-label={`Edit pengguna ${u.full_name}`}
                         >
@@ -437,6 +454,14 @@ export default function PenggunaInternalPage() {
         onClose={() => setIsAccessModalOpen(false)}
         user={selectedUser}
         onEdit={handleOpenEdit}
+        onResetPassword={handleOpenResetPassword}
+        onSuccess={loadData}
+      />
+
+      <ResetPasswordModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        user={selectedUser}
         onSuccess={loadData}
       />
     </div>

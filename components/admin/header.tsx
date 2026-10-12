@@ -1,14 +1,15 @@
 "use client";
 
-import { Landmark, Menu } from "lucide-react";
+import { Landmark, Menu, KeyRound } from "lucide-react";
 import type { UserProfile } from "@/types/auth";
 
 interface AdminHeaderProps {
   user: UserProfile;
   onToggleSidebar?: () => void;
+  onOpenChangePassword?: () => void;
 }
 
-export function AdminHeader({ user, onToggleSidebar }: AdminHeaderProps) {
+export function AdminHeader({ user, onToggleSidebar, onOpenChangePassword }: AdminHeaderProps) {
   return (
     <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-white z-30 flex items-center justify-between px-3 sm:px-6 lg:px-8 border-b border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
       {/* Mobile Drawer Trigger & Institutional Title */}
@@ -33,7 +34,18 @@ export function AdminHeader({ user, onToggleSidebar }: AdminHeaderProps) {
 
       {/* Status & Identity Right */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          {onOpenChangePassword && (
+            <button
+              type="button"
+              onClick={onOpenChangePassword}
+              className="p-1.5 rounded-lg border border-[#D9DEE7] text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30 cursor-pointer"
+              title="Ubah Kata Sandi Saya"
+              aria-label="Ubah Kata Sandi Saya"
+            >
+              <KeyRound className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
           <div className="w-8 h-8 rounded-full bg-[#0033A7] flex items-center justify-center text-white text-[13px] font-semibold shrink-0">
             {user.full_name ? user.full_name.charAt(0).toUpperCase() : "A"}
           </div>
