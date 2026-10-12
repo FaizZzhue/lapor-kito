@@ -15,6 +15,7 @@ import {
   Phone,
   Home,
   KeyRound,
+  Building2,
 } from 'lucide-react';
 import { getInternalUsersAction } from '@/lib/actions/internal-users';
 import { InviteUserModal } from '@/components/admin/users/invite-user-modal';
@@ -352,15 +353,30 @@ export default function PenggunaInternalPage() {
 
                     {/* 2. Peran / Role */}
                     <td className="py-3.5 px-5 align-middle">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${u.role === 'admin'
-                          ? 'bg-[#EEF2FC] text-[#1749D2] border border-[#C4D3F8]'
-                          : 'bg-[#F0F3FF] text-[#747686] border border-[#D9DEE7]'
-                          }`}
-                      >
-                        <Shield className="w-3 h-3" />
-                        <span>{u.role === 'admin' ? 'Administrator' : 'Petugas Lapangan'}</span>
-                      </span>
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${u.role === 'admin'
+                            ? 'bg-[#EEF2FC] text-[#1749D2] border border-[#C4D3F8]'
+                            : 'bg-[#F0F3FF] text-[#747686] border border-[#D9DEE7]'
+                            }`}
+                        >
+                          <Shield className="w-3 h-3" />
+                          <span>{u.role === 'admin' ? 'Administrator' : 'Petugas Lapangan'}</span>
+                        </span>
+                        {u.role === 'petugas' && (
+                          (u as any).institution ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0033A7] bg-[#EDF2FE] px-2 py-0.5 rounded-md border border-[#C4D3F8]">
+                              <Building2 className="w-3 h-3 text-[#0033A7]" />
+                              <span>{(u as any).institution.short_name || (u as any).institution.code}</span>
+                              {(u as any).unit && <span className="text-[#747686] font-normal">• {(u as any).unit.name}</span>}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-[#A66908] bg-[#FEF3E6] px-2 py-0.5 rounded-md border border-[#FCD7A9]">
+                              Belum Ditetapkan OPD
+                            </span>
+                          )
+                        )}
+                      </div>
                     </td>
 
                     {/* 3. Status */}

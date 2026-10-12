@@ -312,9 +312,10 @@ export async function adminResetUserPasswordAction(
       return { success: false, error: 'Akun autentikasi Supabase tidak ditemukan untuk pengguna ini.' }
     }
 
-    // Update password only via Supabase Auth Admin API (preserving email, role, and profile)
+    // Update password via Supabase Auth Admin API and confirm email if not yet activated
     const { error: resetError } = await adminSupabase.auth.admin.updateUserById(targetUser.id, {
       password: parsed.data.newPassword,
+      email_confirm: true,
     })
 
     if (resetError) {

@@ -32,6 +32,8 @@ export interface Database {
           full_name: string
           role: UserRole
           phone: string | null
+          institution_id: string | null
+          institution_unit_id: string | null
           is_active: boolean
           created_at: string
           updated_at: string
@@ -42,6 +44,8 @@ export interface Database {
           full_name: string
           role?: UserRole
           phone?: string | null
+          institution_id?: string | null
+          institution_unit_id?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -52,11 +56,28 @@ export interface Database {
           full_name?: string
           role?: UserRole
           phone?: string | null
+          institution_id?: string | null
+          institution_unit_id?: string | null
           is_active?: boolean
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "internal_users_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_users_institution_unit_id_fkey"
+            columns: ["institution_unit_id"]
+            isOneToOne: false
+            referencedRelation: "institution_units"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       institutions: {
         Row: {
@@ -355,6 +376,10 @@ export interface Database {
           ai_confidence: number | null
           ai_summary: string | null
           authority_target: string | null
+          assigned_institution_id: string | null
+          assigned_unit_id: string | null
+          assigned_at: string | null
+          assigned_by_id: string | null
           duplicate_of_id: string | null
           created_at: string
           updated_at: string
@@ -375,6 +400,10 @@ export interface Database {
           ai_confidence?: number | null
           ai_summary?: string | null
           authority_target?: string | null
+          assigned_institution_id?: string | null
+          assigned_unit_id?: string | null
+          assigned_at?: string | null
+          assigned_by_id?: string | null
           duplicate_of_id?: string | null
           created_at?: string
           updated_at?: string
@@ -395,11 +424,30 @@ export interface Database {
           ai_confidence?: number | null
           ai_summary?: string | null
           authority_target?: string | null
+          assigned_institution_id?: string | null
+          assigned_unit_id?: string | null
+          assigned_at?: string | null
+          assigned_by_id?: string | null
           duplicate_of_id?: string | null
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reports_assigned_institution_id_fkey"
+            columns: ["assigned_institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_assigned_unit_id_fkey"
+            columns: ["assigned_unit_id"]
+            isOneToOne: false
+            referencedRelation: "institution_units"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       report_evidence: {
         Row: {

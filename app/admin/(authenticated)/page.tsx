@@ -28,6 +28,8 @@ import {
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentInternalUser } from "@/lib/auth/session";
+import { getInternalReportsAction } from "@/lib/actions/reports";
+import { PetugasDashboardView } from "@/components/admin/dashboard/petugas-dashboard-view";
 import type { ReportStatus } from "@/types/database";
 export const dynamic = "force-dynamic";
 
@@ -109,11 +111,31 @@ const STATUS_CONFIG: Record<
 
 export default async function AdminDashboardPage() {
   const { internalUser } = await getCurrentInternalUser();
-  if (internalUser?.role === "petugas") {
-    redirect("/admin/laporan");
+  if (!internalUser) {
+    redirect("/admin/login");
   }
 
   const supabase = await createClient();
+
+  // If role is Petugas: render tailored Petugas Dashboard scoped to their institution
+  if (internalUser.role === "petugas") {
+    const [reportsRes, catRes] = await Promise.all([
+      getInternalReportsAction({ status: "all", sortBy: "newest" }),
+      supabase
+        .from("categories")
+        .select("id, name_id, slug")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true }),
+    ]);
+
+    return (
+      <PetugasDashboardView
+        userProfile={internalUser}
+        reports={reportsRes.success ? reportsRes.data : []}
+        categories={catRes.data || []}
+      />
+    );
+  }
 
   // Parallel queries for all metrics — real data only
   const [

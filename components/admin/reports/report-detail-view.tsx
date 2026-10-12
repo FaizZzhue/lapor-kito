@@ -158,6 +158,17 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          {report.assigned_institution_name ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#EEF2FC] border border-[#C4D3F8] rounded-lg text-[12px] font-semibold text-[#0033A7]">
+              <Building2 size={14} aria-hidden="true" />
+              <span>{report.assigned_institution_name}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FEF3E6] border border-[#FCD7A9] rounded-lg text-[12px] font-semibold text-[#B2640A]">
+              <Building2 size={14} aria-hidden="true" />
+              <span>Belum Ditugaskan</span>
+            </div>
+          )}
           <ReportPriorityBadge priority={report.priority} size="md" />
           <ReportStatusBadge status={currentStatus} size="md" />
         </div>

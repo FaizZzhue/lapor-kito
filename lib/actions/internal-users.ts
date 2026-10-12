@@ -9,7 +9,17 @@ import {
   type InviteUserInput,
   type UpdateInternalUserInput,
 } from '@/lib/validators/internal-user';
+import { sendInternalUserInvitationEmail } from '@/lib/email/resend';
 import type { InternalUserRow } from '@/types/database';
+
+export interface InviteUserResult {
+  success: boolean;
+  data?: InternalUserRow;
+  deliveryStatus?: 'activated' | 'email_sent' | 'local_ready' | 'email_failed';
+  activationUrl?: string;
+  message?: string;
+  error?: string;
+}
 
 /**
  * Verify caller is an active administrator.
@@ -64,13 +74,54 @@ export async function getInternalUsersAction(filters?: {
       query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
     }
 
-    const { data, error } = await query;
+    const { data: rawUsers, error } = await query;
 
     if (error) {
       return { success: false, data: [], error: error.message };
     }
 
-    return { success: true, data: data || [] };
+    const users = rawUsers || [];
+    const instIds = users.map((u: any) => u.institution_id).filter(Boolean);
+    const unitIds = users.map((u: any) => u.institution_unit_id).filter(Boolean);
+
+    const instMap = new Map<string, { id: string; code: string; name: string; short_name: string | null }>();
+    const unitMap = new Map<string, { id: string; code: string; name: string }>();
+
+    if (instIds.length > 0) {
+      try {
+        const { data: insts } = await adminClient
+          .from('institutions')
+          .select('id, code, name, short_name')
+          .in('id', instIds);
+        if (insts) {
+          insts.forEach((i) => instMap.set(i.id, i));
+        }
+      } catch {
+        // Non-fatal if query fails
+      }
+    }
+
+    if (unitIds.length > 0) {
+      try {
+        const { data: units } = await adminClient
+          .from('institution_units')
+          .select('id, code, name')
+          .in('id', unitIds);
+        if (units) {
+          units.forEach((u) => unitMap.set(u.id, u));
+        }
+      } catch {
+        // Non-fatal if query fails
+      }
+    }
+
+    const hydrated = users.map((u: any) => ({
+      ...u,
+      institution: u.institution_id ? instMap.get(u.institution_id) || null : null,
+      unit: u.institution_unit_id ? unitMap.get(u.institution_unit_id) || null : null,
+    }));
+
+    return { success: true, data: hydrated as any };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Gagal memuat daftar pengguna internal';
     return { success: false, data: [], error: msg };
@@ -107,12 +158,13 @@ export async function getInternalUserByIdAction(id: string): Promise<{
 }
 
 /**
- * Invite a new internal user using Supabase Auth Invitation API.
- * Never handles plaintext passwords.
+ * Invite or directly provision a new internal user using Supabase Auth Admin API.
+ * Ensures auth.users and internal_users stay in perfect sync, handles email delivery,
+ * supports testing/local domains, and executes compensating rollback on failure.
  */
 export async function inviteInternalUserAction(
   rawData: InviteUserInput
-): Promise<{ success: boolean; data?: InternalUserRow; error?: string }> {
+): Promise<InviteUserResult> {
   try {
     await requireAdmin();
     const parsed = inviteUserSchema.safeParse(rawData);
@@ -123,7 +175,39 @@ export async function inviteInternalUserAction(
     const email = parsed.data.email.trim().toLowerCase();
     const adminClient = createAdminClient();
 
-    // 1. Check if user already exists in internal_users
+    // 1. For role 'petugas', verify institution_id is valid and active in database
+    let targetInst: { id: string; name: string; code: string } | null = null;
+    if (parsed.data.role === 'petugas') {
+      if (!parsed.data.institution_id) {
+        return { success: false, error: 'Instansi penugasan (OPD) wajib dipilih untuk peran Petugas.' };
+      }
+
+      const { data: instData, error: instErr } = await adminClient
+        .from('institutions')
+        .select('id, name, code, is_active')
+        .eq('id', parsed.data.institution_id)
+        .maybeSingle();
+
+      if (instErr || !instData || !instData.is_active) {
+        return { success: false, error: 'Instansi penugasan yang dipilih tidak ditemukan atau non-aktif.' };
+      }
+      targetInst = instData;
+
+      if (parsed.data.institution_unit_id) {
+        const { data: unitData } = await adminClient
+          .from('institution_units')
+          .select('id, name')
+          .eq('id', parsed.data.institution_unit_id)
+          .eq('institution_id', targetInst.id)
+          .maybeSingle();
+
+        if (!unitData) {
+          return { success: false, error: 'Unit kerja yang dipilih tidak terdaftar di bawah instansi tersebut.' };
+        }
+      }
+    }
+
+    // 2. Check if user already exists in public.internal_users
     const { data: existingInternal } = await adminClient
       .from('internal_users')
       .select('id, email')
@@ -134,28 +218,60 @@ export async function inviteInternalUserAction(
       return { success: false, error: `Surel "${email}" sudah terdaftar sebagai pengguna internal.` };
     }
 
-    // 2. Provision user via Supabase Auth Admin API (invitation mechanism)
-    let authUserId: string | null = null;
+    // 3. Check if orphan auth user exists in auth.users
+    const { data: authList } = await adminClient.auth.admin.listUsers();
+    const existingAuth = authList?.users?.find(
+      (u) => u.email?.toLowerCase() === email
+    );
 
-    // First attempt: Official inviteUserByEmail
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
-      email,
-      {
-        data: {
+    if (existingAuth) {
+      // Clean up orphaned auth user that lacks internal_users record to avoid conflict
+      console.warn(`Cleaning up orphaned auth user ${existingAuth.id} (${email}) without internal profile`);
+      await adminClient.auth.admin.deleteUser(existingAuth.id);
+    }
+
+    // 4. Provision User in Supabase Auth
+    let authUserId: string | null = null;
+    let deliveryStatus: 'activated' | 'email_sent' | 'local_ready' | 'email_failed' = 'activated';
+    let activationUrl: string | undefined = undefined;
+    let userMessage = '';
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const resetRedirectTo = `${baseUrl}/admin/reset-password`;
+
+    if (parsed.data.initialPassword) {
+      // -------------------------------------------------------------
+      // PATH A: DIRECT ACTIVATION (Initial Password Provided by Admin)
+      // -------------------------------------------------------------
+      const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+        email,
+        password: parsed.data.initialPassword,
+        email_confirm: true,
+        user_metadata: {
           full_name: parsed.data.full_name.trim(),
           role: parsed.data.role,
         },
-      }
-    );
+      });
 
-    if (!inviteError && inviteData?.user) {
-      authUserId = inviteData.user.id;
+      if (createError || !createData.user) {
+        return {
+          success: false,
+          error: `Gagal membuat kredensial akun: ${createError?.message || 'Layanan autentikasi menolak permintaan.'}`,
+        };
+      }
+
+      authUserId = createData.user.id;
+      deliveryStatus = 'activated';
+      userMessage = `Akun aparatur "${parsed.data.full_name}" berhasil dibuat dan langsung diaktifkan dengan kata sandi awal.`;
     } else {
-      // Fallback: Generate invitation link or create pre-confirmed user
+      // -------------------------------------------------------------
+      // PATH B: EMAIL INVITATION & SECURE ACTIVATION LINK
+      // -------------------------------------------------------------
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: 'invite',
         email,
         options: {
+          redirectTo: resetRedirectTo,
           data: {
             full_name: parsed.data.full_name.trim(),
             role: parsed.data.role,
@@ -163,43 +279,93 @@ export async function inviteInternalUserAction(
         },
       });
 
-      if (!linkError && linkData?.user) {
-        authUserId = linkData.user.id;
-      } else {
+      if (linkError || !linkData?.user) {
         return {
           success: false,
-          error: `Gagal mengirim undangan autentikasi: ${inviteError?.message || linkError?.message || 'Layanan autentikasi menolak permintaan.'}`,
+          error: `Gagal menghasilkan tautan aktivasi akun: ${linkError?.message || 'Layanan autentikasi gagal.'}`,
         };
+      }
+
+      authUserId = linkData.user.id;
+      const actionLink = linkData.properties?.action_link;
+      activationUrl = actionLink || resetRedirectTo;
+
+      if (email.endsWith('.local')) {
+        // Local/testing domain: do not send to public SMTP/Resend
+        deliveryStatus = 'local_ready';
+        userMessage = `Akun dinas internal (.local) berhasil disiapkan. Karena surel berekstensi lokal/pengujian, gunakan tautan aktivasi untuk membuat kata sandi.`;
+      } else {
+        // Public domain: Attempt official branded invitation via Resend
+        const emailRes = await sendInternalUserInvitationEmail({
+          to: email,
+          fullName: parsed.data.full_name.trim(),
+          role: parsed.data.role,
+          institutionName: targetInst?.name || null,
+          activationUrl: activationUrl,
+        });
+
+        if (emailRes.success) {
+          deliveryStatus = 'email_sent';
+          userMessage = `Undangan aktivasi akun berhasil dikirimkan ke surel resmi "${email}".`;
+        } else {
+          deliveryStatus = 'email_failed';
+          userMessage = `Akun berhasil didaftarkan di sistem, namun pengiriman surel undangan gagal (${emailRes.reason || 'Koneksi email tidak tersedia'}). Silakan salin tautan aktivasi berikut secara manual.`;
+        }
       }
     }
 
     if (!authUserId) {
-      return { success: false, error: 'Gagal mendapatkan ID kredensial autentikasi pengguna.' };
+      return { success: false, error: 'Gagal memperoleh ID autentikasi pengguna.' };
     }
 
-    // 3. Insert into public.internal_users
-    const { data: createdInternalUser, error: insertError } = await adminClient
+    // 5. Insert into public.internal_users
+    const userPayload: Record<string, any> = {
+      id: authUserId,
+      email,
+      full_name: parsed.data.full_name.trim(),
+      role: parsed.data.role,
+      phone: parsed.data.phone?.trim() || null,
+      institution_id: parsed.data.role === 'petugas' ? parsed.data.institution_id : null,
+      institution_unit_id:
+        parsed.data.role === 'petugas' && parsed.data.institution_id
+          ? parsed.data.institution_unit_id || null
+          : null,
+      is_active: true,
+    };
+
+    let createdInternalUser: any = null;
+    const { data: insertedFull, error: insertFullError } = await adminClient
       .from('internal_users')
-      .insert({
-        id: authUserId,
-        email,
-        full_name: parsed.data.full_name.trim(),
-        role: parsed.data.role,
-        phone: parsed.data.phone?.trim() || null,
-        is_active: true,
-      })
+      .insert(userPayload)
       .select()
       .single();
 
-    if (insertError) {
-      // Clean up orphaned auth user if insert fails
+    if (!insertFullError && insertedFull) {
+      createdInternalUser = insertedFull;
+    } else {
+      // Compensating rollback: delete auth user to prevent orphan account
+      console.error('Failed to insert internal user profile. Executing compensating rollback:', insertFullError);
       await adminClient.auth.admin.deleteUser(authUserId);
-      return { success: false, error: `Gagal menyimpan profil pengguna internal: ${insertError.message}` };
+      return {
+        success: false,
+        error: `Gagal menyimpan profil pengguna internal: ${insertFullError?.message || 'Kesalahan basis data'}. Pembuatan akun dibatalkan.`,
+      };
     }
 
-    revalidatePath('/admin/pengguna-internal');
-    revalidatePath('/admin');
-    return { success: true, data: createdInternalUser };
+    try {
+      revalidatePath('/admin/pengguna-internal');
+      revalidatePath('/admin');
+    } catch {
+      // Non-fatal if outside request context
+    }
+
+    return {
+      success: true,
+      data: createdInternalUser,
+      deliveryStatus,
+      activationUrl,
+      message: userMessage,
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Gagal mengundang pengguna baru';
     return { success: false, error: msg };
@@ -207,7 +373,7 @@ export async function inviteInternalUserAction(
 }
 
 /**
- * Update internal user profile (full_name, role, phone).
+ * Update internal user profile (full_name, role, phone, institution).
  */
 export async function updateInternalUserAction(
   id: string,
@@ -237,21 +403,38 @@ export async function updateInternalUserAction(
     }
 
     const adminClient = createAdminClient();
+    const updatePayload: Record<string, any> = { ...parsed.data };
 
     const { data, error } = await adminClient
       .from('internal_users')
-      .update(parsed.data)
+      .update(updatePayload as any)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (!error && data) {
+      revalidatePath('/admin/pengguna-internal');
+      revalidatePath('/admin');
+      return { success: true, data: data as InternalUserRow };
+    }
+
+    // Fallback if institution_id column not present in DB
+    delete updatePayload.institution_id;
+    delete updatePayload.institution_unit_id;
+    const { data: fallbackData, error: fallbackError } = await adminClient
+      .from('internal_users')
+      .update(updatePayload as any)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (fallbackError) {
+      return { success: false, error: fallbackError.message };
     }
 
     revalidatePath('/admin/pengguna-internal');
     revalidatePath('/admin');
-    return { success: true, data };
+    return { success: true, data: fallbackData as InternalUserRow };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Gagal memperbarui profil pengguna';
     return { success: false, error: msg };

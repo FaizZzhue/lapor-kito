@@ -393,3 +393,99 @@ export async function sendPasswordResetEmail({
   }
 }
 
+export interface SendInternalUserInvitationEmailParams {
+  to: string
+  fullName?: string
+  role: 'admin' | 'petugas'
+  institutionName?: string | null
+  activationUrl: string
+}
+
+export async function sendInternalUserInvitationEmail({
+  to,
+  fullName = 'Aparatur Kedinasan',
+  role,
+  institutionName,
+  activationUrl,
+}: SendInternalUserInvitationEmailParams) {
+  const activeApiKey = process.env.RESEND_API_KEY
+  const activeFromEmail = process.env.RESEND_FROM_EMAIL || fromEmail
+
+  if (!activeApiKey) {
+    console.warn('Resend API key is not configured. Invitation email skipped.')
+    return { success: false, reason: 'RESEND_NOT_CONFIGURED' }
+  }
+
+  const client = new Resend(activeApiKey)
+  const roleLabel = role === 'admin' ? 'Administrator Sistem' : 'Petugas Lapangan'
+  const roleSubject =
+    role === 'admin'
+      ? 'Undangan Akun Administrator LAPORKITO'
+      : `Undangan Akun Petugas — ${institutionName || 'Pemerintah Kota Palembang'}`
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: activeFromEmail,
+      to,
+      subject: `[LAPORKITO] ${roleSubject}`,
+      text: `Halo ${fullName},\n\nAnda telah diundang untuk bergabung ke Portal Administrasi LAPORKITO Pemerintah Kota Palembang sebagai ${roleLabel}${institutionName ? ` pada ${institutionName}` : ''}.\n\nUntuk mengaktifkan akun dan membuat kata sandi Anda, silakan buka tautan resmi berikut:\n${activationUrl}\n\nTautan aktivasi ini hanya berlaku untuk waktu terbatas demi alasan keamanan.\n\nLAPORKITO — Sistem Pengelolaan Aduan Warga Kota Palembang`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <div style="background-color: #0033A7; color: white; padding: 18px 20px; border-radius: 6px; text-align: center;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">LAPORKITO</h1>
+            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Pemerintah Kota Palembang</p>
+          </div>
+
+          <div style="padding: 24px 0;">
+            <p style="font-size: 15px; line-height: 1.5;">Halo <strong>${fullName}</strong>,</p>
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+              Anda telah didaftarkan sebagai pengguna internal pada portal operasional <strong>LAPORKITO</strong> dengan rincian kewenangan berikut:
+            </p>
+
+            <div style="background-color: #f8fafc; border-left: 4px solid #0033A7; padding: 14px 18px; margin: 18px 0; border-radius: 4px;">
+              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Peran / Role:</strong> ${roleLabel}</p>
+              ${institutionName ? `<p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Instansi (OPD):</strong> ${institutionName}</p>` : ''}
+              <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Surel Terdaftar:</strong> ${to}</p>
+            </div>
+
+            <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+              Untuk mulai mengakses sistem, silakan lakukan aktivasi akun dan atur kata sandi login Anda melalui tombol di bawah ini:
+            </p>
+
+            <div style="text-align: center; margin: 26px 0;">
+              <a href="${activationUrl}" style="background-color: #0033A7; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-block;">
+                Aktivasi Akun &amp; Buat Kata Sandi
+              </a>
+            </div>
+
+            <p style="font-size: 12px; color: #64748b; line-height: 1.5;">
+              Jika tombol di atas tidak berfungsi, salin dan buka tautan berikut di peramban Anda:
+            </p>
+            <p style="font-size: 11px; color: #0033A7; word-break: break-all; background-color: #f1f5f9; padding: 10px; border-radius: 4px;">
+              ${activationUrl}
+            </p>
+
+            <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 20px;">
+              Tautan aktivasi ini berlaku terbatas. Demi alasan keamanan, jangan bagikan tautan ini kepada pihak lain.
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
+            <p style="margin: 0;">LAPORKITO — Platform Manajemen Aduan Terpadu Kota Palembang</p>
+          </div>
+        </div>
+      `,
+    })
+
+    if (error) {
+      console.error('Error sending invitation email via Resend:', error)
+      return { success: false, error }
+    }
+
+    return { success: true, data }
+  } catch (err) {
+    console.error('Unexpected error sending invitation email:', err)
+    return { success: false, error: err }
+  }
+}
+

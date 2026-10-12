@@ -11,6 +11,7 @@ import {
 import { trackingSearchSchema } from "@/lib/validators/report";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import { sendOfficialResponseEmail } from "@/lib/email/resend";
+import { resolveReportInstitutionAssignment } from "@/lib/actions/reports";
 
 export interface CreateOfficialResponseResult {
   success: boolean;
@@ -74,17 +75,50 @@ export async function createReportResponseAction(
     const adminSupabase = createAdminClient();
 
     // 3. Verify report exists
-    const { data: report, error: repError } = await adminSupabase
+    let report: {
+      id: string;
+      tracking_code: string;
+      title: string;
+      reporter_id?: string | null;
+      category_id?: string | null;
+      authority_target?: string | null;
+      assigned_institution_id?: string | null;
+      assigned_unit_id?: string | null;
+    } | null = null;
+
+    const { data: repWithAssigned, error: assignedErr } = await adminSupabase
       .from("reports")
-      .select("id, tracking_code, title, reporter_id")
+      .select("id, tracking_code, title, reporter_id, category_id, authority_target, assigned_institution_id, assigned_unit_id")
       .eq("id", reportId)
       .maybeSingle();
 
-    if (repError || !report) {
-      return {
-        success: false,
-        error: "Laporan tidak ditemukan dalam sistem.",
-      };
+    if (!assignedErr && repWithAssigned) {
+      report = repWithAssigned;
+    } else {
+      const { data: baseRep, error: baseErr } = await adminSupabase
+        .from("reports")
+        .select("id, tracking_code, title, reporter_id, category_id, authority_target")
+        .eq("id", reportId)
+        .maybeSingle();
+
+      if (baseErr || !baseRep) {
+        return {
+          success: false,
+          error: "Laporan tidak ditemukan dalam sistem.",
+        };
+      }
+      report = baseRep;
+    }
+
+    // STRICT SERVER AUTHORIZATION: Petugas can only respond to reports assigned to their institution
+    if (staff.role === "petugas") {
+      const assignment = await resolveReportInstitutionAssignment(report as any, adminSupabase);
+      if (!staff.institution_id || !assignment.institutionId || assignment.institutionId !== staff.institution_id) {
+        return {
+          success: false,
+          error: "Akses ditolak: Anda hanya dapat memberikan tanggapan resmi pada laporan yang ditugaskan kepada instansi Anda.",
+        };
+      }
     }
 
     // 4. Persist response in report_responses

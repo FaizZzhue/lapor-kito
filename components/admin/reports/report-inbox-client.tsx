@@ -532,11 +532,25 @@ export function ReportInboxClient({
                         </p>
                       </td>
 
-                      {/* Category */}
+                      {/* Category & Assigned Institution */}
                       <td className="py-3.5 px-4">
-                        <span className="inline-block text-[12px] text-[#434654] font-medium bg-[#F0F3FF] px-2 py-0.5 rounded border border-[#D9DEE7]/70 truncate max-w-[170px]">
-                          {report.category_name}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-block text-[12px] text-[#434654] font-medium bg-[#F0F3FF] px-2 py-0.5 rounded border border-[#D9DEE7]/70 truncate max-w-[170px]">
+                            {report.category_name}
+                          </span>
+                          {report.assigned_institution_name ? (
+                            <span
+                              className="text-[11px] font-semibold text-[#0033A7] truncate max-w-[170px]"
+                              title={report.assigned_institution_name}
+                            >
+                              {report.assigned_institution_name}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-[#B2640A] bg-[#FEF3E6] px-1.5 py-0.5 rounded border border-[#FCD7A9] inline-block w-fit">
+                              Belum Ditugaskan
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Location */}

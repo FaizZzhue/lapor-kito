@@ -54,17 +54,16 @@ export async function getDashboardMetricsAction(): Promise<{
   error?: string;
 }> {
   try {
-    await requireStaff();
+    const staff = await requireStaff();
     const supabase = await createClient();
 
-    // Parallel queries for all counts
+    // Parallel queries for master data
     const [
       catRes,
       instRes,
       unitRes,
       ruleRes,
       staffRes,
-      reportRes,
       timelineRes,
       responsesRes,
     ] = await Promise.all([
@@ -73,12 +72,11 @@ export async function getDashboardMetricsAction(): Promise<{
       supabase.from('institution_units').select('*', { count: 'exact', head: true }),
       supabase.from('authority_rules').select('*', { count: 'exact', head: true }),
       supabase.from('internal_users').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('reports').select('id, status'),
       supabase.from('report_timeline').select('*', { count: 'exact', head: true }),
       supabase.from('report_responses').select('*', { count: 'exact', head: true }),
     ]);
 
-    // Build status breakdown from actual reports
+    // Build status breakdown from reports
     const statusCounts: Record<ReportStatus, number> = {
       draft: 0,
       submitted: 0,
@@ -90,11 +88,29 @@ export async function getDashboardMetricsAction(): Promise<{
       duplicate: 0,
     };
 
-    const reports = reportRes.data ?? [];
-    for (const r of reports) {
-      const status = r.status as ReportStatus;
-      if (status in statusCounts) {
-        statusCounts[status]++;
+    let totalReports = 0;
+
+    if (staff.role === 'petugas') {
+      // Scoped to reports assigned to this Petugas's institution
+      const { getInternalReportsAction } = await import('@/lib/actions/reports');
+      const reportsRes = await getInternalReportsAction({ status: 'all' });
+      const assignedReports = reportsRes.success ? reportsRes.data : [];
+      totalReports = assignedReports.length;
+      for (const r of assignedReports) {
+        if (r.status in statusCounts) {
+          statusCounts[r.status]++;
+        }
+      }
+    } else {
+      // Admin sees all reports across institutions
+      const reportRes = await supabase.from('reports').select('id, status');
+      const reports = reportRes.data ?? [];
+      totalReports = reports.length;
+      for (const r of reports) {
+        const status = r.status as ReportStatus;
+        if (status in statusCounts) {
+          statusCounts[status]++;
+        }
       }
     }
 
@@ -104,7 +120,7 @@ export async function getDashboardMetricsAction(): Promise<{
       totalUnits: unitRes.count ?? 0,
       totalAuthorityRules: ruleRes.count ?? 0,
       totalActiveStaff: staffRes.count ?? 0,
-      totalReports: reports.length,
+      totalReports,
       reportsByStatus: statusCounts,
       recentTimelineCount: timelineRes.count ?? 0,
       recentResponsesCount: responsesRes.count ?? 0,

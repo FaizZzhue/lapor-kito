@@ -899,6 +899,106 @@ async function requireStaff() {
   return internalUser;
 }
 
+/**
+ * Verify caller is an active internal administrator.
+ */
+async function requireAdmin() {
+  const staff = await requireStaff();
+  if (staff.role !== "admin") {
+    throw new Error("Akses ditolak: Operasi ini memerlukan wewenang Administrator LAPORKITO.");
+  }
+  return staff;
+}
+
+export interface ReportInstitutionAssignmentResult {
+  institutionId: string | null;
+  institutionName: string | null;
+  institutionCode: string | null;
+  unitId: string | null;
+  unitName: string | null;
+  isExplicitAssignment: boolean;
+}
+
+/**
+ * Resolves the authoritative institution assignment for a report.
+ * Priority:
+ * 1. Explicit formal assignment: reports.assigned_institution_id & assigned_unit_id
+ * 2. Deterministic fallback match: reports.authority_target matching public.institutions
+ * 3. Authority matrix lookup: reports.category_id via public.authority_rules
+ */
+export async function resolveReportInstitutionAssignment(
+  report: {
+    id: string;
+    category_id?: string | null;
+    authority_target?: string | null;
+    assigned_institution_id?: string | null;
+    assigned_unit_id?: string | null;
+  },
+  adminSupabase: ReturnType<typeof createAdminClient>
+): Promise<ReportInstitutionAssignmentResult> {
+  // 1. Check explicit assignment columns
+  if (report.assigned_institution_id) {
+    const [instRes, unitRes] = await Promise.all([
+      adminSupabase
+        .from("institutions")
+        .select("id, code, name, short_name")
+        .eq("id", report.assigned_institution_id)
+        .maybeSingle(),
+      report.assigned_unit_id
+        ? adminSupabase
+            .from("institution_units")
+            .select("id, code, name")
+            .eq("id", report.assigned_unit_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    if (instRes.data) {
+      return {
+        institutionId: instRes.data.id,
+        institutionName: instRes.data.name,
+        institutionCode: instRes.data.code,
+        unitId: unitRes.data?.id || null,
+        unitName: unitRes.data?.name || null,
+        isExplicitAssignment: true,
+      };
+    }
+  }
+
+  // 2. Fallback: match authority_target string if populated
+  if (report.authority_target && report.authority_target.trim()) {
+    const cleanTarget = report.authority_target.trim();
+    const { data: matchedInst } = await adminSupabase
+      .from("institutions")
+      .select("id, code, name, short_name")
+      .or(`name.ilike.%${cleanTarget}%,short_name.ilike.%${cleanTarget}%,code.ilike.%${cleanTarget}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (matchedInst) {
+      return {
+        institutionId: matchedInst.id,
+        institutionName: matchedInst.name,
+        institutionCode: matchedInst.code,
+        unitId: null,
+        unitName: null,
+        isExplicitAssignment: false,
+      };
+    }
+  }
+
+  // If report has neither explicit assignment nor authority_target, it is UNASSIGNED!
+  // authority_rules serves as a legal reference matrix, NOT as a direct access grant.
+  return {
+    institutionId: null,
+    institutionName: null,
+    institutionCode: null,
+    unitId: null,
+    unitName: null,
+    isExplicitAssignment: false,
+  };
+}
+
 export interface InternalReportListItem {
   id: string;
   tracking_code: string;
@@ -914,6 +1014,11 @@ export interface InternalReportListItem {
   status: ReportStatus;
   priority: ReportPriority;
   ai_confidence: number | null;
+  authority_target: string | null;
+  assigned_institution_id?: string | null;
+  assigned_institution_name?: string | null;
+  assigned_unit_id?: string | null;
+  assigned_unit_name?: string | null;
   created_at: string;
   updated_at: string;
   // Phase 6D: Reporter communication attention state
@@ -953,6 +1058,13 @@ export interface InternalReportDetailData {
     ai_confidence: number | null;
     ai_summary: string | null;
     authority_target: string | null;
+    assigned_institution_id?: string | null;
+    assigned_institution_name?: string | null;
+    assigned_unit_id?: string | null;
+    assigned_unit_name?: string | null;
+    assigned_at?: string | null;
+    assigned_by_id?: string | null;
+    is_explicit_assignment?: boolean;
     created_at: string;
     updated_at: string;
   };
@@ -1044,15 +1156,28 @@ export interface InternalReportDetailResult {
 /**
  * Fetch reports for internal operational inbox (Admin & Petugas).
  * Strictly server-authorized via requireStaff.
+ * Petugas can ONLY see reports assigned to their institution.
  */
 export async function getInternalReportsAction(
   filters?: InternalReportsFilter
 ): Promise<InternalReportsResponse> {
   try {
-    await requireStaff();
+    const staff = await requireStaff();
     const adminSupabase = createAdminClient();
 
-    let query = adminSupabase.from("reports").select(`
+    // Guard: Petugas must belong to an institution
+    if (staff.role === "petugas" && !staff.institution_id) {
+      return {
+        success: true,
+        data: [],
+        totalCount: 0,
+        error: "Akun Petugas Anda belum ditugaskan ke Organisasi Perangkat Daerah (OPD) manapun. Hubungi Administrator Sistem.",
+      };
+    }
+
+    // Attempt querying reports with assignment fields first, fallback if migration 00005 is pending
+    let reports: any[] = [];
+    const fullSelect = `
       id,
       tracking_code,
       title,
@@ -1063,41 +1188,67 @@ export async function getInternalReportsAction(
       status,
       priority,
       ai_confidence,
+      authority_target,
+      assigned_institution_id,
+      assigned_unit_id,
+      assigned_at,
       created_at,
       updated_at
-    `);
+    `;
+    const baseSelect = `
+      id,
+      tracking_code,
+      title,
+      description,
+      address_detail,
+      category_id,
+      kelurahan_id,
+      status,
+      priority,
+      ai_confidence,
+      authority_target,
+      created_at,
+      updated_at
+    `;
 
-    // Status filter
-    if (filters?.status && filters.status !== "all") {
-      query = query.eq("status", filters.status);
-    }
+    const buildQuery = (selectCols: string, withAssignedFilter: boolean) => {
+      let q = adminSupabase.from("reports").select(selectCols);
 
-    // Priority filter
-    if (filters?.priority && filters.priority !== "all") {
-      query = query.eq("priority", filters.priority);
-    }
+      if (filters?.status && filters.status !== "all") {
+        q = q.eq("status", filters.status);
+      }
+      if (filters?.priority && filters.priority !== "all") {
+        q = q.eq("priority", filters.priority);
+      }
+      if (filters?.categoryId && filters.categoryId !== "all") {
+        q = q.eq("category_id", filters.categoryId);
+      }
+      if (withAssignedFilter && staff.role === "petugas" && staff.institution_id) {
+        q = q.eq("assigned_institution_id", staff.institution_id);
+      }
+      if (filters?.sortBy === "oldest") {
+        q = q.order("created_at", { ascending: true });
+      } else {
+        q = q.order("created_at", { ascending: false });
+      }
+      return q;
+    };
 
-    // Category filter
-    if (filters?.categoryId && filters.categoryId !== "all") {
-      query = query.eq("category_id", filters.categoryId);
-    }
-
-    // Initial SQL sort order
-    if (filters?.sortBy === "oldest") {
-      query = query.order("created_at", { ascending: true });
+    const { data: fullReports, error: fullErr } = await buildQuery(fullSelect, false);
+    if (!fullErr && fullReports) {
+      reports = fullReports;
     } else {
-      query = query.order("created_at", { ascending: false });
+      const { data: baseReports, error: baseErr } = await buildQuery(baseSelect, false);
+      if (baseErr) {
+        console.error("getInternalReportsAction error:", baseErr);
+        return { success: false, data: [], totalCount: 0, error: "Gagal memuat daftar laporan dari basis data." };
+      }
+      reports = baseReports || [];
     }
 
-    const { data: reports, error } = await query;
-    if (error) {
-      console.error("getInternalReportsAction error:", error);
-      return { success: false, data: [], totalCount: 0, error: "Gagal memuat daftar laporan dari basis data." };
-    }
-
-    // Load category, geographic, and communication reference lookups in parallel
+    // Load category, geographic, communication, and institutions reference lookups in parallel
     const reportIds = (reports || []).map((r) => r.id);
-    const [catRes, kelRes, kecRes, responsesRes] = await Promise.all([
+    const [catRes, kelRes, kecRes, responsesRes, instRes, unitRes] = await Promise.all([
       adminSupabase.from("categories").select("id, name_id, slug"),
       adminSupabase.from("kelurahan").select("id, name, kecamatan_id"),
       adminSupabase.from("kecamatan").select("id, name"),
@@ -1108,6 +1259,8 @@ export async function getInternalReportsAction(
             .in("report_id", reportIds)
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
+      adminSupabase.from("institutions").select("id, code, name, short_name"),
+      adminSupabase.from("institution_units").select("id, code, name, institution_id"),
     ]);
 
     const catMap = new Map((catRes.data || []).map((c) => [c.id, { name: c.name_id, slug: c.slug }]));
@@ -1118,6 +1271,8 @@ export async function getInternalReportsAction(
         { name: kl.name, kecamatanName: kecMap.get(kl.kecamatan_id) || null },
       ])
     );
+    const instMap = new Map((instRes.data || []).map((i) => [i.id, i]));
+    const unitMap = new Map((unitRes.data || []).map((u) => [u.id, u]));
 
     // Group responses by report_id
     const responsesMap = new Map<
@@ -1147,6 +1302,34 @@ export async function getInternalReportsAction(
         ? latestResp.responder_id === null || latestResp.response_type === "clarification"
         : false;
 
+      // Determine authoritative assigned institution
+      let assignedInstId: string | null = r.assigned_institution_id || null;
+      let assignedInstName: string | null = null;
+      let assignedUnitId: string | null = r.assigned_unit_id || null;
+      let assignedUnitName: string | null = null;
+
+      if (assignedInstId && instMap.has(assignedInstId)) {
+        assignedInstName = instMap.get(assignedInstId)!.name;
+      } else if (r.authority_target) {
+        // Fallback match to institutions by authority_target text
+        const targetClean = r.authority_target.trim().toLowerCase();
+        for (const inst of instRes.data || []) {
+          if (
+            inst.name.toLowerCase() === targetClean ||
+            (inst.short_name && inst.short_name.toLowerCase() === targetClean) ||
+            inst.code.toLowerCase() === targetClean
+          ) {
+            assignedInstId = inst.id;
+            assignedInstName = inst.name;
+            break;
+          }
+        }
+      }
+
+      if (assignedUnitId && unitMap.has(assignedUnitId)) {
+        assignedUnitName = unitMap.get(assignedUnitId)!.name;
+      }
+
       return {
         id: r.id,
         tracking_code: r.tracking_code,
@@ -1162,6 +1345,11 @@ export async function getInternalReportsAction(
         status: r.status,
         priority: r.priority,
         ai_confidence: r.ai_confidence,
+        authority_target: r.authority_target || null,
+        assigned_institution_id: assignedInstId,
+        assigned_institution_name: assignedInstName,
+        assigned_unit_id: assignedUnitId,
+        assigned_unit_name: assignedUnitName,
         created_at: r.created_at,
         updated_at: r.updated_at,
         has_citizen_reply: citizenReplies.length > 0,
@@ -1171,7 +1359,13 @@ export async function getInternalReportsAction(
       };
     });
 
-    // In-memory multi-field search across tracking code, title, description, address, category, location
+    // STRICT ISOLATION FILTER FOR PETUGAS:
+    // Petugas can ONLY view reports assigned to their institution!
+    if (staff.role === "petugas") {
+      items = items.filter((item) => item.assigned_institution_id === staff.institution_id);
+    }
+
+    // In-memory multi-field search across tracking code, title, description, address, category, location, institution
     if (filters?.search && filters.search.trim()) {
       const q = filters.search.trim().toLowerCase();
       items = items.filter((item) => {
@@ -1181,6 +1375,7 @@ export async function getInternalReportsAction(
           item.description.toLowerCase().includes(q) ||
           item.address_detail.toLowerCase().includes(q) ||
           item.category_name.toLowerCase().includes(q) ||
+          (item.assigned_institution_name && item.assigned_institution_name.toLowerCase().includes(q)) ||
           (item.kelurahan_name && item.kelurahan_name.toLowerCase().includes(q)) ||
           (item.kecamatan_name && item.kecamatan_name.toLowerCase().includes(q))
         );
@@ -1228,7 +1423,7 @@ export async function getInternalReportDetailAction(
   idOrCode: string
 ): Promise<InternalReportDetailResult> {
   try {
-    await requireStaff();
+    const staff = await requireStaff();
     const adminSupabase = createAdminClient();
 
     const cleanInput = idOrCode.trim();
@@ -1248,6 +1443,19 @@ export async function getInternalReportDetailAction(
         success: false,
         error: `Laporan "${cleanInput}" tidak ditemukan dalam sistem.`,
       };
+    }
+
+    // Resolve authoritative institution assignment
+    const assignment = await resolveReportInstitutionAssignment(report, adminSupabase);
+
+    // STRICT SERVER AUTHORIZATION: Petugas can only view reports assigned to their institution
+    if (staff.role === "petugas") {
+      if (!staff.institution_id || !assignment.institutionId || assignment.institutionId !== staff.institution_id) {
+        return {
+          success: false,
+          error: "Akses ditolak: Anda tidak memiliki wewenang untuk mengakses laporan instansi lain atau laporan yang belum ditugaskan.",
+        };
+      }
     }
 
     // Fetch related records in parallel: category, kelurahan, reporter, evidence, timeline, ai log, responses
@@ -1438,11 +1646,12 @@ export async function getInternalReportDetailAction(
     }
 
     // Fallback if authority_target is set in reports but no authority_rules match
-    if (!authorityRuleData && report.authority_target) {
+    if (!authorityRuleData && (assignment.institutionName || report.authority_target)) {
+      const targetSearch = assignment.institutionName || report.authority_target || "";
       const { data: matchedInst } = await adminSupabase
         .from("institutions")
         .select("code, name, short_name")
-        .or(`name.ilike.%${report.authority_target}%,short_name.ilike.%${report.authority_target}%`)
+        .or(`name.ilike.%${targetSearch}%,short_name.ilike.%${targetSearch}%`)
         .limit(1)
         .maybeSingle();
 
@@ -1456,7 +1665,7 @@ export async function getInternalReportDetailAction(
             name: matchedInst.name,
             short_name: matchedInst.short_name,
           },
-          unit: null,
+          unit: assignment.unitName ? { code: "UPT", name: assignment.unitName } : null,
         };
       }
     }
@@ -1477,6 +1686,13 @@ export async function getInternalReportDetailAction(
           ai_confidence: report.ai_confidence,
           ai_summary: report.ai_summary,
           authority_target: report.authority_target,
+          assigned_institution_id: assignment.institutionId,
+          assigned_institution_name: assignment.institutionName,
+          assigned_unit_id: assignment.unitId,
+          assigned_unit_name: assignment.unitName,
+          assigned_at: report.assigned_at || null,
+          assigned_by_id: report.assigned_by_id || null,
+          is_explicit_assignment: assignment.isExplicitAssignment,
           created_at: report.created_at,
           updated_at: report.updated_at,
         },
@@ -1588,17 +1804,51 @@ export async function updateReportStatusAction(
     const adminSupabase = createAdminClient();
 
     // 3. Load report strictly from database (never trust client status)
-    const { data: dbReport, error: fetchErr } = await adminSupabase
+    let dbReport: {
+      id: string;
+      tracking_code: string;
+      status: string;
+      title: string;
+      reporter_id?: string | null;
+      category_id?: string | null;
+      authority_target?: string | null;
+      assigned_institution_id?: string | null;
+      assigned_unit_id?: string | null;
+    } | null = null;
+
+    const { data: repWithAssigned, error: assignedErr } = await adminSupabase
       .from("reports")
-      .select("id, tracking_code, status, title, reporter_id")
+      .select("id, tracking_code, status, title, reporter_id, category_id, authority_target, assigned_institution_id, assigned_unit_id")
       .eq("id", reportId)
       .maybeSingle();
 
-    if (fetchErr || !dbReport) {
-      return {
-        success: false,
-        error: `Laporan dengan ID tersebut tidak ditemukan dalam sistem.`,
-      };
+    if (!assignedErr && repWithAssigned) {
+      dbReport = repWithAssigned;
+    } else {
+      const { data: baseRep, error: baseErr } = await adminSupabase
+        .from("reports")
+        .select("id, tracking_code, status, title, reporter_id, category_id, authority_target")
+        .eq("id", reportId)
+        .maybeSingle();
+
+      if (baseErr || !baseRep) {
+        return {
+          success: false,
+          error: `Laporan dengan ID tersebut tidak ditemukan dalam sistem.`,
+        };
+      }
+      dbReport = baseRep;
+    }
+
+    // STRICT SERVER AUTHORIZATION: Petugas can only mutate status of reports assigned to their institution
+    if (staff.role === "petugas") {
+      const assignment = await resolveReportInstitutionAssignment(dbReport as any, adminSupabase);
+      if (!staff.institution_id || !assignment.institutionId || assignment.institutionId !== staff.institution_id) {
+        return {
+          success: false,
+          error: "Akses ditolak: Anda hanya dapat memperbarui status laporan yang ditugaskan kepada instansi Anda.",
+        };
+      }
     }
 
     const currentStatus = dbReport.status as ReportStatus;
@@ -1737,11 +1987,15 @@ export async function updateReportStatusAction(
     }
 
     // 7. Cache revalidation
-    revalidatePath("/admin/laporan");
-    revalidatePath(`/admin/laporan/${reportId}`);
-    if (dbReport.tracking_code) {
-      revalidatePath(`/admin/laporan/${dbReport.tracking_code}`);
-      revalidatePath(`/pantau/${dbReport.tracking_code}`);
+    try {
+      revalidatePath("/admin/laporan");
+      revalidatePath(`/admin/laporan/${reportId}`);
+      if (dbReport.tracking_code) {
+        revalidatePath(`/admin/laporan/${dbReport.tracking_code}`);
+        revalidatePath(`/pantau/${dbReport.tracking_code}`);
+      }
+    } catch {
+      // Safe fallback when executed outside Next.js request context (e.g. standalone test scripts)
     }
 
     return {
@@ -1758,4 +2012,123 @@ export async function updateReportStatusAction(
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Server Action for Administrator to formally assign or reassign a report to an institution/unit.
+ * Records formal audit history in report_timeline.
+ */
+export async function assignReportInstitutionAction(input: {
+  reportId: string;
+  institutionId: string;
+  unitId?: string | null;
+  notes?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = await requireAdmin();
+    const adminSupabase = createAdminClient();
+
+    // 1. Verify target institution exists
+    const { data: targetInst, error: instErr } = await adminSupabase
+      .from("institutions")
+      .select("id, name, short_name, code")
+      .eq("id", input.institutionId)
+      .maybeSingle();
+
+    if (instErr || !targetInst) {
+      return { success: false, error: "Instansi tujuan tidak ditemukan dalam master data." };
+    }
+
+    // 2. Verify unit if provided
+    let unitName: string | null = null;
+    if (input.unitId) {
+      const { data: targetUnit } = await adminSupabase
+        .from("institution_units")
+        .select("id, name")
+        .eq("id", input.unitId)
+        .eq("institution_id", input.institutionId)
+        .maybeSingle();
+
+      if (targetUnit) {
+        unitName = targetUnit.name;
+      }
+    }
+
+    // 3. Load report
+    const { data: report, error: repErr } = await adminSupabase
+      .from("reports")
+      .select("id, tracking_code, title, authority_target, status")
+      .eq("id", input.reportId)
+      .maybeSingle();
+
+    if (repErr || !report) {
+      return { success: false, error: "Laporan tidak ditemukan dalam sistem." };
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 4. Update assignment (support both migration 00005 columns and fallback authority_target)
+    const basePayload = {
+      authority_target: targetInst.name,
+      updated_at: nowIso,
+    };
+
+    try {
+      const { error: fullUpdateErr } = await adminSupabase
+        .from("reports")
+        .update({
+          ...basePayload,
+          assigned_institution_id: targetInst.id,
+          assigned_unit_id: input.unitId || null,
+          assigned_at: nowIso,
+          assigned_by_id: admin.id,
+        })
+        .eq("id", input.reportId);
+
+      if (fullUpdateErr) {
+        await adminSupabase.from("reports").update(basePayload).eq("id", input.reportId);
+      }
+    } catch {
+      await adminSupabase.from("reports").update(basePayload).eq("id", input.reportId);
+    }
+
+    // 5. Insert timeline audit record
+    const auditNotes =
+      input.notes?.trim() ||
+      `Laporan secara resmi ditugaskan ke ${targetInst.name}${unitName ? ` (${unitName})` : ""} oleh ${admin.full_name}.`;
+
+    await adminSupabase.from("report_timeline").insert({
+      report_id: input.reportId,
+      actor_id: admin.id,
+      actor_role: "admin",
+      action: `Penugasan Instansi: ${targetInst.short_name || targetInst.code}`,
+      notes: auditNotes,
+      metadata: {
+        is_internal: false,
+        assigned_institution_id: targetInst.id,
+        assigned_institution_name: targetInst.name,
+        assigned_unit_id: input.unitId || null,
+        assigned_unit_name: unitName,
+        assigned_by_name: admin.full_name,
+      },
+    });
+
+    try {
+      revalidatePath("/admin/laporan");
+      revalidatePath(`/admin/laporan/${input.reportId}`);
+      if (report.tracking_code) {
+        revalidatePath(`/admin/laporan/${report.tracking_code}`);
+        revalidatePath(`/pantau/${report.tracking_code}`);
+      }
+      revalidatePath("/admin");
+    } catch {
+      // Safe fallback when executed outside Next.js request context
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Gagal menetapkan penugasan instansi laporan";
+    return { success: false, error: msg };
+  }
+}
+
 
