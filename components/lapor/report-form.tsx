@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -11,15 +11,16 @@ import {
   Building2,
   Send,
   Loader2,
-  Shield,
   Trash2,
   Info,
   Navigation,
+  RefreshCw,
 } from "lucide-react";
 import {
   analyzeReportAction,
   uploadEvidenceAction,
   submitReportAction,
+  reverseGeocodeAction,
   type MasterDataResult,
 } from "@/lib/actions/reports";
 import type { AITriageResult } from "@/types/ai";
@@ -44,6 +45,17 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
   const [reporterName, setReporterName] = useState("");
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterEmail, setReporterEmail] = useState("");
+
+  // GPS & Geolocation State
+  const [isLocating, setIsLocating] = useState(false);
+  const [isResolvingAddress, setIsResolvingAddress] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [detectedRoad, setDetectedRoad] = useState<string | null>(null);
+  const [geocodingError, setGeocodingError] = useState<string | null>(null);
+
+  // Ref to track addressDetail to avoid race condition when reverse geocoding completes
+  const addressDetailRef = useRef(addressDetail);
 
   // Evidence state
   const [evidenceFiles, setEvidenceFiles] = useState<
@@ -79,25 +91,79 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     return initialMasterData.categories.find((c) => c.id === categoryId);
   }, [categoryId, initialMasterData.categories]);
 
-  // Geolocation detector
-  const [isLocating, setIsLocating] = useState(false);
+  // Robust Geolocation & Reverse Geocoding Detector
   const handleDetectLocation = () => {
+    setGpsError(null);
+    setDetectedRoad(null);
+    setGeocodingError(null);
+
     if (!navigator.geolocation) {
-      alert("Perangkat Anda tidak mendukung deteksi lokasi otomatis.");
+      setGpsError("Perangkat atau peramban Anda tidak mendukung API geolokasi otomatis. Silakan masukkan alamat patokan secara manual.");
       return;
     }
+
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(Number(pos.coords.latitude.toFixed(6)));
-        setLongitude(Number(pos.coords.longitude.toFixed(6)));
+      async (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
+        const accuracy = Math.round(pos.coords.accuracy);
+
+        setLatitude(lat);
+        setLongitude(lng);
+        setGpsAccuracy(accuracy);
         setIsLocating(false);
+
+        // Reverse geocoding to resolve street name and administrative area
+        setIsResolvingAddress(true);
+        try {
+          const res = await reverseGeocodeAction(lat, lng);
+          setIsResolvingAddress(false);
+
+          if (res.success) {
+            if (res.road) {
+              setDetectedRoad(res.road);
+              // Jangan menimpa jika kolom alamat sudah diisi manual oleh pengguna
+              if (!addressDetailRef.current.trim()) {
+                setAddressDetail(res.road);
+                addressDetailRef.current = res.road;
+              }
+            } else {
+              setGeocodingError("Nama jalan tidak ditemukan pada peta di titik koordinat ini. Anda dapat melengkapi alamat patokan secara manual.");
+            }
+
+            // Auto-suggest kecamatan & kelurahan if not yet selected by user
+            if (res.kecamatanMatch && !kecamatanId) {
+              setKecamatanId(res.kecamatanMatch.id);
+              if (res.kelurahanMatch && !kelurahanId) {
+                setKelurahanId(res.kelurahanMatch.id);
+              }
+            }
+          } else {
+            setGeocodingError(res.error || "Resolusi alamat otomatis tidak berhasil. Silakan isi alamat secara manual.");
+          }
+        } catch {
+          setIsResolvingAddress(false);
+          setGeocodingError("Kendala teknis saat menghubungi layanan reverse geocoding. Alamat manual dapat diisikan pada kolom alamat.");
+        }
       },
       (err) => {
         setIsLocating(false);
-        alert(`Gagal mendeteksi lokasi GPS: ${err.message}`);
+        setIsResolvingAddress(false);
+        let errorMsg = `Gagal mendeteksi lokasi GPS: ${err.message}`;
+        if (err.code === 1) {
+          // PERMISSION_DENIED
+          errorMsg = "Izin akses lokasi ditolak oleh peramban. Silakan aktifkan izin lokasi di pengaturan browser Anda, atau isi alamat patokan secara manual di bawah.";
+        } else if (err.code === 2) {
+          // POSITION_UNAVAILABLE
+          errorMsg = "Sinyal GPS atau informasi lokasi tidak tersedia pada perangkat. Silakan isi alamat secara manual.";
+        } else if (err.code === 3) {
+          // TIMEOUT
+          errorMsg = "Waktu pencarian sinyal lokasi GPS habis (timeout). Silakan coba lagi atau isi alamat manual.";
+        }
+        setGpsError(errorMsg);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -272,9 +338,9 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
   return (
     <div className="w-full">
       {/* Route-Line Step Bar */}
-      <div className="mb-8 rounded-xl border border-[#D9DEE7] bg-white p-4 shadow-xs">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="flex items-center gap-3 rounded-lg border border-[#1749D2] bg-[#F0F3FF] p-2.5">
+      <div className="mb-6 sm:mb-8 rounded-xl border border-[#D9DEE7] bg-white p-3 sm:p-4 shadow-xs">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-3 rounded-lg border border-[#1749D2] bg-[#F0F3FF] p-2 sm:p-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1749D2] font-mono text-xs font-bold text-white">
               01
             </div>
@@ -287,7 +353,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
           </div>
 
           <div
-            className={`flex items-center gap-3 rounded-lg border p-2.5 ${aiResult
+            className={`flex items-center gap-3 rounded-lg border p-2 sm:p-2.5 ${aiResult
               ? "border-[#16845B] bg-[#E6F7EF]"
               : isAnalyzing
                 ? "border-[#E58A1F] bg-[#FFF8EF]"
@@ -315,7 +381,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
           </div>
 
           <div
-            className={`flex items-center gap-3 rounded-lg border p-2.5 ${aiResult?.recommendedAuthority
+            className={`flex items-center gap-3 rounded-lg border p-2 sm:p-2.5 ${aiResult?.recommendedAuthority
               ? "border-[#0033A7] bg-[#F0F3FF]"
               : "border-[#D9DEE7] bg-[#F9F9FF]"
               }`}
@@ -336,7 +402,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-2.5">
+          <div className="flex items-center gap-3 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-2 sm:p-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-[#D9DEE7] font-mono text-xs font-bold text-[#667085]">
               04
             </div>
@@ -351,16 +417,13 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
       </div>
 
       {/* Main Dual-Column Layout */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
+      <div className="grid grid-cols-1 gap-6 lg:gap-8 lg:grid-cols-12 items-start">
         {/* LEFT COLUMN: Input Form */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="rounded-xl border border-[#D9DEE7] bg-white p-6 shadow-sm">
+          <div className="rounded-xl border border-[#D9DEE7] bg-white p-4 sm:p-6 shadow-sm">
             <div className="flex items-start justify-between pb-4 border-b border-[#D9DEE7]">
               <div>
-                {/* <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#1749D2] uppercase tracking-wider">
-                  Borang Pra-Pelaporan Warga
-                </span> */}
-                <h2 className="text-xl font-bold text-[#111C2D] mt-1">
+                <h2 className="text-lg sm:text-xl font-bold text-[#111C2D] mt-1">
                   Ada masalah apa di sekitar Anda?
                 </h2>
                 {/* <p className="text-xs text-[#434654] mt-1 leading-relaxed">
@@ -544,75 +607,246 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                   <button
                     type="button"
                     onClick={handleDetectLocation}
-                    disabled={isLocating}
-                    className="inline-flex items-center gap-1 font-mono text-[11px] text-[#1749D2] hover:underline"
+                    disabled={isLocating || isResolvingAddress}
+                    className="inline-flex items-center gap-1 font-mono text-[11px] text-[#1749D2] hover:underline cursor-pointer disabled:opacity-50"
                   >
                     <Navigation className={`h-3 w-3 ${isLocating ? "animate-spin" : ""}`} />
-                    <span>{isLocating ? "Mendeteksi..." : "Deteksi GPS"}</span>
+                    <span>
+                      {isLocating
+                        ? "Mencari Sinyal GPS..."
+                        : isResolvingAddress
+                        ? "Mengambil Nama Jalan..."
+                        : latitude !== null
+                        ? "Deteksi Ulang GPS"
+                        : "Deteksi GPS"}
+                    </span>
                   </button>
                 </div>
                 <input
                   id="report-address"
                   type="text"
                   value={addressDetail}
-                  onChange={(e) => setAddressDetail(e.target.value)}
+                  onChange={(e) => {
+                    setAddressDetail(e.target.value);
+                    addressDetailRef.current = e.target.value;
+                  }}
                   placeholder="Contoh: Jl. Sudirman KM 3.5, depan toko roti, dekat tiang listrik No. 12"
                   className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] px-3 text-sm text-[#111C2D] placeholder:text-[#667085] focus:border-[#1749D2] focus:bg-white focus:outline-none"
                   required
                 />
+
+                {/* GPS Status & Error Messages */}
+                {gpsError && (
+                  <div className="flex items-start gap-2 rounded-lg border border-[#FFDAD6] bg-[#FFF5F5] p-2.5 text-xs text-[#BA1A1A]">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="leading-relaxed">{gpsError}</p>
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#BA1A1A] underline cursor-pointer hover:text-[#93000A]"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        <span>Coba Deteksi Ulang</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status GPS Terdeteksi (Kotak Hijau) */}
                 {latitude !== null && longitude !== null && (
-                  <div className="flex items-center gap-2 rounded-md bg-[#E6F7EF] border border-[#78D9AA]/50 px-2.5 py-1 text-xs font-mono text-[#006443]">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>
-                      Koordinat GPS Terdeteksi: {latitude}, {longitude}
-                    </span>
+                  <div className="space-y-1.5">
+                    <div className="rounded-md bg-[#E6F7EF] border border-[#78D9AA]/50 p-2.5 sm:p-3 text-xs text-[#006443]">
+                      {/* Baris Utama: Status Sukses, Koordinat, Akurasi, dan Tombol Deteksi Ulang */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#006443]" />
+                          <span className="font-mono text-xs break-all">
+                            Koordinat GPS: {latitude}, {longitude}
+                            {gpsAccuracy !== null && ` (Akurasi: ±${gpsAccuracy} meter)`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDetectLocation}
+                          disabled={isLocating || isResolvingAddress}
+                          className="self-start sm:self-auto inline-flex items-center gap-1 font-mono text-[11px] font-semibold underline text-[#006443] hover:text-[#004D33] cursor-pointer disabled:opacity-50 shrink-0"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${isLocating || isResolvingAddress ? "animate-spin" : ""}`} />
+                          <span>Deteksi Ulang</span>
+                        </button>
+                      </div>
+
+                      {/* Status Pemuatan Resolusi Alamat */}
+                      {isResolvingAddress && (
+                        <div className="mt-2 pt-2 border-t border-[#78D9AA]/40 flex items-center gap-1.5 text-[11px] text-[#006443]">
+                          <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                          <span>Menghubungi peta satelit untuk mengenali nama jalan...</span>
+                        </div>
+                      )}
+
+                      {/* Kondisi 1: Nama Jalan Berhasil Diperoleh */}
+                      {!isResolvingAddress && detectedRoad && (
+                        <div className="mt-2 pt-2 border-t border-[#78D9AA]/40 space-y-1">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              <span className="block text-[10px] font-mono font-semibold uppercase text-[#004D33]">
+                                Nama Jalan / Alamat Terdeteksi:
+                              </span>
+                              <p className="font-semibold text-xs text-[#004D33] break-words">
+                                {detectedRoad}
+                              </p>
+                              {/* Jika alamat di input berbeda (pengguna sudah mengetik manual), sediakan tombol ganti */}
+                              {addressDetail.trim() && addressDetail.trim() !== detectedRoad && (
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                                  <span className="text-[#006443]">
+                                    (Alamat manual Anda tetap dipertahankan)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddressDetail(detectedRoad);
+                                      addressDetailRef.current = detectedRoad;
+                                    }}
+                                    className="font-semibold underline text-[#004D33] hover:text-[#003322] cursor-pointer"
+                                  >
+                                    Gunakan Alamat Ini
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <span className="shrink-0 text-[10px] text-[#006443]/80 font-mono sm:self-end">
+                              Data peta: © OpenStreetMap contributors
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Kondisi 2: Nama Jalan Tidak Ditemukan atau Gagal */}
+                      {!isResolvingAddress && !detectedRoad && (
+                        <div className="mt-2 pt-2 border-t border-[#78D9AA]/40">
+                          <p className="text-[11px] text-[#006443] leading-relaxed break-words">
+                            {geocodingError ||
+                              "Alamat atau nama jalan belum dapat dikenali dari peta satelit. Silakan isi alamat patokan secara manual pada kolom di atas."}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-[#667085] font-mono leading-tight">
+                      *Koordinat GPS merekam titik lokasi perangkat pelapor dan tidak menggantikan bukti kerusakan fisik di lapangan.
+                    </p>
                   </div>
                 )}
               </div>
 
               {/* Bukti Foto Pendukung (Supabase Storage) */}
               <div className="space-y-2">
-                <label className="block text-xs font-mono font-semibold uppercase text-[#111C2D]">
-                  Foto Bukti Kondisi Fisik <span className="text-[#BA1A1A]">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono font-semibold uppercase text-[#111C2D]">
+                    Foto Bukti Kondisi Fisik <span className="text-[#BA1A1A]">*</span>
+                  </label>
+                  <span className="font-mono text-[11px] text-[#667085]">
+                    {evidenceFiles.length}/3 berkas terunggah
+                  </span>
+                </div>
 
-                {/* Uploaded Files Preview */}
+                {/* Uploaded Files Preview with Multi-image Verification */}
                 {evidenceFiles.length > 0 && (
                   <div className="space-y-2">
-                    {evidenceFiles.map((ev, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-2.5"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-white border border-[#D9DEE7]">
-                            <Image
-                              src={ev.fileUrl}
-                              alt="Bukti Laporan"
-                              fill
-                              unoptimized
-                              className="object-cover"
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-medium text-[#111C2D]">
-                              {ev.caption || `Bukti ${index + 1}`}
-                            </p>
-                            <span className="font-mono text-[10px] text-[#667085]">
-                              {(ev.fileSize / (1024 * 1024)).toFixed(2)} MB · Terunggah
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEvidence(index)}
-                          className="p-1 text-[#BA1A1A] hover:bg-[#FFDAD6]/50 rounded"
-                          aria-label="Hapus foto"
+                    {evidenceFiles.map((ev, index) => {
+                      const evAnalysis =
+                        aiResult?.evidenceAnalyses?.[index] ||
+                        (index === 0 ? aiResult?.evidenceAnalysis : undefined);
+
+                      return (
+                        <div
+                          key={index}
+                          className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-2.5 space-y-2"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-white border border-[#D9DEE7]">
+                                <Image
+                                  src={ev.fileUrl}
+                                  alt="Bukti Laporan"
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-medium text-[#111C2D]">
+                                  {ev.caption || `Bukti ${index + 1}`}
+                                </p>
+                                <span className="font-mono text-[10px] text-[#667085]">
+                                  {(ev.fileSize / (1024 * 1024)).toFixed(2)} MB · Terunggah
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEvidence(index)}
+                              className="p-1 text-[#BA1A1A] hover:bg-[#FFDAD6]/50 rounded cursor-pointer"
+                              aria-label="Hapus foto"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {/* Verification Analysis Badge */}
+                          {evAnalysis && (
+                            <div className="pt-1.5 border-t border-[#D9DEE7]/70 text-[11px]">
+                              {evAnalysis.status === "relevant" && (
+                                <div className="flex items-start gap-1.5 text-[#006443] bg-[#E6F7EF] border border-[#78D9AA]/60 rounded p-1.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                  <div>
+                                    <span className="font-semibold font-mono text-[10px] uppercase">Bukti Visual Sesuai:</span>{" "}
+                                    <span>{evAnalysis.description}</span>
+                                  </div>
+                                </div>
+                              )}
+                              {evAnalysis.status === "irrelevant" && (
+                                <div className="flex items-start gap-1.5 text-[#BA1A1A] bg-[#FFF5F5] border border-[#FFDAD6] rounded p-1.5">
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                  <div>
+                                    <span className="font-semibold font-mono text-[10px] uppercase">Peringatan: Bukti Tidak Sesuai</span>
+                                    <p className="mt-0.5 text-[10px] leading-relaxed">
+                                      {evAnalysis.reasoning || evAnalysis.description}
+                                    </p>
+                                    <p className="mt-1 text-[10px] font-semibold">
+                                      Foto terdeteksi bukan bukti fisik kerusakan di lapangan (misal logo/poster/gambar tidak terkait). Mohon ganti dengan foto kondisi lapangan sebenarnya.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                              {evAnalysis.status === "ambiguous" && (
+                                <div className="flex items-start gap-1.5 text-[#8C5000] bg-[#FFF8EF] border border-[#E58A1F]/40 rounded p-1.5">
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                  <div>
+                                    <span className="font-semibold font-mono text-[10px] uppercase">Peringatan: Foto Kurang Jelas / Buram</span>
+                                    <p className="mt-0.5 text-[10px] leading-relaxed">
+                                      {evAnalysis.reasoning || evAnalysis.description}. Disarankan mengambil foto dengan sudut dan pencahayaan lebih jelas.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                              {evAnalysis.status === "technical_failure" && (
+                                <div className="flex items-start gap-1.5 text-[#434654] bg-[#F9F9FF] border border-[#D9DEE7] rounded p-1.5">
+                                  <Info className="h-3.5 w-3.5 text-[#1749D2] shrink-0 mt-0.5" />
+                                  <div>
+                                    <span className="font-semibold font-mono text-[10px] uppercase">Verifikasi Visual Tertunda</span>
+                                    <p className="mt-0.5 text-[10px] leading-relaxed">
+                                      Analisis otomatis tidak dapat disimpulkan karena gangguan teknis. Bukti akan diperiksa langsung oleh petugas verifikator.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -785,16 +1019,22 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                     <span className="flex h-5 w-5 items-center justify-center rounded bg-[#DFE8FF] text-[#0033A7] text-[10px] font-bold">
                       02
                     </span>
-                    ANALISIS AI · KLASIFIKASI MASALAH
+                    ANALISIS AI · KLASIFIKASI & REKONSTRUKSI BAHASA
                   </span>
                   {aiResult && (
                     <span className="font-mono text-[10px] bg-[#E6F7EF] text-[#006443] px-2 py-0.5 rounded border border-[#78D9AA]/50 font-medium">
-                      Keyakinan: {Math.round(aiResult.confidence * 100)}%
+                      Keyakinan AI: {Math.round(aiResult.confidence * 100)}%
                     </span>
                   )}
                 </div>
 
-                <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3.5 space-y-2 text-xs">
+                {aiResult && (
+                  <p className="text-[10px] text-[#667085] font-mono leading-tight">
+                    *Tingkat keyakinan model bahasa (self-assessed confidence) atas pemahaman teks, bukan jaminan verifikasi fisik di lapangan.
+                  </p>
+                )}
+
+                <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3.5 space-y-2.5 text-xs">
                   {aiResult ? (
                     <>
                       <div className="flex justify-between items-center">
@@ -805,6 +1045,18 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                           {aiResult.categorySlug}
                         </span>
                       </div>
+
+                      {aiResult.originalLanguageDetected && (
+                        <div className="flex justify-between items-center pt-1 border-t border-[#D9DEE7]/70">
+                          <span className="font-mono text-[11px] text-[#667085]">
+                            Bahasa Input:
+                          </span>
+                          <span className="font-mono text-[11px] bg-[#F0F3FF] text-[#1749D2] px-2 py-0.5 rounded border border-[#D9DEE7]">
+                            {aiResult.originalLanguageDetected}
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-center pt-1 border-t border-[#D9DEE7]/70">
                         <span className="font-mono text-[11px] text-[#667085]">
                           Tingkat Urgensi:
@@ -820,9 +1072,65 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                           {aiResult.priority}
                         </span>
                       </div>
+
+                      {/* Ambiguous Flags Notice */}
+                      {aiResult.ambiguousFlags && aiResult.ambiguousFlags.length > 0 && (
+                        <div className="rounded-md border border-[#E58A1F]/40 bg-[#FFF8EF] p-2 text-[11px] text-[#8C5000] space-y-1">
+                          <div className="flex items-center gap-1 font-semibold font-mono">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                            <span>Catatan Kiasan / Informasi Ambigu:</span>
+                          </div>
+                          <ul className="list-disc list-inside space-y-0.5">
+                            {aiResult.ambiguousFlags.map((flag, idx) => (
+                              <li key={idx}>{flag}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Stated Facts vs Inferences Separation */}
+                      {aiResult.statedFacts && aiResult.statedFacts.length > 0 && (
+                        <div className="pt-2 border-t border-[#D9DEE7]/70 space-y-1">
+                          <span className="font-mono text-[10px] text-[#006443] uppercase tracking-wider block font-semibold">
+                            Fakta Eksplisit dari Warga:
+                          </span>
+                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#111C2D]">
+                            {aiResult.statedFacts.map((fact, idx) => (
+                              <li key={idx}>{fact}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiResult.inferences && aiResult.inferences.length > 0 && (
+                        <div className="pt-2 border-t border-[#D9DEE7]/70 space-y-1">
+                          <span className="font-mono text-[10px] text-[#1749D2] uppercase tracking-wider block font-semibold">
+                            Inferensi Teknis AI:
+                          </span>
+                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#434654]">
+                            {aiResult.inferences.map((inf, idx) => (
+                              <li key={idx}>{inf}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiResult.unverifiedDetails && aiResult.unverifiedDetails.length > 0 && (
+                        <div className="pt-2 border-t border-[#D9DEE7]/70 space-y-1">
+                          <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block font-semibold">
+                            Informasi Belum Disebutkan (Butuh Konfirmasi):
+                          </span>
+                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#667085]">
+                            {aiResult.unverifiedDetails.map((det, idx) => (
+                              <li key={idx}>{det}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
                       <div className="pt-2 border-t border-[#D9DEE7]/70">
                         <span className="font-mono text-[11px] text-[#667085] block mb-1">
-                          Penalaran Semantik:
+                          Penalaran Semantik Klasifikasi:
                         </span>
                         <blockquote className="rounded bg-white p-2.5 border-l-2 border-[#1749D2] italic text-[#111C2D] text-[11px] leading-relaxed">
                           &quot;{aiResult.reasoning}&quot;
@@ -834,12 +1142,12 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                       {isAnalyzing ? (
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin text-[#1749D2]" />
-                          <span>Menganalisis masukan warga...</span>
+                          <span>Menganalisis masukan warga & bukti visual...</span>
                         </div>
                       ) : (
                         <span>
                           Klik tombol &quot;Uji Analisis AI Pra-Lapor&quot; untuk melihat estimasi
-                          klasifikasi dan instansi terkait.
+                          klasifikasi, normalisasi bahasa, dan instansi berwenang.
                         </span>
                       )}
                     </div>
@@ -865,16 +1173,16 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block">
-                        INSTANSI TUJUAN:
+                        INSTANSI TUJUAN (BERDASARKAN ATURAN RESMI):
                       </span>
                       <h4 className="text-sm font-bold text-[#111C2D] leading-tight mt-0.5">
                         {aiResult?.recommendedAuthority || "Menunggu Verifikasi Instansi"}
                       </h4>
-                      {/* {!aiResult?.recommendedAuthority && (
-                        <p className="text-[10px] text-[#667085] mt-0.5 leading-relaxed">
-                          Data master instansi/OPD resmi belum tersedia. Instansi akan ditentukan oleh petugas verifikator setelah laporan diterima.
+                      {aiResult?.authorityRecommendation?.rule_code && (
+                        <p className="font-mono text-[10px] text-[#1749D2] mt-1">
+                          Dasar Aturan: {aiResult.authorityRecommendation.rule_code}
                         </p>
-                      )} */}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -886,48 +1194,63 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                   <span className="flex h-5 w-5 items-center justify-center rounded bg-[#E6F7EF] text-[#16845B] text-[10px] font-bold">
                     04
                   </span>
-                  RINGKASAN SIAP DITERUSKAN
+                  PRATINJAU DRAF LAPORAN SEBELUM PENGIRIMAN
                 </span>
 
-                {aiResult?.summary && (
-                  <div className="rounded-lg border border-[#D9DEE7] bg-white p-3 space-y-1">
+                {/* Side-by-side original vs normalized preview */}
+                <div className="space-y-2">
+                  <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 space-y-1">
                     <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block font-semibold">
-                      Ringkasan Masalah (Telaah AI):
+                      Deskripsi Asli Warga:
                     </span>
-                    <p className="text-xs text-[#111C2D] leading-relaxed">
-                      {aiResult.summary}
+                    <p className="text-xs text-[#111C2D] leading-relaxed italic">
+                      &quot;{description || "(Belum diisi)"}&quot;
                     </p>
                   </div>
-                )}
 
-                <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 text-xs font-mono space-y-1.5 text-[#434654]">
-                  <div className="flex justify-between">
+                  {aiResult?.summary && (
+                    <div className="rounded-lg border border-[#16845B]/40 bg-[#E6F7EF] p-3 space-y-1">
+                      <span className="font-mono text-[10px] text-[#006443] uppercase tracking-wider block font-semibold">
+                        Ringkasan Resmi Bahasa Indonesia (Disusun AI):
+                      </span>
+                      <p className="text-xs text-[#111C2D] leading-relaxed font-medium">
+                        {aiResult.summary}
+                      </p>
+                      <span className="font-mono text-[9px] text-[#006443] block mt-1">
+                        *Disusun tegas untuk disposisi instansi tanpa menambah fakta baru.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 text-xs font-mono space-y-2 text-[#434654]">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
                     <span>Judul:</span>
-                    <span className="font-semibold text-[#111C2D] truncate max-w-[200px]">
+                    <span className="font-semibold text-[#111C2D] truncate sm:max-w-[200px]">
                       {title || "(Belum diisi)"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
                     <span>Kategori:</span>
                     <span className="text-[#111C2D]">
                       {selectedCategory?.name_id || "(Belum dipilih)"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
                     <span>Prioritas AI:</span>
                     <span className="font-semibold text-[#111C2D] capitalize">
                       {aiResult?.priority || "Medium (Standar)"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
                     <span>Bukti Foto:</span>
                     <span className="font-semibold text-[#16845B]">
                       {evidenceFiles.length} berkas terunggah
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
                     <span>Pelapor:</span>
-                    <span className="text-[#111C2D]">
+                    <span className="text-[#111C2D] break-all sm:break-normal">
                       {reporterEmail ? `Notifikasi ke ${reporterEmail}` : "Anonim (Tanpa Kontak)"}
                     </span>
                   </div>

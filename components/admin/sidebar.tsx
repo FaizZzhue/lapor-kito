@@ -14,6 +14,7 @@ import {
   User,
   LogOut,
   Inbox,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { signOutAction } from "@/lib/actions/auth";
@@ -21,6 +22,8 @@ import type { UserProfile } from "@/types/auth";
 
 interface AdminSidebarProps {
   user: UserProfile;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface NavItem {
@@ -30,7 +33,7 @@ interface NavItem {
   exact?: boolean;
 }
 
-export function AdminSidebar({ user }: AdminSidebarProps) {
+export function AdminSidebar({ user, isOpen = false, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const isAdmin = user.role === "admin";
 
@@ -62,12 +65,21 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-72 bg-white border-r border-[#D9DEE7] z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+    <aside
+      className={`fixed left-0 top-0 h-full w-72 bg-white border-r border-[#D9DEE7] z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-in-out ${
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      }`}
+      aria-label="Navigasi konsol staf"
+    >
       {/* Scrollable Navigation Area */}
       <div className="flex flex-col flex-1 overflow-y-auto">
         {/* Brand Header */}
-        <div className="p-6 flex items-center justify-between border-b border-[#F0F3FF]">
-          <Link href={isAdmin ? "/admin" : "/admin/laporan"} className="flex items-center gap-2.5">
+        <div className="p-5 sm:p-6 flex items-center justify-between border-b border-[#F0F3FF]">
+          <Link
+            href={isAdmin ? "/admin" : "/admin/laporan"}
+            onClick={onClose}
+            className="flex items-center gap-2.5"
+          >
             <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#1749D2] text-white shadow-sm">
               <span className="relative block h-5 w-4">
                 <span className="absolute left-0 top-0 h-full w-1 bg-white" />
@@ -77,9 +89,19 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
             </div>
             <span className="text-lg font-bold text-[#0033A7] tracking-tight">LAPORKITO</span>
           </Link>
-          <span className="text-[11px] px-2 py-0.5 rounded bg-[#DFE8FF] text-[#0033A7] font-semibold">
-            {isAdmin ? "Admin" : "Petugas"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] px-2 py-0.5 rounded bg-[#DFE8FF] text-[#0033A7] font-semibold">
+              {isAdmin ? "Admin" : "Petugas"}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Tutup menu navigasi"
+              className="lg:hidden p-1.5 rounded-lg text-[#747686] hover:text-[#111C2D] hover:bg-[#F0F3FF] transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         {/* Section: MENU UTAMA */}
@@ -95,7 +117,8 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${active
+                  onClick={onClose}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active
                     ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
                     : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
                     }`}
@@ -122,7 +145,8 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${active
+                    onClick={onClose}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active
                       ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
                       : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
                       }`}
@@ -150,7 +174,8 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors ${active
+                    onClick={onClose}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors ${active
                       ? "bg-[#DFE8FF] text-[#0033A7] font-semibold"
                       : "text-[#434654] hover:bg-[#F0F3FF] hover:text-[#111C2D]"
                       }`}

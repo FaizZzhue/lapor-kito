@@ -96,11 +96,11 @@ export function BerhasilView({
         </div>
 
         {/* Big Tracking Code Box */}
-        <div className="rounded-xl border-2 border-[#1749D2]/30 bg-[#F0F3FF] p-5 text-center space-y-3">
+        <div className="rounded-xl border-2 border-[#1749D2]/30 bg-[#F0F3FF] p-4 sm:p-5 text-center space-y-3">
           <span className="font-mono text-xs uppercase tracking-wider text-[#667085] block font-semibold">
             KODE LACAK LAPORAN ANDA
           </span>
-          <div className="font-mono text-2xl sm:text-3xl font-bold tracking-wider text-[#1749D2]">
+          <div className="font-mono text-xl min-[360px]:text-2xl sm:text-3xl font-bold tracking-wider text-[#1749D2] break-all">
             {trackingCode}
           </div>
           <p className="text-[11px] text-[#434654] leading-relaxed">
@@ -112,7 +112,7 @@ export function BerhasilView({
             <button
               type="button"
               onClick={handleCopyCode}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D9DEE7] bg-white px-3.5 font-mono text-xs font-semibold text-[#111C2D] shadow-xs hover:bg-[#F0F3FF] transition-colors"
+              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-[#D9DEE7] bg-white px-3.5 font-mono text-xs font-semibold text-[#111C2D] shadow-xs hover:bg-[#F0F3FF] transition-colors cursor-pointer"
             >
               {copiedCode ? (
                 <>
@@ -130,7 +130,7 @@ export function BerhasilView({
             <button
               type="button"
               onClick={handleCopyLink}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D9DEE7] bg-white px-3.5 font-mono text-xs font-semibold text-[#111C2D] shadow-xs hover:bg-[#F0F3FF] transition-colors"
+              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-[#D9DEE7] bg-white px-3.5 font-mono text-xs font-semibold text-[#111C2D] shadow-xs hover:bg-[#F0F3FF] transition-colors cursor-pointer"
             >
               {copiedLink ? (
                 <>
@@ -159,24 +159,28 @@ export function BerhasilView({
           </div>
 
           {reportTitle && (
-            <div className="flex items-start gap-2">
-              <span className="text-[#667085] font-mono w-28 shrink-0">Judul:</span>
-              <span className="font-semibold text-[#111C2D]">{reportTitle}</span>
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2">
+              <span className="text-[#667085] font-mono sm:w-28 shrink-0">Judul:</span>
+              <span className="font-semibold text-[#111C2D] break-words">{reportTitle}</span>
             </div>
           )}
 
           {categoryName && (
-            <div className="flex items-center gap-2">
-              <Tag className="h-3.5 w-3.5 text-[#667085]" />
-              <span className="text-[#667085] font-mono w-28 shrink-0">Kategori:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <div className="flex items-center gap-1.5 sm:w-28 shrink-0 text-[#667085] font-mono">
+                <Tag className="h-3.5 w-3.5" />
+                <span>Kategori:</span>
+              </div>
               <span className="text-[#111C2D]">{categoryName}</span>
             </div>
           )}
 
           {createdAt && (
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3.5 w-3.5 text-[#667085]" />
-              <span className="text-[#667085] font-mono w-28 shrink-0">Waktu Lapor:</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <div className="flex items-center gap-1.5 sm:w-28 shrink-0 text-[#667085] font-mono">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>Waktu Lapor:</span>
+              </div>
               <span className="font-mono text-[#111C2D]">
                 {new Date(createdAt).toLocaleString("id-ID", {
                   dateStyle: "medium",

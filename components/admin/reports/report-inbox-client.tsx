@@ -191,9 +191,9 @@ export function ReportInboxClient({
               {reports.length} Total
             </span>
           </div>
-          <p className="text-[14px] text-[#434654] mt-1">
+          {/* <p className="text-[14px] text-[#434654] mt-1">
             Antrean verifikasi dan inspeksi laporan warga Palembang (Phase 6A: Tinjauan Operasional).
-          </p>
+          </p> */}
         </div>
 
         <div className="flex items-center gap-3 self-start md:self-auto">
@@ -337,11 +337,10 @@ export function ReportInboxClient({
               <button
                 type="button"
                 onClick={() => setAttentionOnly(!attentionOnly)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold rounded-lg border transition-all cursor-pointer ${
-                  attentionOnly
-                    ? "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] shadow-xs"
-                    : "bg-white text-[#434654] border-[#D9DEE7] hover:bg-[#F9F9FF]"
-                }`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold rounded-lg border transition-all cursor-pointer ${attentionOnly
+                  ? "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] shadow-xs"
+                  : "bg-white text-[#434654] border-[#D9DEE7] hover:bg-[#F9F9FF]"
+                  }`}
                 aria-pressed={attentionOnly}
                 aria-label="Filter laporan yang memiliki balasan warga"
               >
@@ -376,138 +375,218 @@ export function ReportInboxClient({
 
       {/* Main Table / List View */}
       {filteredReports.length > 0 ? (
-        <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#F0F3FF] border-b border-[#D9DEE7] text-[12px] font-semibold text-[#434654]">
-                  <th scope="col" className="py-3 px-4 w-[160px]">
-                    Kode Lacak
-                  </th>
-                  <th scope="col" className="py-3 px-4">
-                    Judul & Uraian Laporan
-                  </th>
-                  <th scope="col" className="py-3 px-4 w-[180px]">
-                    Kategori
-                  </th>
-                  <th scope="col" className="py-3 px-4 w-[180px]">
-                    Lokasi
-                  </th>
-                  <th scope="col" className="py-3 px-4 w-[120px]">
-                    Prioritas
-                  </th>
-                  <th scope="col" className="py-3 px-4 w-[140px]">
-                    Status
-                  </th>
-                  <th scope="col" className="py-3 px-4 w-[140px]">
-                    Tanggal Masuk
-                  </th>
-                  <th scope="col" className="py-3 px-4 w-[100px] text-right">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F0F3FF] text-[13px]">
-                {filteredReports.map((report) => (
-                  <tr
-                    key={report.id}
-                    className="hover:bg-[#F9F9FF] transition-colors group"
-                  >
-                    {/* Tracking Code */}
-                    <td className="py-3.5 px-4 font-mono font-medium text-[#0033A7] whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <Hash size={14} className="text-[#747686]" aria-hidden="true" />
-                        <span>{report.tracking_code}</span>
-                      </div>
-                    </td>
+        <>
+          {/* Mobile Card View (< md) */}
+          <div className="md:hidden flex flex-col gap-3.5">
+            {filteredReports.map((report) => (
+              <div
+                key={report.id}
+                className="bg-white rounded-xl border border-[#D9DEE7] p-4 shadow-xs flex flex-col gap-3"
+              >
+                {/* Header: Tracking Code & Status */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 font-mono text-xs font-bold text-[#0033A7]">
+                    <Hash size={13} className="text-[#747686]" aria-hidden="true" />
+                    <span>{report.tracking_code}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <ReportPriorityBadge priority={report.priority} size="sm" />
+                    <ReportStatusBadge status={report.status} size="sm" />
+                  </div>
+                </div>
 
-                    {/* Title & Description preview */}
-                    <td className="py-3.5 px-4 max-w-xs md:max-w-md">
-                      <div className="flex items-center gap-2 flex-wrap">
+                {/* Title & Citizen Reply Badge */}
+                <div className="space-y-1">
+                  <Link
+                    href={`/admin/laporan/${report.id}`}
+                    className="font-bold text-[14px] text-[#111C2D] hover:text-[#0033A7] transition-colors leading-snug block"
+                  >
+                    {report.title}
+                  </Link>
+                  {report.latest_response_is_citizen && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] rounded-full shadow-xs"
+                      title="Ada tanggapan terbaru dari warga yang memerlukan perhatian petugas"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] animate-pulse" />
+                      Balasan Warga
+                    </span>
+                  )}
+                  <p className="text-[12px] text-[#747686] line-clamp-2 leading-relaxed">
+                    {report.description}
+                  </p>
+                </div>
+
+                {/* Meta Details: Category, Location, Date */}
+                <div className="pt-2 border-t border-[#F0F3FF] flex flex-col gap-1.5 text-[11px] text-[#667085]">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="inline-block font-medium bg-[#F0F3FF] px-2 py-0.5 rounded border border-[#D9DEE7]/70 text-[#0033A7] truncate max-w-[180px]">
+                      {report.category_name}
+                    </span>
+                    <span className="flex items-center gap-1 font-mono">
+                      <Clock3 size={12} className="text-[#747686]" aria-hidden="true" />
+                      <span>{formatDate(report.created_at)}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-1">
+                    <MapPin size={12} className="text-[#747686] shrink-0 mt-0.5" aria-hidden="true" />
+                    <span className="break-words">
+                      {report.kelurahan_name
+                        ? `${report.kelurahan_name}, ${report.kecamatan_name || ""}`
+                        : report.address_detail}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card Action Link */}
+                <div className="pt-1">
+                  <Link
+                    href={`/admin/laporan/${report.id}`}
+                    className="inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-[#0033A7] bg-[#F0F3FF] hover:bg-[#DFE8FF] rounded-lg transition-colors active:scale-95"
+                    aria-label={`Buka detail laporan ${report.tracking_code}`}
+                  >
+                    <Eye size={14} aria-hidden="true" />
+                    <span>Lihat Detail Laporan</span>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View (>= md) */}
+          <div className="hidden md:block bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#F0F3FF] border-b border-[#D9DEE7] text-[12px] font-semibold text-[#434654]">
+                    <th scope="col" className="py-3 px-4 w-[160px]">
+                      Kode Lacak
+                    </th>
+                    <th scope="col" className="py-3 px-4">
+                      Judul & Uraian Laporan
+                    </th>
+                    <th scope="col" className="py-3 px-4 w-[180px]">
+                      Kategori
+                    </th>
+                    <th scope="col" className="py-3 px-4 w-[180px]">
+                      Lokasi
+                    </th>
+                    <th scope="col" className="py-3 px-4 w-[120px]">
+                      Prioritas
+                    </th>
+                    <th scope="col" className="py-3 px-4 w-[140px]">
+                      Status
+                    </th>
+                    <th scope="col" className="py-3 px-4 w-[140px]">
+                      Tanggal Masuk
+                    </th>
+                    <th scope="col" className="py-3 px-4 w-[100px] text-right">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F0F3FF] text-[13px]">
+                  {filteredReports.map((report) => (
+                    <tr
+                      key={report.id}
+                      className="hover:bg-[#F9F9FF] transition-colors group"
+                    >
+                      {/* Tracking Code */}
+                      <td className="py-3.5 px-4 font-mono font-medium text-[#0033A7] whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <Hash size={14} className="text-[#747686]" aria-hidden="true" />
+                          <span>{report.tracking_code}</span>
+                        </div>
+                      </td>
+
+                      {/* Title & Description preview */}
+                      <td className="py-3.5 px-4 max-w-xs md:max-w-md">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link
+                            href={`/admin/laporan/${report.id}`}
+                            className="font-semibold text-[#111C2D] group-hover:text-[#0033A7] transition-colors truncate"
+                            title={report.title}
+                          >
+                            {report.title}
+                          </Link>
+                          {report.latest_response_is_citizen && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] rounded-full shrink-0 shadow-xs"
+                              title="Ada tanggapan terbaru dari warga yang memerlukan perhatian petugas"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] animate-pulse" />
+                              Balasan Warga
+                            </span>
+                          )}
+                          {!report.latest_response_is_citizen && report.has_citizen_reply && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-medium bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] rounded shrink-0"
+                              title={`${report.citizen_reply_count || 1} balasan warga telah ditanggapi`}
+                            >
+                              {report.citizen_reply_count} tanggapan warga
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[12px] text-[#747686] truncate mt-0.5">
+                          {report.description}
+                        </p>
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-block text-[12px] text-[#434654] font-medium bg-[#F0F3FF] px-2 py-0.5 rounded border border-[#D9DEE7]/70 truncate max-w-[170px]">
+                          {report.category_name}
+                        </span>
+                      </td>
+
+                      {/* Location */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-start gap-1 text-[12px] text-[#434654]">
+                          <MapPin size={13} className="text-[#747686] shrink-0 mt-0.5" aria-hidden="true" />
+                          <span className="truncate max-w-[160px]" title={report.address_detail}>
+                            {report.kelurahan_name
+                              ? `${report.kelurahan_name}, ${report.kecamatan_name || ""}`
+                              : report.address_detail}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Priority */}
+                      <td className="py-3.5 px-4">
+                        <ReportPriorityBadge priority={report.priority} size="sm" />
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        <ReportStatusBadge status={report.status} size="sm" />
+                      </td>
+
+                      {/* Submitted At */}
+                      <td className="py-3.5 px-4 text-[12px] text-[#747686] whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Clock3 size={13} className="text-[#747686]" aria-hidden="true" />
+                          <span>{formatDate(report.created_at)}</span>
+                        </div>
+                      </td>
+
+                      {/* Action */}
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <Link
                           href={`/admin/laporan/${report.id}`}
-                          className="font-semibold text-[#111C2D] group-hover:text-[#0033A7] transition-colors truncate"
-                          title={report.title}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-semibold text-[#0033A7] bg-[#F0F3FF] hover:bg-[#DFE8FF] rounded-lg transition-colors"
+                          aria-label={`Buka detail laporan ${report.tracking_code}`}
                         >
-                          {report.title}
+                          <Eye size={14} aria-hidden="true" />
+                          <span>Detail</span>
                         </Link>
-                        {report.latest_response_is_citizen && (
-                          <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] rounded-full shrink-0 shadow-xs"
-                            title="Ada tanggapan terbaru dari warga yang memerlukan perhatian petugas"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] animate-pulse" />
-                            Balasan Warga
-                          </span>
-                        )}
-                        {!report.latest_response_is_citizen && report.has_citizen_reply && (
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-medium bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] rounded shrink-0"
-                            title={`${report.citizen_reply_count || 1} balasan warga telah ditanggapi`}
-                          >
-                            {report.citizen_reply_count} tanggapan warga
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[12px] text-[#747686] truncate mt-0.5">
-                        {report.description}
-                      </p>
-                    </td>
-
-                    {/* Category */}
-                    <td className="py-3.5 px-4">
-                      <span className="inline-block text-[12px] text-[#434654] font-medium bg-[#F0F3FF] px-2 py-0.5 rounded border border-[#D9DEE7]/70 truncate max-w-[170px]">
-                        {report.category_name}
-                      </span>
-                    </td>
-
-                    {/* Location */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-start gap-1 text-[12px] text-[#434654]">
-                        <MapPin size={13} className="text-[#747686] shrink-0 mt-0.5" aria-hidden="true" />
-                        <span className="truncate max-w-[160px]" title={report.address_detail}>
-                          {report.kelurahan_name
-                            ? `${report.kelurahan_name}, ${report.kecamatan_name || ""}`
-                            : report.address_detail}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Priority */}
-                    <td className="py-3.5 px-4">
-                      <ReportPriorityBadge priority={report.priority} size="sm" />
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
-                      <ReportStatusBadge status={report.status} size="sm" />
-                    </td>
-
-                    {/* Submitted At */}
-                    <td className="py-3.5 px-4 text-[12px] text-[#747686] whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        <Clock3 size={13} className="text-[#747686]" aria-hidden="true" />
-                        <span>{formatDate(report.created_at)}</span>
-                      </div>
-                    </td>
-
-                    {/* Action */}
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <Link
-                        href={`/admin/laporan/${report.id}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-semibold text-[#0033A7] bg-[#F0F3FF] hover:bg-[#DFE8FF] rounded-lg transition-colors"
-                        aria-label={`Buka detail laporan ${report.tracking_code}`}
-                      >
-                        <Eye size={14} aria-hidden="true" />
-                        <span>Detail</span>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       ) : (
         /* Empty State */
         <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-12 text-center flex flex-col items-center justify-center">

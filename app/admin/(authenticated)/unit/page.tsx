@@ -127,9 +127,9 @@ export default function UnitInstansiPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">Unit Instansi</h1>
-          <p className="text-[14px] text-[#434654] mt-0.5">
+          {/* <p className="text-[14px] text-[#434654] mt-0.5">
             Kelola unit pelaksana teknis dan seksi kerja yang menerima serta menindaklanjuti laporan di dalam setiap instansi.
-          </p>
+          </p> */}
         </div>
         <div className="flex items-center gap-3 self-start md:self-auto">
           <button

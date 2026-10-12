@@ -133,9 +133,9 @@ export default function InstansiPage() {
             <Building2 className="w-6 h-6 text-[#1749D2]" aria-hidden="true" />
             <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">Instansi</h1>
           </div>
-          <p className="text-[14px] text-[#434654] mt-0.5">
+          {/* <p className="text-[14px] text-[#434654] mt-0.5">
             Kelola daftar instansi penerima laporan dari ekosistem LAPORKITO Kota Palembang.
-          </p>
+          </p> */}
         </div>
         <div className="flex items-center gap-3 self-start md:self-auto">
           <button
@@ -180,33 +180,30 @@ export default function InstansiPage() {
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
-                statusFilter === 'all'
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${statusFilter === 'all'
                   ? 'bg-white text-[#0033A7] font-semibold shadow-sm'
                   : 'text-[#434654] hover:text-[#111C2D]'
-              }`}
+                }`}
             >
               Semua ({totalCount})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('active')}
-              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
-                statusFilter === 'active'
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${statusFilter === 'active'
                   ? 'bg-white text-[#0033A7] font-semibold shadow-sm'
                   : 'text-[#434654] hover:text-[#111C2D]'
-              }`}
+                }`}
             >
               Aktif ({activeCount})
             </button>
             <button
               type="button"
               onClick={() => setStatusFilter('inactive')}
-              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
-                statusFilter === 'inactive'
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${statusFilter === 'inactive'
                   ? 'bg-white text-[#0033A7] font-semibold shadow-sm'
                   : 'text-[#434654] hover:text-[#111C2D]'
-              }`}
+                }`}
             >
               Non-Aktif ({inactiveCount})
             </button>

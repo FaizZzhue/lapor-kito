@@ -115,15 +115,15 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
           </div>
           <div className="flex flex-col">
             <h1 className="text-[26px] font-bold text-[#111C2D] tracking-tight">Data Kewenangan</h1>
-            <p className="text-[14px] text-[#434654] mt-0.5">
+            {/* <p className="text-[14px] text-[#434654] mt-0.5">
               Atur hubungan antara jenis masalah, wilayah, dan pihak penerima laporan.
-            </p>
-            <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/60 w-fit">
+            </p> */}
+            {/* <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/60 w-fit">
               <Info size={16} className="text-[#747686] shrink-0" aria-hidden="true" />
               <span className="text-[12px] text-[#434654]">
                 Data ini digunakan sebagai salah satu dasar rekomendasi pihak penerima laporan.
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -142,7 +142,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
             onClick={() => setIsCreateModalOpen(true)}
             className="h-10 px-4 rounded-lg bg-primary hover:bg-[#1749D2] text-white text-[13px] font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
           >
-            <Plus size={16} aria-hidden="true" />
+            {/* <Plus size={16} aria-hidden="true" /> */}
             <span>Tambah Aturan</span>
           </button>
         </div>
@@ -231,14 +231,14 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
         </div>
 
         {/* Right Summary Badge */}
-        <div className="flex items-center shrink-0">
+        {/* <div className="flex items-center shrink-0">
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F0F3FF] border border-[#C4C5D7]/60 text-[12px] text-[#434654] font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
             <span>
               Total: <strong>{activeCount} Aturan Kewenangan Aktif</strong>
             </span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* 4. Master Authority Rules Table Container */}
@@ -411,7 +411,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
       </div>
 
       {/* 5. Bottom Institutional Context Banner */}
-      <div className="bg-[#F0F3FF] border border-[#C4C5D7]/60 p-5 rounded-xl flex items-start gap-4 mt-6">
+      {/* <div className="bg-[#F0F3FF] border border-[#C4C5D7]/60 p-5 rounded-xl flex items-start gap-4 mt-6">
         <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
           <ShieldCheck size={22} aria-hidden="true" />
         </div>
@@ -428,7 +428,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
             Sistem LAPORKITO memanfaatkan perpaduan data taksonomi kategori, yurisdiksi spasial wilayah, dan konteks masalah teknis untuk memetakan instansi serta unit pelaksana penerima laporan secara akurat. Pengaturan kewenangan ini memastikan setiap aduan warga langsung terdisposisi ke dinas berwenang tanpa perantara birokrasi berulang atau ketidakpastian kewenangan.
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Create Rule Modal */}
       <CreateRuleModal

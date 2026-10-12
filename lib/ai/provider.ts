@@ -65,10 +65,13 @@ export interface TriageInput {
 }
 
 export interface EvidenceVerificationInput {
-  fileUrl: string
+  fileUrl?: string
   fileType: string
   reportTitle: string
+  reportDescription?: string
   categoryName?: string
+  base64Data?: string
+  buffer?: Buffer | ArrayBuffer
 }
 
 export interface CandidateReport {

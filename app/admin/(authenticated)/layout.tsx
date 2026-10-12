@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { UserX, Ban, ShieldAlert } from "lucide-react";
 import { getCurrentInternalUser } from "@/lib/auth/session";
-import { AdminSidebar } from "@/components/admin/sidebar";
-import { AdminHeader } from "@/components/admin/header";
+import { AdminLayoutShell } from "@/components/admin/admin-layout-shell";
 import { signOutAction } from "@/lib/actions/auth";
 
 export const dynamic = "force-dynamic";
@@ -94,18 +93,10 @@ export default async function AdminAuthenticatedLayout({
     );
   }
 
-  // 5. Authorized Admin -> Render complete Stitch layout
+  // 5. Authorized Admin -> Render responsive admin layout shell
   return (
-    <div className="bg-[#F9F9FF] text-[#111C2D] min-h-screen">
-      <AdminSidebar user={internalUser} />
-      <div className="pl-72">
-        <AdminHeader user={internalUser} />
-        <main className="pt-16 min-h-screen bg-[#F9F9FF]">
-          <div className="max-w-6xl mx-auto px-6 lg:px-8 py-8">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
+    <AdminLayoutShell user={internalUser}>
+      {children}
+    </AdminLayoutShell>
   );
 }

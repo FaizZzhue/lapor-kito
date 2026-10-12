@@ -8,21 +8,17 @@ import {
   Building2,
   Eye,
   Lock,
-  ArrowRight,
-  Search,
   AlertTriangle,
   Lightbulb,
   Droplets,
   Trash2,
-  Layers,
-  HelpCircle,
 } from "lucide-react";
 
 export default function Home() {
   return (
     <div className="flex flex-col w-full">
       {/* 1. HERO SECTION */}
-      <section className="relative w-full border-b border-[#D9DEE7] bg-white px-4 py-12 sm:px-6 md:py-20 lg:px-8 overflow-hidden">
+      <section className="relative w-full border-b border-[#D9DEE7] bg-white px-4 py-10 sm:px-6 md:py-20 lg:px-8 overflow-hidden">
         {/* Subtle Civic Grid */}
         <div className="absolute inset-0 pointer-events-none civic-grid opacity-75" />
 
@@ -41,9 +37,9 @@ export default function Home() {
         </svg>
 
         <div className="relative mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12">
+          <div className="grid grid-cols-1 items-center gap-8 sm:gap-10 lg:grid-cols-12">
             {/* Left Content */}
-            <div className="flex flex-col items-start space-y-5 lg:col-span-7">
+            <div className="flex flex-col items-start space-y-4 sm:space-y-5 lg:col-span-7">
               {/* Technical Region Badge */}
               <div className="inline-flex items-center gap-2 rounded-md border border-[#D9DEE7] bg-[#F0F3FF] px-3 py-1 text-xs font-mono font-medium text-[#1749D2]">
                 <span className="h-2 w-2 rounded-full bg-[#1749D2] animate-pulse" />
@@ -51,55 +47,42 @@ export default function Home() {
               </div>
 
               {/* Headline */}
-              <h1 className="text-3xl font-bold tracking-tight text-[#111C2D] sm:text-5xl sm:leading-[1.15]">
+              <h1 className="text-2xl min-[360px]:text-3xl font-bold tracking-tight text-[#111C2D] sm:text-5xl sm:leading-[1.15]">
                 Laporkan masalah kota dengan{" "}
                 <span className="text-[#1749D2]">lebih tepat & terarah.</span>
               </h1>
 
               {/* Subheading with truthful scope */}
-              <p className="max-w-2xl text-sm sm:text-base text-[#434654] leading-relaxed">
+              <p className="max-w-2xl text-xs sm:text-base text-[#434654] leading-relaxed">
                 Ceritakan masalah fasilitas umum di sekitar Anda dengan bahasa sehari-hari. LAPORKITO
                 membantu merapikan uraian, menguji kelengkapan bukti foto, merekomendasikan instansi
                 berwenang di Kota Palembang, dan menerbitkan kode lacak terbuka.
               </p>
 
-              {/* Scope & Role Notice */}
-              {/* <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 text-xs text-[#667085] leading-relaxed">
-                <span className="font-semibold text-[#111C2D]">Catatan Peran Layanan:</span> LAPORKITO
-                adalah platform pendamping partisipasi warga untuk pra-pelaporan, bukan pengganti kanal
-                resmi pemerintah atau saluran darurat darurat.
-              </div> */}
-
               {/* Primary CTAs */}
               <div className="flex flex-wrap items-center gap-3 pt-1 w-full sm:w-auto">
                 <Link
                   href="/lapor"
-                  className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-[#1749D2] px-6 text-xs sm:text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0033A7] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]"
+                  className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-[#1749D2] px-6 text-xs sm:text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#0033A7] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]"
                 >
                   <span>Ceritakan Masalah Sekarang</span>
-                  {/* <ArrowRight className="h-4 w-4" aria-hidden="true" /> */}
                 </Link>
                 <Link
                   href="/pantau"
-                  className="inline-flex h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#D9DEE7] bg-white px-5 text-xs sm:text-sm font-semibold text-[#434654] transition-colors hover:bg-[#F0F3FF] hover:text-[#1749D2]"
+                  className="inline-flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-[#D9DEE7] bg-white px-5 text-xs sm:text-sm font-semibold text-[#434654] transition-colors hover:bg-[#F0F3FF] hover:text-[#1749D2]"
                 >
-                  {/* <Search className="h-4 w-4 text-[#667085]" aria-hidden="true" /> */}
                   <span>Pantau Laporan</span>
                 </Link>
               </div>
 
               {/* Verification Badges */}
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-3 text-xs font-mono text-[#667085] border-t border-[#D9DEE7] w-full">
-                {/* <div className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-[#16845B]" aria-hidden="true" />
-                  <span>Tanpa Perlu Login</span>
-                </div> */}
+              <div className="flex flex-wrap items-center gap-3 sm:gap-6 pt-3 text-xs font-mono text-[#667085] border-t border-[#D9DEE7] w-full">
                 <div className="flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-[#1749D2]" aria-hidden="true" />
+                  <MapPin className="h-4 w-4 text-[#1749D2] shrink-0" aria-hidden="true" />
                   <span>18 Kecamatan Palembang</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Lock className="h-4 w-4 text-[#E58A1F]" aria-hidden="true" />
+                  <Lock className="h-4 w-4 text-[#E58A1F] shrink-0" aria-hidden="true" />
                   <span>Data Pribadi Terlindungi</span>
                 </div>
               </div>
@@ -107,48 +90,48 @@ export default function Home() {
 
             {/* Right Visual: Civic HUD Cartography Card */}
             <div className="lg:col-span-5 w-full">
-              <div className="rounded-xl border border-[#D9DEE7] bg-[#F0F3FF] p-5 shadow-xs space-y-4">
+              <div className="rounded-xl border border-[#D9DEE7] bg-[#F0F3FF] p-4 sm:p-5 shadow-xs space-y-4">
                 {/* HUD Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-[#D9DEE7] text-xs font-mono text-[#434654]">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#D9DEE7] text-xs font-mono text-[#434654]">
                   <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-[#16845B] animate-pulse" />
+                    <span className="h-2 w-2 rounded-full bg-[#16845B] animate-pulse shrink-0" />
                     <span>TITIK KOORDINAT PALEMBANG</span>
                   </div>
-                  <span className="rounded bg-white px-2 py-0.5 border border-[#D9DEE7] font-semibold text-[#1749D2]">
+                  <span className="rounded bg-white px-2 py-0.5 border border-[#D9DEE7] font-semibold text-[#1749D2] shrink-0">
                     2.9909° S, 104.7565° E
                   </span>
                 </div>
 
                 {/* Simulated Workflow Preview Box */}
-                <div className="rounded-lg border border-[#D9DEE7] bg-white p-4 space-y-3.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono font-semibold uppercase text-[#1749D2] tracking-wider">
+                <div className="rounded-lg border border-[#D9DEE7] bg-white p-3.5 sm:p-4 space-y-3.5">
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <span className="font-mono font-semibold uppercase text-[#1749D2] tracking-wider truncate">
                       Simulasi Pra-Pelaporan
                     </span>
-                    <span className="rounded bg-[#E6F7EF] text-[#006443] px-2 py-0.5 font-mono text-[10px] font-medium border border-[#78D9AA]/40">
+                    <span className="rounded bg-[#E6F7EF] text-[#006443] px-2 py-0.5 font-mono text-[10px] font-medium border border-[#78D9AA]/40 shrink-0">
                       SISTEM SIAP
                     </span>
                   </div>
 
                   <div className="rounded-md bg-[#F9F9FF] border border-[#D9DEE7] p-3 text-xs space-y-2">
-                    <div className="flex items-start gap-2">
-                      <span className="text-[#667085] font-mono text-[11px] w-24 shrink-0">
+                    <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start gap-1 min-[420px]:gap-2">
+                      <span className="text-[#667085] font-mono text-[11px] min-[420px]:w-24 shrink-0">
                         Masukan Warga:
                       </span>
                       <span className="text-[#111C2D] font-medium">
                         &quot;Aspal ambles di dekat simpang lampu merah, membahayakan pengendara roda dua&quot;
                       </span>
                     </div>
-                    <div className="flex items-start gap-2 pt-1 border-t border-[#D9DEE7]/50">
-                      <span className="text-[#667085] font-mono text-[11px] w-24 shrink-0">
+                    <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start gap-1 min-[420px]:gap-2 pt-1 border-t border-[#D9DEE7]/50">
+                      <span className="text-[#667085] font-mono text-[11px] min-[420px]:w-24 shrink-0">
                         Analisis AI:
                       </span>
                       <span className="text-[#1749D2] font-semibold">
                         Infrastruktur & Jalan • Urgensi Tinggi
                       </span>
                     </div>
-                    <div className="flex items-start gap-2 pt-1 border-t border-[#D9DEE7]/50">
-                      <span className="text-[#667085] font-mono text-[11px] w-24 shrink-0">
+                    <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start gap-1 min-[420px]:gap-2 pt-1 border-t border-[#D9DEE7]/50">
+                      <span className="text-[#667085] font-mono text-[11px] min-[420px]:w-24 shrink-0">
                         Rekomendasi:
                       </span>
                       <span className="text-[#111C2D]">
@@ -157,7 +140,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 text-[11px] font-mono text-[#667085]">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 text-[11px] font-mono text-[#667085]">
                     <span>Keluaran: Kode Lacak Unik</span>
                     <span className="font-bold text-[#111C2D] bg-[#F0F3FF] px-2 py-0.5 rounded border border-[#D9DEE7]">
                       LPK-YYYYMMDD-XXXX

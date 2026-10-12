@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Clock3,
   Calendar,
   MapPin,
@@ -143,17 +141,17 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
           >
             <ArrowLeft size={18} aria-hidden="true" />
           </Link> */}
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider">
                 Operasional • Detail Laporan
               </span>
               <span className="text-[#D9DEE7]">•</span>
-              <span className="font-mono text-[12px] font-semibold text-[#0033A7]">
+              <span className="font-mono text-[12px] font-semibold text-[#0033A7] break-all">
                 {report.tracking_code}
               </span>
             </div>
-            <h1 className="text-[22px] font-bold text-[#111C2D] tracking-tight">
+            <h1 className="text-xl sm:text-[22px] font-bold text-[#111C2D] tracking-tight break-words mt-0.5">
               {report.title}
             </h1>
           </div>

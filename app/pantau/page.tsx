@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search, ShieldCheck, Mail, ArrowRight, HelpCircle } from "lucide-react";
+import { ShieldCheck, Mail, HelpCircle } from "lucide-react";
 import { TrackingSearchBar } from "@/components/pantau/search-bar";
 
 export const metadata: Metadata = {

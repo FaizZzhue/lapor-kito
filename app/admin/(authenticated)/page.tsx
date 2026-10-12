@@ -171,9 +171,9 @@ export default async function AdminDashboardPage() {
           <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">
             Ringkasan Platform
           </h1>
-          <p className="text-[14px] text-[#434654] mt-1">
+          {/* <p className="text-[14px] text-[#434654] mt-1">
             Pemantauan real-time terhadap ekosistem LAPORKITO Kota Palembang berdasarkan data aktual.
-          </p>
+          </p> */}
         </div>
 
         {/* <div className="flex items-center gap-2 px-3 py-1.5 bg-[#EDF7F2] border border-[#B5E2CD] rounded-lg shadow-sm self-start md:self-auto">
@@ -354,9 +354,9 @@ export default async function AdminDashboardPage() {
             <h2 className="text-[18px] font-semibold text-[#111C2D]">
               Pusat Pengelolaan Data Master
             </h2>
-            <p className="text-[13px] text-[#434654]">
+            {/* <p className="text-[13px] text-[#434654]">
               Pilih entitas data untuk memperbarui struktur kedinasan, hak verifikasi, dan aturan penerusan laporan warga.
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -508,7 +508,7 @@ function DataMasterRow({
           className="inline-flex items-center gap-1.5 text-[13px] text-[#0033A7] hover:text-[#1749D2] font-semibold transition-colors px-3 py-1.5 rounded-lg hover:bg-[#F0F3FF]"
         >
           <span>Buka</span>
-          <ArrowRight size={16} strokeWidth={2} />
+          {/* <ArrowRight size={16} strokeWidth={2} /> */}
         </Link>
       </div>
     </div>

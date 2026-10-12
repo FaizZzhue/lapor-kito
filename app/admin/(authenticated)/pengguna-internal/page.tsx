@@ -174,9 +174,9 @@ export default function PenggunaInternalPage() {
             <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold">
               Pengguna Internal
             </h1>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
+            {/* <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
               Kelola akses pengguna yang bekerja pada instansi penerima laporan di lingkungan Pemerintah Kota Palembang.
-            </p>
+            </p> */}
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -217,7 +217,7 @@ export default function PenggunaInternalPage() {
 
           {/* Role Filter */}
           <div className="flex items-center gap-1.5">
-            <Shield className="w-3.5 h-3.5 text-outline hidden sm:block" aria-hidden="true" />
+            {/* <Shield className="w-3.5 h-3.5 text-outline hidden sm:block" aria-hidden="true" /> */}
             <select
               value={roleFilter}
               onChange={(e) => handleRoleFilterChange(e.target.value as 'all' | 'admin' | 'petugas')}
@@ -231,7 +231,7 @@ export default function PenggunaInternalPage() {
 
           {/* Status Filter */}
           <div className="flex items-center gap-1.5">
-            <ListFilter className="w-3.5 h-3.5 text-outline hidden sm:block" aria-hidden="true" />
+            {/* <ListFilter className="w-3.5 h-3.5 text-outline hidden sm:block" aria-hidden="true" /> */}
             <select
               value={statusFilter}
               onChange={(e) => handleStatusFilterChange(e.target.value as 'all' | 'active' | 'inactive')}
@@ -245,12 +245,12 @@ export default function PenggunaInternalPage() {
         </div>
 
         {/* Counter Badge */}
-        <div className="flex items-center gap-2 self-start xl:self-center px-3.5 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm shrink-0 border border-surface-container">
+        {/* <div className="flex items-center gap-2 self-start xl:self-center px-3.5 py-2 rounded-lg bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm shrink-0 border border-surface-container">
           <span className="w-2 h-2 rounded-full bg-tertiary" />
           <span className="font-semibold text-on-surface">Total: {users.length} Pengguna Terdaftar</span>
           <span className="text-outline">|</span>
           <span className="text-on-surface-variant font-normal">Hak Akses Portal Kedinasan</span>
-        </div>
+        </div> */}
       </div>
 
       {/* Error Alert */}
@@ -346,11 +346,10 @@ export default function PenggunaInternalPage() {
                     {/* 2. Peran / Role */}
                     <td className="py-3.5 px-4 align-middle">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-semibold ${
-                          u.role === 'admin'
-                            ? 'bg-primary-container text-on-primary'
-                            : 'bg-surface-container text-primary'
-                        }`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-semibold ${u.role === 'admin'
+                          ? 'bg-primary-container text-on-primary'
+                          : 'bg-surface-container text-primary'
+                          }`}
                       >
                         <Shield className="w-3 h-3" />
                         <span>{u.role === 'admin' ? 'Administrator' : 'Petugas Lapangan'}</span>
@@ -361,9 +360,8 @@ export default function PenggunaInternalPage() {
                     <td className="py-3.5 px-4 align-middle">
                       <div className="inline-flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface font-medium">
                         <span
-                          className={`w-2 h-2 rounded-full ${
-                            u.is_active ? 'bg-tertiary' : 'bg-outline'
-                          }`}
+                          className={`w-2 h-2 rounded-full ${u.is_active ? 'bg-tertiary' : 'bg-outline'
+                            }`}
                         />
                         <span>{u.is_active ? 'Aktif' : 'Nonaktif'}</span>
                       </div>
@@ -411,14 +409,14 @@ export default function PenggunaInternalPage() {
           <span className="text-on-surface-variant">
             Menampilkan <strong className="text-on-surface">{users.length}</strong> pengguna internal terdaftar
           </span>
-          <span className="text-xs text-outline">
+          {/* <span className="text-xs text-outline">
             Otoritas akses terintegrasi Supabase Auth &amp; Role-based Governance
-          </span>
+          </span> */}
         </div>
       </div>
 
       {/* Bottom Governance Card */}
-      <div className="rounded-xl p-5 sm:p-6 bg-surface-container-lowest shadow-xs border border-outline-variant/40 flex items-start gap-4">
+      {/* <div className="rounded-xl p-5 sm:p-6 bg-surface-container-lowest shadow-xs border border-outline-variant/40 flex items-start gap-4">
         <div className="w-10 h-10 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0">
           <ShieldCheck className="w-6 h-6" />
         </div>
@@ -435,7 +433,7 @@ export default function PenggunaInternalPage() {
             Setiap akun pengguna internal terikat dengan identitas kedinasan dan kredensial resmi Pemerintah Kota Palembang. Administrator LAPORKITO mengelola penugasan unit kerja dan hak tanggapan laporan tanpa memaparkan kontak pribadi demi menjaga keamanan aparatur dan rekam jejak audit penanganan aduan warga secara akuntabel.
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Modals */}
       <InviteUserModal

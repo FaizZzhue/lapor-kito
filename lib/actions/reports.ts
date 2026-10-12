@@ -10,15 +10,169 @@ import {
   updateReportStatusSchema,
   type UpdateReportStatusSchemaType,
 } from "@/lib/validators/report";
-import { triageReportWithAI, recommendAuthorityWithAI, type TriageInput } from "@/lib/ai/triage";
+import { triageReportWithAI, recommendAuthorityWithAI, verifyEvidenceWithAI, type TriageInput } from "@/lib/ai/triage";
 import type { AuthorityOption, AuthorityCandidateForAI, CategoryOption } from "@/lib/ai/provider";
 import { getGeminiModel } from "@/lib/ai/gemini";
 import { sendReportSubmittedEmail, sendStatusChangeEmail } from "@/lib/email/resend";
 import { getAuthorityCandidatesByCategorySlug } from "@/lib/data/authority-rules";
-import type { AITriageResult } from "@/types/ai";
-import type { ReportPriority, ReportStatus, ResponseType } from "@/types/database";
+import type { AITriageResult, AIEvidenceAnalysis } from "@/types/ai";
+import type { ReportPriority, ReportStatus, ResponseType, Json } from "@/types/database";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import crypto from "crypto";
+
+export interface ReverseGeocodeResult {
+  success: boolean;
+  road?: string;
+  suburb?: string;
+  district?: string;
+  city?: string;
+  displayName?: string;
+  kecamatanMatch?: { id: string; name: string };
+  kelurahanMatch?: { id: string; name: string };
+  attribution: string;
+  error?: string;
+}
+
+/**
+ * Resolves GPS coordinates into street name and administrative area via OpenStreetMap Nominatim.
+ * Strictly adheres to non-hallucination rules: if road name is not found, does not invent one.
+ * Validates resulting district/subdistrict against official Palembang master data.
+ */
+export async function reverseGeocodeAction(
+  latitude: number,
+  longitude: number
+): Promise<ReverseGeocodeResult> {
+  const attribution = "Data geocoding © OpenStreetMap contributors (ODbL)";
+
+  // Strict coordinate validation
+  if (
+    typeof latitude !== "number" ||
+    typeof longitude !== "number" ||
+    isNaN(latitude) ||
+    isNaN(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return {
+      success: false,
+      attribution,
+      error: "Koordinat GPS tidak valid. Pastikan latitude (-90 s/d 90) dan longitude (-180 s/d 180) benar.",
+    };
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(
+      latitude
+    )}&lon=${encodeURIComponent(longitude)}&format=jsonv2&addressdetails=1`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "LAPORKITO/1.0 (civic-complaint-palembang; contact: laporkito@palembang.go.id)",
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      return {
+        success: false,
+        attribution,
+        error: `Layanan reverse geocoding merespons HTTP ${res.status}. Alamat manual dapat diisikan pada formulir.`,
+      };
+    }
+
+    const data = await res.json();
+    const address = data?.address || {};
+    const road =
+      address.road ||
+      address.pedestrian ||
+      address.street ||
+      address.residential ||
+      undefined;
+    const suburb =
+      address.suburb ||
+      address.village ||
+      address.neighbourhood ||
+      address.hamlet ||
+      undefined;
+    const cityDistrict =
+      address.city_district || address.district || address.county || undefined;
+    const city = address.city || address.town || address.municipality || undefined;
+
+    // Cross-check with Palembang master data
+    let kecamatanMatch: { id: string; name: string } | undefined;
+    let kelurahanMatch: { id: string; name: string } | undefined;
+
+    try {
+      const adminSupabase = createAdminClient();
+      const [kecRes, kelRes] = await Promise.all([
+        adminSupabase.from("kecamatan").select("id, name"),
+        adminSupabase.from("kelurahan").select("id, name, kecamatan_id"),
+      ]);
+
+      if (kecRes.data && (cityDistrict || suburb)) {
+        const targetSearch = (cityDistrict || suburb || "").toLowerCase();
+        const cleanSearch = targetSearch.replace(/kecamatan|kec\.?|kelurahan|kel\.?/gi, "").trim();
+
+        const foundKec = kecRes.data.find((k) => {
+          const kName = k.name.toLowerCase();
+          return (
+            kName === cleanSearch ||
+            cleanSearch.includes(kName) ||
+            kName.includes(cleanSearch)
+          );
+        });
+
+        if (foundKec) {
+          kecamatanMatch = { id: foundKec.id, name: foundKec.name };
+
+          if (kelRes.data && suburb) {
+            const cleanSub = suburb.toLowerCase().replace(/kelurahan|kel\.?/gi, "").trim();
+            const foundKel = kelRes.data.find(
+              (kel) =>
+                kel.kecamatan_id === foundKec.id &&
+                (kel.name.toLowerCase() === cleanSub ||
+                  cleanSub.includes(kel.name.toLowerCase()) ||
+                  kel.name.toLowerCase().includes(cleanSub))
+            );
+            if (foundKel) {
+              kelurahanMatch = { id: foundKel.id, name: foundKel.name };
+            }
+          }
+        }
+      }
+    } catch {
+      // Non-fatal if DB matching fails
+    }
+
+    return {
+      success: true,
+      road,
+      suburb,
+      district: cityDistrict,
+      city,
+      displayName: data?.display_name,
+      kecamatanMatch,
+      kelurahanMatch,
+      attribution,
+    };
+  } catch (err: unknown) {
+    const isAbort = (err as Error)?.name === "AbortError";
+    return {
+      success: false,
+      attribution,
+      error: isAbort
+        ? "Waktu permintaan resolusi alamat habis (timeout). Silakan masukkan alamat secara manual."
+        : "Gagal menghubungkan ke layanan reverse geocoding. Alamat manual tetap dapat diisi warga.",
+    };
+  }
+}
 
 export interface MasterDataResult {
   categories: Array<{ id: string; slug: string; name_id: string; description: string | null }>;
@@ -278,6 +432,37 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
       }
     }
 
+    // ──── STEP 2.5: Multimodal Evidence Verification (if images provided) ────
+    const evidenceAnalyses: AIEvidenceAnalysis[] = [];
+    if (triageInput.evidenceUrls && triageInput.evidenceUrls.length > 0) {
+      for (const url of triageInput.evidenceUrls) {
+        try {
+          const evAnalysis = await verifyEvidenceWithAI({
+            fileUrl: url,
+            fileType: "image/jpeg",
+            reportTitle: triageInput.title,
+            reportDescription: triageInput.description,
+            categoryName: triageInput.categoryName,
+          });
+          evidenceAnalyses.push(evAnalysis);
+        } catch (evErr) {
+          evidenceAnalyses.push({
+            status: "technical_failure",
+            isValidEvidence: false,
+            confidence: 0,
+            description: "Gagal memproses verifikasi berkas bukti secara otomatis.",
+            labels: [],
+            detectedAnomalies: ["verification_execution_error"],
+            reasoning: (evErr as Error)?.message,
+          });
+        }
+      }
+    }
+    triage.evidenceAnalyses = evidenceAnalyses;
+    if (evidenceAnalyses.length > 0) {
+      triage.evidenceAnalysis = evidenceAnalyses[0];
+    }
+
     // Attach authority recommendation to triage result
     triage.authorityRecommendation = authorityRecommendation;
 
@@ -288,7 +473,7 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
       const adminSupabase = createAdminClient();
       await adminSupabase.from("ai_triage_logs").insert({
         report_id: null, // report not yet created at triage time
-        prompt_version: "v1.1-authority-rules",
+        prompt_version: "v1.2-palembang-evidence-validation",
         model: getGeminiModel(),
         raw_request: {
           title: triageInput.title,
@@ -304,6 +489,17 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
           priority: triage.priority,
           confidence: triage.confidence,
           summary: triage.summary,
+          statedFacts: triage.statedFacts,
+          inferences: triage.inferences,
+          unverifiedDetails: triage.unverifiedDetails,
+          ambiguousFlags: triage.ambiguousFlags,
+          originalLanguageDetected: triage.originalLanguageDetected,
+          evidenceAnalyses: evidenceAnalyses.map((e) => ({
+            status: e.status,
+            isValidEvidence: e.isValidEvidence,
+            confidence: e.confidence,
+            description: e.description,
+          })),
           recommendedAuthority: triage.recommendedAuthority,
           authorityRecommendation: authorityRecommendation
             ? {
@@ -552,17 +748,58 @@ export async function submitReportAction(
       };
     }
 
-    // 5. Insert Evidence Records
+    // 5. Insert Evidence Records with Server-Authoritative Verification
     if (data.evidenceFiles && data.evidenceFiles.length > 0) {
-      const evidenceRows = data.evidenceFiles.map((ev) => ({
-        report_id: newReport.id,
-        file_url: ev.fileUrl,
-        file_type: ev.fileType,
-        file_size: ev.fileSize,
-        storage_path: ev.storagePath,
-        caption: ev.caption || null,
-        ai_is_valid: true,
-      }));
+      const evidenceRows = await Promise.all(
+        data.evidenceFiles.map(async (ev) => {
+          let aiIsValid: boolean | null = null;
+          let aiAnalysisData: Record<string, unknown> = {};
+
+          try {
+            const evAnalysis = await verifyEvidenceWithAI({
+              fileUrl: ev.fileUrl,
+              fileType: ev.fileType,
+              reportTitle: data.title,
+              reportDescription: data.description,
+            });
+
+            if (evAnalysis.status === "relevant") {
+              aiIsValid = true;
+            } else if (evAnalysis.status === "irrelevant" || evAnalysis.status === "ambiguous") {
+              aiIsValid = false;
+            } else {
+              // technical_failure: do not declare valid and do not declare irrelevant
+              aiIsValid = null;
+            }
+            aiAnalysisData = {
+              status: evAnalysis.status,
+              confidence: evAnalysis.confidence,
+              description: evAnalysis.description,
+              labels: evAnalysis.labels,
+              detectedAnomalies: evAnalysis.detectedAnomalies || [],
+              reasoning: evAnalysis.reasoning,
+            };
+          } catch (evErr) {
+            aiIsValid = null;
+            aiAnalysisData = {
+              status: "technical_failure",
+              message: "Verifikasi bukti tertunda karena kendala teknis.",
+              error: (evErr as Error)?.message,
+            };
+          }
+
+          return {
+            report_id: newReport.id,
+            file_url: ev.fileUrl,
+            file_type: ev.fileType,
+            file_size: ev.fileSize,
+            storage_path: ev.storagePath,
+            caption: ev.caption || null,
+            ai_is_valid: aiIsValid,
+            ai_analysis: aiAnalysisData as Json,
+          };
+        })
+      );
 
       const { error: evErr } = await adminSupabase.from("report_evidence").insert(evidenceRows);
       if (evErr) {

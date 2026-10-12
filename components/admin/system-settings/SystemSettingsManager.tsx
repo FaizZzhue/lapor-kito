@@ -169,11 +169,10 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
       {/* Status Message */}
       {message && (
         <div
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-[13px] font-medium ${
-            message.type === "success"
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-[13px] font-medium ${message.type === "success"
               ? "bg-[#EDF7F2] border-[#B5E2CD] text-[#16845B]"
               : "bg-[#FFDAD6] border-[#FFB4AB] text-[#BA1A1A]"
-          }`}
+            }`}
         >
           {message.type === "success" ? (
             <CheckCircle2 size={18} aria-hidden="true" />
@@ -191,7 +190,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
       )}
 
       {/* Security Notice */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9]">
+      {/* <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9]">
         <ShieldAlert size={18} className="text-[#B2640A] mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p className="text-[13px] font-semibold text-[#B2640A]">Keamanan Pengaturan</p>
@@ -200,7 +199,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
             Kredensial tersebut dikelola melalui environment variables server.
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Known Settings */}
       <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden divide-y divide-[#F0F3FF]">
@@ -266,16 +265,14 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
                                 onClick={() =>
                                   setEditValues((prev) => ({ ...prev, [f.name]: !prev[f.name] }))
                                 }
-                                className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${
-                                  editValues[f.name]
+                                className={`relative inline-flex h-6 w-11 rounded-full transition-colors ${editValues[f.name]
                                     ? "bg-[#1749D2]"
                                     : "bg-[#D9DEE7]"
-                                }`}
+                                  }`}
                               >
                                 <span
-                                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${
-                                    editValues[f.name] ? "translate-x-5" : "translate-x-0.5"
-                                  } mt-0.5`}
+                                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${editValues[f.name] ? "translate-x-5" : "translate-x-0.5"
+                                    } mt-0.5`}
                                 />
                               </button>
                             ) : (

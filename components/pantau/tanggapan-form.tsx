@@ -134,8 +134,8 @@ export function TanggapanForm({
             <span>•</span>
             <span className="text-[#667085]">{categoryName}</span>
           </div>
-          <p className="text-xs font-semibold text-[#111C2D] truncate">{report.title}</p>
-          <p className="text-[11px] text-[#667085] truncate">{report.address_detail}</p>
+          <p className="text-xs font-semibold text-[#111C2D] break-words">{report.title}</p>
+          <p className="text-[11px] text-[#667085] break-words">{report.address_detail}</p>
         </div>
         <span className="rounded-full bg-[#F0F3FF] border border-[#D9DEE7] px-3 py-1 font-mono text-[11px] font-semibold text-[#1749D2] shrink-0 self-start sm:self-center">
           {report.status.toUpperCase()}
@@ -143,7 +143,7 @@ export function TanggapanForm({
       </div>
 
       {/* Main Dual-Section Form Card */}
-      <div className="rounded-xl border border-[#D9DEE7] bg-white p-6 shadow-sm space-y-6">
+      <div className="rounded-xl border border-[#D9DEE7] bg-white p-4 sm:p-6 shadow-sm space-y-6">
         {/* Section A: Konteks Riwayat Tanggapan Sebelumnya */}
         {latestOfficialResponse ? (
           <div className="space-y-2">

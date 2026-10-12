@@ -29,15 +29,15 @@ export default async function PengaturanSistemPage() {
           <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">
             Pengaturan Sistem
           </h1>
-          <p className="text-[14px] text-[#434654] mt-1">
+          {/* <p className="text-[14px] text-[#434654] mt-1">
             Konfigurasi parameter operasional platform LAPORKITO. Pengaturan disimpan di{" "}
             <code className="text-[12px] bg-[#F0F3FF] px-1.5 py-0.5 rounded text-[#0033A7]">
               system_settings
             </code>.
-          </p>
+          </p> */}
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg shadow-sm self-start md:self-auto">
+        {/* <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg shadow-sm self-start md:self-auto">
           {isAdmin ? (
             <ShieldCheck size={18} className="text-[#16845B]" aria-hidden="true" />
           ) : (
@@ -51,7 +51,7 @@ export default async function PengaturanSistemPage() {
               {isAdmin ? "Administrator Sistem" : "Petugas — tanpa hak ubah"}
             </span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       <SystemSettingsManager initialSettings={settings ?? []} isAdmin={isAdmin} />

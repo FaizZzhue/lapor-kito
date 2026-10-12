@@ -170,12 +170,12 @@ export default function KategoriLaporanPage() {
             <Tags className="w-5 h-5" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold">
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold text-3xl">
               Kategori Laporan
             </h1>
-            <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
+            {/* <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
               Kelola kategori yang digunakan dalam proses klasifikasi laporan dan perutean disposisi ke instansi berwenang.
-            </p>
+            </p> */}
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -193,8 +193,8 @@ export default function KategoriLaporanPage() {
             onClick={handleOpenCreate}
             className="h-10 px-4 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-xs flex items-center gap-2 font-label-md text-label-md font-semibold"
           >
-            <Plus className="w-4 h-4" aria-hidden="true" />
-            <span>Tambah Kategori</span>
+            {/* <Plus className="w-4 h-4" aria-hidden="true" /> */}
+            <span className="text-white">Tambah Kategori</span>
           </button>
         </div>
       </div>
@@ -217,7 +217,7 @@ export default function KategoriLaporanPage() {
           {/* Filter Status Segment & Summary Badge */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <ListFilter className="w-4 h-4 text-outline hidden sm:block" aria-hidden="true" />
+              {/* <ListFilter className="w-4 h-4 text-outline hidden sm:block" aria-hidden="true" /> */}
               <div className="flex items-center p-0.5 bg-surface-container-low rounded-lg border border-surface-container">
                 <button
                   type="button"
@@ -252,12 +252,12 @@ export default function KategoriLaporanPage() {
               </div>
             </div>
 
-            <div className="h-5 w-px bg-surface-container-high hidden sm:block" />
+            {/* <div className="h-5 w-px bg-surface-container-high hidden sm:block" /> */}
 
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container font-label-sm text-label-sm text-primary font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-              <span>Total: {activeCount} Kategori MVP Aktif | Standar Taksonomi Sipil Pemkot Palembang</span>
-            </span>
+            {/* <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container font-label-sm text-label-sm text-primary font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" /> 
+            <span>Total: {activeCount} Kategori MVP Aktif | Standar Taksonomi Sipil Pemkot Palembang</span>
+          </span> */}
           </div>
         </div>
 
@@ -413,7 +413,7 @@ export default function KategoriLaporanPage() {
                             onClick={() => handleOpenEdit(cat)}
                             className="font-label-md text-label-md font-semibold text-primary hover:text-on-primary-fixed-variant transition-colors flex items-center gap-1"
                           >
-                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                            {/* <Pencil className="w-3.5 h-3.5" aria-hidden="true" /> */}
                             <span>Edit</span>
                           </button>
                           <span className="text-outline-variant">•</span>
@@ -422,7 +422,7 @@ export default function KategoriLaporanPage() {
                             onClick={() => handleOpenDetail(cat)}
                             className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1"
                           >
-                            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                            {/* <Eye className="w-3.5 h-3.5" aria-hidden="true" /> */}
                             <span>Kelola Detail</span>
                           </button>
                         </div>
@@ -441,14 +441,14 @@ export default function KategoriLaporanPage() {
             Menampilkan <strong className="text-on-surface">{categories.length}</strong> dari{' '}
             <strong className="text-on-surface">{totalCount}</strong> kategori laporan
           </span>
-          <span className="text-xs text-outline">
+          {/* <span className="text-xs text-outline">
             Sistem klasifikasi multi-modal berbasis Gemini 3.8 Flash
-          </span>
+          </span> */}
         </div>
       </div>
 
       {/* Bottom Regulatory / Standard Card (from Stitch) */}
-      <div className="rounded-xl bg-surface-container-low p-5 sm:p-6 shadow-xs border border-surface-container">
+      {/* <div className="rounded-xl bg-surface-container-low p-5 sm:p-6 shadow-xs border border-surface-container">
         <div className="flex flex-col md:flex-row md:items-start gap-4">
           <div className="w-10 h-10 rounded-lg bg-surface-container-highest text-primary flex items-center justify-center shrink-0 shadow-xs">
             <ShieldCheck className="w-6 h-6" />
@@ -467,7 +467,7 @@ export default function KategoriLaporanPage() {
             </p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Modals */}
       <CategoryFormModal
@@ -484,6 +484,6 @@ export default function KategoriLaporanPage() {
         onEdit={handleOpenEdit}
         onSuccess={loadData}
       />
-    </div>
+    </div >
   );
 }

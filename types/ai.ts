@@ -7,12 +7,16 @@ export interface AIClassificationResult {
   reasoning: string
 }
 
+export type EvidenceVerificationStatus = 'relevant' | 'irrelevant' | 'ambiguous' | 'technical_failure'
+
 export interface AIEvidenceAnalysis {
+  status: EvidenceVerificationStatus
   isValidEvidence: boolean
   confidence: number
   description: string
   labels: string[]
   detectedAnomalies?: string[]
+  reasoning?: string
 }
 
 export interface AIDuplicateCandidate {
@@ -44,7 +48,13 @@ export interface AITriageResult {
   authorityRecommendation?: AIAuthorityRecommendation
   isValidComplaint: boolean
   rejectionReason?: string
+  originalLanguageDetected?: string
+  statedFacts?: string[]
+  inferences?: string[]
+  unverifiedDetails?: string[]
+  ambiguousFlags?: string[]
   evidenceAnalysis?: AIEvidenceAnalysis
+  evidenceAnalyses?: AIEvidenceAnalysis[]
   potentialDuplicates?: AIDuplicateCandidate[]
 }
 

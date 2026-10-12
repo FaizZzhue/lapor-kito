@@ -74,12 +74,12 @@ export default async function LogAuditPage() {
           <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">
             Log Audit &amp; Sesi
           </h1>
-          <p className="text-[14px] text-[#434654] mt-1">
+          {/* <p className="text-[14px] text-[#434654] mt-1">
             Riwayat aktivitas operasional, jejak timeline laporan, dan informasi sesi pengguna internal.
-          </p>
+          </p> */}
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg shadow-sm self-start md:self-auto">
+        {/* <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F0F3FF] border border-[#D9DEE7] rounded-lg shadow-sm self-start md:self-auto">
           <ShieldCheck size={18} className="text-[#1749D2]" aria-hidden="true" />
           <div className="flex flex-col">
             <span className="text-[11px] font-semibold text-[#111C2D]">
@@ -89,7 +89,7 @@ export default async function LogAuditPage() {
               Sesi aktif • {internalUser?.role === "admin" ? "Administrator" : "Petugas"}
             </span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* ================================================================ */}
@@ -129,7 +129,7 @@ export default async function LogAuditPage() {
       {/* ================================================================ */}
       {/* AUDIT SCOPE NOTICE */}
       {/* ================================================================ */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9] mb-6">
+      {/* <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FEF3E6] border border-[#FCD7A9] mb-6">
         <Info size={18} className="text-[#B2640A] mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p className="text-[13px] font-semibold text-[#B2640A]">Cakupan Log Audit Saat Ini</p>
@@ -143,7 +143,7 @@ export default async function LogAuditPage() {
             Tidak ada riwayat aksi fiktif yang ditampilkan.
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* ================================================================ */}
       {/* SECTION 1: REPORT TIMELINE */}
@@ -286,22 +286,20 @@ export default async function LogAuditPage() {
                     <td className="px-4 py-3 text-[#434654]">{u.email}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                          u.role === "admin"
-                            ? "bg-[#EEF2FC] text-[#1749D2] border border-[#C4D3F8]"
-                            : "bg-[#F0F3FF] text-[#747686] border border-[#D9DEE7]"
-                        }`}
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${u.role === "admin"
+                          ? "bg-[#EEF2FC] text-[#1749D2] border border-[#C4D3F8]"
+                          : "bg-[#F0F3FF] text-[#747686] border border-[#D9DEE7]"
+                          }`}
                       >
                         {u.role === "admin" ? "Administrator" : "Petugas"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                          u.is_active
-                            ? "bg-[#EDF7F2] text-[#16845B] border border-[#B5E2CD]"
-                            : "bg-[#FFDAD6] text-[#BA1A1A] border border-[#FFB4AB]"
-                        }`}
+                        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${u.is_active
+                          ? "bg-[#EDF7F2] text-[#16845B] border border-[#B5E2CD]"
+                          : "bg-[#FFDAD6] text-[#BA1A1A] border border-[#FFB4AB]"
+                          }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? "bg-[#16845B]" : "bg-[#BA1A1A]"}`} />
                         {u.is_active ? "Aktif" : "Nonaktif"}
@@ -382,11 +380,10 @@ export default async function LogAuditPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                        r.is_public
-                          ? "bg-[#EDF7F2] text-[#16845B]"
-                          : "bg-[#F0F3FF] text-[#747686]"
-                      }`}>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${r.is_public
+                        ? "bg-[#EDF7F2] text-[#16845B]"
+                        : "bg-[#F0F3FF] text-[#747686]"
+                        }`}>
                         {r.is_public ? "Ya" : "Internal"}
                       </span>
                     </td>
@@ -407,7 +404,7 @@ export default async function LogAuditPage() {
       {/* ================================================================ */}
       {/* SECURITY NOTE */}
       {/* ================================================================ */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] mb-6">
+      {/* <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] mb-6">
         <Lock size={18} className="text-[#0033A7] mt-0.5 shrink-0" aria-hidden="true" />
         <div>
           <p className="text-[13px] font-semibold text-[#111C2D]">Keamanan Informasi</p>
@@ -416,7 +413,7 @@ export default async function LogAuditPage() {
             Session metadata Supabase Auth hanya diakses secara internal melalui server-side helpers dan tidak pernah terekspos ke client bundle.
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Audit Log Migration Proposal Notice */}
       {totalAvailable === 0 && (

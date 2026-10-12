@@ -123,11 +123,11 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
       </div>
 
       {/* Main Report Header Banner */}
-      <div className="rounded-xl border border-[#D9DEE7] bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-[#D9DEE7] bg-white p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-mono text-xl sm:text-2xl font-bold text-[#111C2D]">
+              <h1 className="font-mono text-lg min-[360px]:text-xl sm:text-2xl font-bold text-[#111C2D] break-all">
                 Laporan #{report.tracking_code}
               </h1>
               <span
@@ -141,7 +141,7 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
                 Prioritas: {priorityBadge.label}
               </span>
             </div>
-            <h2 className="text-base sm:text-lg font-semibold text-[#111C2D]">{report.title}</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-[#111C2D] break-words">{report.title}</h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#667085] font-mono">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5 text-[#1749D2]" />
@@ -456,16 +456,16 @@ export function TrackingDetailView({ trackingCode, result }: TrackingDetailViewP
                   </span>
                 </div>
 
-                <div className="rounded-lg bg-[#F9F9FF] border border-[#D9DEE7] px-3 py-2 flex justify-between items-center">
-                  <span className="text-[#667085]">Lokasi Alamat:</span>
-                  <span className="font-medium text-[#111C2D] text-right truncate max-w-[200px]">
+                <div className="rounded-lg bg-[#F9F9FF] border border-[#D9DEE7] px-3 py-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                  <span className="text-[#667085] shrink-0">Lokasi Alamat:</span>
+                  <span className="font-medium text-[#111C2D] text-left sm:text-right break-words">
                     {report.address_detail}
                   </span>
                 </div>
 
-                <div className="rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] px-3 py-2 flex justify-between items-center">
-                  <span className="text-[#667085]">Instansi Sasaran:</span>
-                  <span className="font-bold text-[#0033A7] text-right truncate max-w-[200px]">
+                <div className="rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] px-3 py-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
+                  <span className="text-[#667085] shrink-0">Instansi Sasaran:</span>
+                  <span className="font-bold text-[#0033A7] text-left sm:text-right break-words">
                     {report.authority_target || "Menunggu Verifikasi Instansi"}
                   </span>
                 </div>
