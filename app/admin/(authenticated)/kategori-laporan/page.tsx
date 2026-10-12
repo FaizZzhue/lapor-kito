@@ -19,7 +19,6 @@ import {
   ChevronRight,
   FolderOpen,
   Eye,
-  ListFilter,
   Home,
 } from 'lucide-react';
 import {
@@ -150,164 +149,162 @@ export default function KategoriLaporanPage() {
   const inactiveCount = categories.filter((c) => !c.is_active).length;
 
   return (
-    <div className="flex flex-col w-full gap-6 max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="flex flex-col w-full gap-6">
       {/* Breadcrumb / Hierarchy */}
-      <div className="flex items-center gap-1.5 text-outline text-xs uppercase tracking-wider font-semibold">
+      <nav className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-[#747686]" aria-label="Breadcrumb">
         <span className="inline-flex items-center gap-1">
           <Home className="w-3.5 h-3.5" aria-hidden="true" />
-          SISTEM PUSAT • KONSOL ADMINISTRATOR OPERASIONAL
+          SISTEM PUSAT
         </span>
-        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" aria-hidden="true" />
+        <ChevronRight className="w-3 h-3 text-[#C4C5D7]" aria-hidden="true" />
         <span>DATA MASTER</span>
-        <ChevronRight className="w-3.5 h-3.5 text-outline-variant" aria-hidden="true" />
-        <span className="text-primary font-bold">KATEGORI LAPORAN</span>
-      </div>
+        <ChevronRight className="w-3 h-3 text-[#C4C5D7]" aria-hidden="true" />
+        <span className="text-[#0033A7] font-bold">KATEGORI LAPORAN</span>
+      </nav>
 
       {/* Header & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[#F0F3FF] text-[#0033A7] flex items-center justify-center shrink-0">
             <Tags className="w-5 h-5" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold text-3xl">
+            <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">
               Kategori Laporan
             </h1>
-            {/* <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
-              Kelola kategori yang digunakan dalam proses klasifikasi laporan dan perutean disposisi ke instansi berwenang.
-            </p> */}
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 self-start md:self-auto">
           <button
             type="button"
             onClick={loadData}
             disabled={isLoading}
-            className="h-10 px-3.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors shadow-xs border border-outline-variant/60 flex items-center gap-2 font-label-md text-label-md font-medium"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] hover:bg-[#F0F3FF] transition-colors shadow-sm text-[13px] font-medium disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
           >
-            <RefreshCw className={`w-4 h-4 text-on-surface-variant ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <RefreshCw className={`w-4 h-4 text-[#747686] ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Sinkronisasi Taksonomi</span>
           </button>
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="h-10 px-4 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-xs flex items-center gap-2 font-label-md text-label-md font-semibold"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white transition-colors shadow-sm text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
           >
-            {/* <Plus className="w-4 h-4" aria-hidden="true" /> */}
-            <span className="text-white">Tambah Kategori</span>
+            <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span>Tambah Kategori</span>
           </button>
         </div>
       </div>
 
       {/* Search, Status Tabs & Badge Container */}
-      <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-5 shadow-xs border border-outline-variant/40 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-xl border border-[#D9DEE7] shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
           {/* Search Box */}
-          <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4 pointer-events-none" aria-hidden="true" />
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#747686] w-4 h-4 pointer-events-none" aria-hidden="true" />
             <input
               type="text"
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Cari kategori atau kata kunci..."
-              className="w-full h-10 pl-10 pr-4 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-outline font-body-md text-body-md outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              aria-label="Cari kategori laporan"
+              className="w-full h-10 pl-9 pr-3 rounded-lg bg-[#F0F3FF] text-[#111C2D] placeholder:text-[#747686] text-[13px] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20 transition-all border border-transparent focus:border-[#1749D2]"
             />
           </div>
 
-          {/* Filter Status Segment & Summary Badge */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              {/* <ListFilter className="w-4 h-4 text-outline hidden sm:block" aria-hidden="true" /> */}
-              <div className="flex items-center p-0.5 bg-surface-container-low rounded-lg border border-surface-container">
-                <button
-                  type="button"
-                  onClick={() => handleStatusFilterChange('all')}
-                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${statusFilter === 'all'
-                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                    : 'font-medium text-on-surface-variant hover:text-on-surface'
-                    }`}
-                >
-                  Semua Status ({totalCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleStatusFilterChange('active')}
-                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${statusFilter === 'active'
-                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                    : 'font-medium text-on-surface-variant hover:text-on-surface'
-                    }`}
-                >
-                  Aktif ({activeCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleStatusFilterChange('inactive')}
-                  className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all ${statusFilter === 'inactive'
-                    ? 'font-semibold bg-surface-container-lowest text-primary shadow-xs'
-                    : 'font-medium text-on-surface-variant hover:text-on-surface'
-                    }`}
-                >
-                  Non-Aktif ({inactiveCount})
-                </button>
-              </div>
-            </div>
-
-            {/* <div className="h-5 w-px bg-surface-container-high hidden sm:block" /> */}
-
-            {/* <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container font-label-sm text-label-sm text-primary font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" /> 
-            <span>Total: {activeCount} Kategori MVP Aktif | Standar Taksonomi Sipil Pemkot Palembang</span>
-          </span> */}
+          {/* Filter Status Buttons */}
+          <div className="flex items-center bg-[#F0F3FF] p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => handleStatusFilterChange('all')}
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${statusFilter === 'all'
+                ? 'bg-white text-[#0033A7] font-semibold shadow-sm'
+                : 'text-[#434654] hover:text-[#111C2D]'
+                }`}
+            >
+              Semua ({totalCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => handleStatusFilterChange('active')}
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${statusFilter === 'active'
+                ? 'bg-white text-[#0033A7] font-semibold shadow-sm'
+                : 'text-[#434654] hover:text-[#111C2D]'
+                }`}
+            >
+              Aktif ({activeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => handleStatusFilterChange('inactive')}
+              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${statusFilter === 'inactive'
+                ? 'bg-white text-[#0033A7] font-semibold shadow-sm'
+                : 'text-[#434654] hover:text-[#111C2D]'
+                }`}
+            >
+              Non-Aktif ({inactiveCount})
+            </button>
           </div>
         </div>
 
-        {/* Error Alert */}
-        {errorMsg && (
-          <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
+        <div className="flex items-center justify-between sm:justify-end gap-3 text-[#747686] text-[13px]">
+          <span>
+            Total: <strong className="text-[#111C2D] font-semibold">{totalCount} Kategori</strong>
+          </span>
+          <div className="h-4 w-px bg-[#D9DEE7] hidden sm:block" />
+          <span className="text-[11px] px-2 py-0.5 rounded bg-[#F0F3FF] text-[#747686] font-medium uppercase tracking-wider hidden sm:inline-block">
+            Standar Taksonomi Palembang
+          </span>
+        </div>
+      </div>
 
-        {/* Categories Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-body-md text-body-md border-collapse">
+      {/* Error Alert */}
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[13px] flex items-start gap-2.5">
+          <AlertCircle className="w-5 h-5 shrink-0 text-[#BA1A1A]" aria-hidden="true" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Categories Table Container */}
+      <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse min-w-[850px]">
             <thead>
-              <tr className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider border-b border-surface-container">
-                <th scope="col" className="py-3 px-4 rounded-l-lg font-semibold w-[220px]">
+              <tr className="bg-[#F8F9FB] text-[#747686] text-[11px] font-semibold uppercase tracking-wider border-b border-[#D9DEE7]">
+                <th scope="col" className="py-3 px-5 min-w-[220px]">
                   Kategori &amp; Kode
                 </th>
-                <th scope="col" className="py-3 px-4 font-semibold">
+                <th scope="col" className="py-3 px-5">
                   Deskripsi &amp; Ruang Lingkup Masalah
                 </th>
-                <th scope="col" className="py-3 px-4 font-semibold w-[220px]">
+                <th scope="col" className="py-3 px-5 min-w-[200px]">
                   Instansi Terkait (Induk)
                 </th>
-                <th scope="col" className="py-3 px-4 font-semibold w-[230px]">
-                  Penggunaan Dalam Alur
+                <th scope="col" className="py-3 px-5 min-w-[160px]">
+                  Penggunaan Alur
                 </th>
-                <th scope="col" className="py-3 px-4 font-semibold w-[120px]">
+                <th scope="col" className="py-3 px-5 w-[120px]">
                   Status
                 </th>
-                <th scope="col" className="py-3 px-4 rounded-r-lg font-semibold text-right w-[150px]">
+                <th scope="col" className="py-3 px-5 w-[100px] text-right">
                   Aksi
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-container-low">
+            <tbody className="divide-y divide-[#F0F3FF] text-[13px] text-[#111C2D]">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-on-surface-variant">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                  <td colSpan={6} className="py-12 text-center text-[#747686]">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1749D2]" aria-hidden="true" />
                     <span>Memuat taksonomi kategori laporan...</span>
                   </td>
                 </tr>
               ) : categories.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-on-surface-variant">
-                    <FolderOpen className="w-8 h-8 mx-auto mb-2 text-outline" />
-                    <p className="font-semibold text-on-surface">Tidak ada kategori ditemukan</p>
-                    <p className="text-xs text-outline mt-1">
+                  <td colSpan={6} className="py-12 text-center text-[#747686]">
+                    <FolderOpen className="w-8 h-8 mx-auto mb-2 text-[#747686]" aria-hidden="true" />
+                    <p className="font-semibold text-[#111C2D]">Tidak ada kategori ditemukan</p>
+                    <p className="text-[12px] text-[#747686] mt-1">
                       {search ? `Tidak ada hasil untuk pencarian "${search}"` : 'Belum ada data kategori.'}
                     </p>
                   </td>
@@ -324,24 +321,24 @@ export default function KategoriLaporanPage() {
                   return (
                     <tr
                       key={cat.id}
-                      className="hover:bg-surface-container-low/50 transition-colors group"
+                      className="hover:bg-[#F9F9FF] transition-colors"
                     >
                       {/* 1. Kategori & Kode */}
-                      <td className="py-4 px-4 align-top">
+                      <td className="py-4 px-5 align-top">
                         <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-surface-container-low text-primary flex items-center justify-center shrink-0 mt-0.5 border border-surface-container">
+                          <div className="w-9 h-9 rounded-lg bg-[#F0F3FF] text-[#0033A7] flex items-center justify-center shrink-0 mt-0.5">
                             {renderCategoryIcon(cat.icon, "w-4 h-4")}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
+                            <div className="text-[14px] font-semibold text-[#111C2D] flex items-center gap-1.5">
                               <span>{cat.name_id}</span>
                               {isCore && (
                                 <span title="Standar MVP">
-                                  <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <Sparkles className="w-3.5 h-3.5 text-[#0033A7] shrink-0" aria-hidden="true" />
                                 </span>
                               )}
                             </div>
-                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold bg-surface-container text-primary uppercase tracking-wide">
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold bg-[#F0F3FF] text-[#0033A7] uppercase tracking-wide">
                               {cat.slug}
                             </span>
                           </div>
@@ -349,15 +346,15 @@ export default function KategoriLaporanPage() {
                       </td>
 
                       {/* 2. Deskripsi & Ruang Lingkup Masalah */}
-                      <td className="py-4 px-4 align-top">
-                        <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed line-clamp-3">
+                      <td className="py-4 px-5 align-top">
+                        <p className="text-[13px] text-[#434654] leading-relaxed line-clamp-3">
                           {cat.description || 'Tidak ada deskripsi'}
                         </p>
                       </td>
 
                       {/* 3. Instansi Terkait (Induk) */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="font-body-md text-body-md font-medium text-on-surface">
+                      <td className="py-4 px-5 align-top">
+                        <div className="font-semibold text-[#111C2D]">
                           {cat.slug === 'infrastruktur-jalan'
                             ? 'Dinas SDA BMBK (PUPR)'
                             : cat.slug === 'penerangan-jalan'
@@ -368,7 +365,7 @@ export default function KategoriLaporanPage() {
                                   ? 'Dinas SDA BMBK'
                                   : 'Ditentukan via Data Kewenangan'}
                         </div>
-                        <div className="font-label-sm text-label-sm text-outline mt-0.5">
+                        <div className="text-[12px] text-[#747686] mt-0.5">
                           {cat.slug === 'infrastruktur-jalan'
                             ? 'Unit Preservasi Jalan Kota'
                             : cat.slug === 'penerangan-jalan'
@@ -382,48 +379,48 @@ export default function KategoriLaporanPage() {
                       </td>
 
                       {/* 4. Penggunaan Dalam Alur */}
-                      <td className="py-4 px-4 align-top">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm border border-surface-container">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      <td className="py-4 px-5 align-top">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F0F3FF] text-[#434654] text-[12px] font-medium border border-[#D9DEE7]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#0033A7] shrink-0" />
                           <span>Analisis Citra</span>
                         </span>
                       </td>
 
                       {/* 5. Status */}
-                      <td className="py-4 px-4 align-top">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold ${cat.is_active
-                            ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
-                            : 'bg-surface-container text-on-surface-variant'
-                            }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${cat.is_active ? 'bg-tertiary' : 'bg-outline'
-                              }`}
-                          />
-                          <span>{cat.is_active ? 'Aktif' : 'Non-Aktif'}</span>
-                        </span>
+                      <td className="py-4 px-5 align-top whitespace-nowrap">
+                        {cat.is_active ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[11px] font-semibold border border-[#B5E2CD]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]" />
+                            Aktif
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] text-[11px] font-medium border border-[#D9DEE7]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#747686]" />
+                            Non-Aktif
+                          </span>
+                        )}
                       </td>
 
                       {/* 6. Aksi */}
-                      <td className="py-4 px-4 align-top text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(cat)}
-                            className="font-label-md text-label-md font-semibold text-primary hover:text-on-primary-fixed-variant transition-colors flex items-center gap-1"
-                          >
-                            {/* <Pencil className="w-3.5 h-3.5" aria-hidden="true" /> */}
-                            <span>Edit</span>
-                          </button>
-                          <span className="text-outline-variant">•</span>
+                      <td className="py-4 px-5 align-top text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(cat)}
-                            className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1"
+                            className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                            title="Kelola Detail Kategori"
+                            aria-label={`Kelola detail kategori ${cat.name_id}`}
                           >
-                            {/* <Eye className="w-3.5 h-3.5" aria-hidden="true" /> */}
-                            <span>Kelola Detail</span>
+                            <Eye className="w-4 h-4" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(cat)}
+                            className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                            title="Edit Kategori"
+                            aria-label={`Edit kategori ${cat.name_id}`}
+                          >
+                            <Pencil className="w-4 h-4" aria-hidden="true" />
                           </button>
                         </div>
                       </td>
@@ -436,38 +433,14 @@ export default function KategoriLaporanPage() {
         </div>
 
         {/* Table Footer Info */}
-        <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-surface-container text-sm text-on-surface-variant">
+        <div className="p-4 bg-white border-t border-[#D9DEE7] flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-[#747686]">
           <span>
-            Menampilkan <strong className="text-on-surface">{categories.length}</strong> dari{' '}
-            <strong className="text-on-surface">{totalCount}</strong> kategori laporan
+            Menampilkan <strong className="text-[#111C2D] font-semibold">{categories.length}</strong> dari{' '}
+            <strong className="text-[#111C2D] font-semibold">{totalCount}</strong> kategori laporan
           </span>
-          {/* <span className="text-xs text-outline">
-            Sistem klasifikasi multi-modal berbasis Gemini 3.8 Flash
-          </span> */}
         </div>
       </div>
 
-      {/* Bottom Regulatory / Standard Card (from Stitch) */}
-      {/* <div className="rounded-xl bg-surface-container-low p-5 sm:p-6 shadow-xs border border-surface-container">
-        <div className="flex flex-col md:flex-row md:items-start gap-4">
-          <div className="w-10 h-10 rounded-lg bg-surface-container-highest text-primary flex items-center justify-center shrink-0 shadow-xs">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div className="flex-1 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                Standar Taksonomi Kategori &amp; Akurasi Disposisi
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold bg-surface-container-highest text-primary border border-surface-container-high">
-                Regulasi: SK Walikota No. 42 / 2024 • MVP Faktual
-              </span>
-            </div>
-            <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-              Setiap kategori laporan dirancang dengan batasan deskriptif yang jelas agar verifikasi awal dan pendampingan warga menghasilkan data yang terstruktur sebelum diteruskan ke dinas teknis terkait tanpa bias atau misklasifikasi.
-            </p>
-          </div>
-        </div>
-      </div> */}
 
       {/* Modals */}
       <CategoryFormModal

@@ -11,8 +11,7 @@ import {
   Search,
   Users,
   Eye,
-  CheckCircle2,
-  XCircle,
+  Pencil,
   AlertCircle,
 } from 'lucide-react';
 import { getInstitutionsAction, type InstitutionWithUnitsCount } from '@/lib/actions/institutions';
@@ -80,6 +79,7 @@ export default function InstansiPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedInstitutionForEdit, setSelectedInstitutionForEdit] = useState<InstitutionWithUnitsCount | null>(null);
 
   const loadData = useCallback(() => {
     fetchData();
@@ -346,13 +346,13 @@ export default function InstansiPage() {
                     {/* Status Badge */}
                     <td className="py-4 px-5 whitespace-nowrap">
                       {inst.is_active ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[12px] font-semibold border border-[#B5E2CD]">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16845B]" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[11px] font-semibold border border-[#B5E2CD]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]" aria-hidden="true" />
                           Aktif
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] text-[12px] font-medium border border-[#D9DEE7]">
-                          <XCircle className="w-3.5 h-3.5 text-[#747686]" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] text-[11px] font-medium border border-[#D9DEE7]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#747686]" aria-hidden="true" />
                           Non-Aktif
                         </span>
                       )}
@@ -360,13 +360,25 @@ export default function InstansiPage() {
 
                     {/* Action Link */}
                     <td className="py-4 px-5 text-right whitespace-nowrap">
-                      <Link
-                        href={`/admin/instansi/${inst.id}`}
-                        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0033A7] hover:text-[#1749D2] hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30 rounded px-1.5 py-0.5"
-                      >
-                        <Eye className="w-4 h-4" aria-hidden="true" />
-                        <span>Buka Detail</span>
-                      </Link>
+                      <div className="inline-flex items-center justify-end gap-1">
+                        <Link
+                          href={`/admin/instansi/${inst.id}`}
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                          title="Buka Detail Instansi"
+                          aria-label={`Buka detail instansi ${inst.name}`}
+                        >
+                          <Eye className="w-4 h-4" aria-hidden="true" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedInstitutionForEdit(inst)}
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                          title="Edit Instansi"
+                          aria-label={`Edit instansi ${inst.name}`}
+                        >
+                          <Pencil className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -376,11 +388,19 @@ export default function InstansiPage() {
         )}
       </div>
 
-      {/* Modal Tambah Instansi */}
+      {/* Modal Tambah / Edit Instansi */}
       <InstitutionFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => loadData()}
+        isOpen={isModalOpen || !!selectedInstitutionForEdit}
+        institution={selectedInstitutionForEdit}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedInstitutionForEdit(null);
+        }}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          setSelectedInstitutionForEdit(null);
+          loadData();
+        }}
       />
     </div>
   );

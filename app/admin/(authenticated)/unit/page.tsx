@@ -14,8 +14,6 @@ import {
   Network,
   MapPin,
   Users,
-  CheckCircle2,
-  XCircle,
   Pencil,
   Trash2,
 } from 'lucide-react';
@@ -228,10 +226,7 @@ export default function UnitInstansiPage() {
       <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden flex flex-col">
         {isLoading ? (
           <div className="p-12 text-center text-[#747686] flex flex-col items-center justify-center gap-3">
-            <svg className="animate-spin h-6 w-6 text-[#1749D2]" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
+            <RefreshCw className="animate-spin h-6 w-6 text-[#1749D2]" aria-hidden="true" />
             <p className="text-[14px]">Memuat data unit instansi...</p>
           </div>
         ) : units.length === 0 ? (
@@ -261,16 +256,16 @@ export default function UnitInstansiPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr className="bg-[#F8F9FB] text-[#747686] text-[11px] font-semibold uppercase tracking-wider border-b border-[#D9DEE7]">
-                  <th className="py-3 px-5 w-[30%]" scope="col">Unit Kerja &amp; Kode</th>
-                  <th className="py-3 px-5 w-[25%]" scope="col">Instansi Induk</th>
-                  <th className="py-3 px-5 w-[20%]" scope="col">Wilayah / Cakupan</th>
-                  <th className="py-3 px-5 w-[12%] text-center" scope="col">Pengguna Internal</th>
-                  <th className="py-3 px-5 w-[8%] text-center" scope="col">Status</th>
-                  <th className="py-3 px-5 w-[5%] text-right" scope="col">Aksi</th>
+                  <th className="py-3 px-5 min-w-[220px]" scope="col">Unit Kerja &amp; Kode</th>
+                  <th className="py-3 px-5 min-w-[180px]" scope="col">Instansi Induk</th>
+                  <th className="py-3 px-5 min-w-[160px]" scope="col">Wilayah / Cakupan</th>
+                  <th className="py-3 px-5 w-[140px] text-center" scope="col">Pengguna Internal</th>
+                  <th className="py-3 px-5 w-[110px] text-center" scope="col">Status</th>
+                  <th className="py-3 px-5 w-[90px] text-right" scope="col">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F3FF] text-[14px] text-[#111C2D]">
@@ -323,12 +318,12 @@ export default function UnitInstansiPage() {
                     <td className="py-4 px-5 align-middle text-center whitespace-nowrap">
                       {unit.is_active ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[11px] font-semibold border border-[#B5E2CD]">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#16845B]" aria-hidden="true" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]" />
                           Aktif
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F3FF] text-[#747686] text-[11px] font-medium border border-[#D9DEE7]">
-                          <XCircle className="w-3.5 h-3.5 text-[#747686]" aria-hidden="true" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#747686]" />
                           Non-Aktif
                         </span>
                       )}
@@ -336,7 +331,7 @@ export default function UnitInstansiPage() {
 
                     {/* Aksi */}
                     <td className="py-4 px-5 align-middle text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1">
+                      <div className="inline-flex items-center justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => {

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { SystemSettingsManager } from "@/components/admin/system-settings/SystemSettingsManager";
 import { getSystemSettingsAction } from "@/lib/actions/system-settings";
 import { getCurrentInternalUser } from "@/lib/auth/session";
-import { ShieldCheck, Eye } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, Sparkles, Tag, Road, Trash2, Droplets, Lightbulb, AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { X, RefreshCw, Sparkles, Tag, Road, Trash2, Droplets, Lightbulb, AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react';
 import { createCategoryAction, updateCategoryAction } from '@/lib/actions/categories';
 import type { CategoryWithReportsCount } from '@/lib/actions/categories';
 
@@ -119,20 +119,20 @@ export function CategoryFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40">
+      <div className="w-full max-w-xl bg-white rounded-xl shadow-xl border border-[#D9DEE7] flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low/40 shrink-0">
+        <div className="px-6 py-5 border-b border-[#D9DEE7] flex items-center justify-between bg-[#F8F9FB] shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-surface-container text-primary">
+              <span className="p-1.5 rounded-lg bg-[#EDF2FE] text-[#0033A7]">
                 <Tag className="w-4 h-4" />
               </span>
-              <h2 className="font-headline-sm text-headline-sm text-on-surface">
+              <h2 className="text-lg font-bold text-[#111C2D]">
                 {isEditing ? 'Perbarui Kategori Laporan' : 'Tambah Kategori Laporan Baru'}
               </h2>
             </div>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+            <p className="text-xs text-[#747686] mt-1">
               {isEditing
                 ? 'Perbarui taksonomi insiden sipil dan panduan klasifikasi laporan.'
                 : 'Definisikan kategori baru untuk klasifikasi pengaduan warga dan disposisi ke OPD.'}
@@ -141,7 +141,9 @@ export function CategoryFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+            className="p-1.5 rounded-lg text-[#747686] hover:text-[#111C2D] hover:bg-[#F0F3FF] transition-colors"
+            title="Tutup dialog"
+            aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -150,15 +152,15 @@ export function CategoryFormModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {error && (
-            <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
 
           {isCoreCategory && (
-            <div className="p-3 rounded-lg bg-surface-container-high/60 border border-surface-container-highest text-on-surface-variant font-body-sm text-body-sm flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <div className="p-3 rounded-lg bg-[#EDF2FE] border border-[#D9DEE7] text-[#434654] text-xs flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-[#0033A7] shrink-0 mt-0.5" />
               <span>
                 Kategori ini merupakan <strong>Taksonomi Standar MVP</strong>. Slug dikunci untuk menjaga konsistensi perutean AI dan riwayat pengaduan.
               </span>
@@ -168,8 +170,8 @@ export function CategoryFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Nama Kategori (ID) */}
             <div className="sm:col-span-2 space-y-1.5">
-              <label className="font-label-md text-label-md font-semibold text-on-surface">
-                Nama Kategori (Bahasa Indonesia) <span className="text-error">*</span>
+              <label className="text-xs font-semibold text-[#111C2D] block">
+                Nama Kategori (Bahasa Indonesia) <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -177,13 +179,13 @@ export function CategoryFormModal({
                 value={nameId}
                 onChange={(e) => handleNameIdChange(e.target.value)}
                 placeholder="Contoh: Infrastruktur & Jalan"
-                className="w-full h-10 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
+                className="w-full h-10 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-sm focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] outline-none transition-all placeholder:text-[#747686]"
               />
             </div>
 
             {/* Nama Kategori (EN) */}
             <div className="space-y-1.5">
-              <label className="font-label-md text-label-md font-semibold text-on-surface">
+              <label className="text-xs font-semibold text-[#111C2D] block">
                 Nama Kategori (English)
               </label>
               <input
@@ -191,14 +193,14 @@ export function CategoryFormModal({
                 value={nameEn}
                 onChange={(e) => setNameEn(e.target.value)}
                 placeholder="e.g. Infrastructure & Roads"
-                className="w-full h-10 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
+                className="w-full h-10 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-sm focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] outline-none transition-all placeholder:text-[#747686]"
               />
             </div>
 
             {/* Slug / Code */}
             <div className="space-y-1.5">
-              <label className="font-label-md text-label-md font-semibold text-on-surface">
-                Slug / Kode Unik <span className="text-error">*</span>
+              <label className="text-xs font-semibold text-[#111C2D] block">
+                Slug / Kode Unik <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -208,15 +210,15 @@ export function CategoryFormModal({
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 placeholder="infrastruktur-jalan"
                 className={`w-full h-10 px-3.5 rounded-lg border font-mono text-sm outline-none transition-all ${isCoreCategory
-                    ? 'bg-surface-container-low text-on-surface-variant border-surface-container cursor-not-allowed'
-                    : 'bg-surface-container-lowest border-outline-variant text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20'
+                    ? 'bg-[#F8F9FB] text-[#747686] border-[#D9DEE7] cursor-not-allowed'
+                    : 'bg-white border-[#D9DEE7] text-[#111C2D] focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7]'
                   }`}
               />
             </div>
 
             {/* Urutan Tampilan */}
             <div className="space-y-1.5">
-              <label className="font-label-md text-label-md font-semibold text-on-surface">
+              <label className="text-xs font-semibold text-[#111C2D] block">
                 Urutan Tampilan
               </label>
               <input
@@ -225,13 +227,13 @@ export function CategoryFormModal({
                 max="999"
                 value={displayOrder}
                 onChange={(e) => setDisplayOrder(e.target.value)}
-                className="w-full h-10 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                className="w-full h-10 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-sm focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] outline-none transition-all"
               />
             </div>
 
             {/* Status Aktif */}
             <div className="space-y-1.5">
-              <label className="font-label-md text-label-md font-semibold text-on-surface">
+              <label className="text-xs font-semibold text-[#111C2D] block">
                 Status Operasional
               </label>
               <div className="flex items-center gap-3 h-10">
@@ -242,9 +244,9 @@ export function CategoryFormModal({
                     onChange={(e) => setIsActive(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 transition-all peer-checked:bg-[#0033A7]"></div>
                 </label>
-                <span className="font-body-md text-body-md text-on-surface font-medium">
+                <span className="text-sm text-[#111C2D] font-medium">
                   {isActive ? 'Aktif (Dapat dipilih warga)' : 'Non-Aktif (Diarsipkan)'}
                 </span>
               </div>
@@ -253,7 +255,7 @@ export function CategoryFormModal({
 
           {/* Icon Selector */}
           <div className="space-y-1.5">
-            <label className="font-label-md text-label-md font-semibold text-on-surface">
+            <label className="text-xs font-semibold text-[#111C2D] block">
               Icon Taksonomi
             </label>
             <div className="flex flex-wrap gap-2">
@@ -265,9 +267,9 @@ export function CategoryFormModal({
                     key={ic.name}
                     type="button"
                     onClick={() => setIcon(ic.name)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all ${isSelected
-                        ? 'border-primary bg-surface-container text-primary font-semibold shadow-xs'
-                        : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline'
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition-colors ${isSelected
+                        ? 'border-[#0033A7] bg-[#EDF2FE] text-[#0033A7] font-semibold'
+                        : 'border-[#D9DEE7] bg-white text-[#434654] hover:bg-[#F0F3FF]'
                       }`}
                   >
                     <IconComponent className="w-4 h-4" />
@@ -280,8 +282,8 @@ export function CategoryFormModal({
 
           {/* Deskripsi & Ruang Lingkup */}
           <div className="space-y-1.5">
-            <label className="font-label-md text-label-md font-semibold text-on-surface">
-              Deskripsi & Ruang Lingkup Masalah <span className="text-error">*</span>
+            <label className="text-xs font-semibold text-[#111C2D] block">
+              Deskripsi &amp; Ruang Lingkup Masalah <span className="text-red-600">*</span>
             </label>
             <textarea
               required
@@ -289,26 +291,26 @@ export function CategoryFormModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Contoh: Laporan kerusakan jalan, jembatan, trotoar, dan fasilitas umum transportasi darat di wilayah Kota Palembang."
-              className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline resize-none"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-sm focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] outline-none transition-all placeholder:text-[#747686] resize-none"
             />
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-surface-container flex items-center justify-end gap-3 shrink-0">
+          <div className="pt-4 border-t border-[#D9DEE7] flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="h-10 px-4 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md font-medium"
+              className="h-9 px-4 rounded-lg bg-white border border-[#D9DEE7] text-[#434654] hover:bg-[#F0F3FF] transition-colors text-xs font-semibold"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="h-10 px-5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-md text-label-md font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="h-9 px-5 rounded-lg bg-[#0033A7] text-white hover:bg-[#1749D2] transition-colors text-xs font-semibold flex items-center gap-2 shadow-xs disabled:opacity-50"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               <span>{isEditing ? 'Simpan Perubahan' : 'Buat Kategori'}</span>
             </button>
           </div>

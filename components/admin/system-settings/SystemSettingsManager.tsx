@@ -13,7 +13,6 @@ import {
   Bell,
   CheckCircle2,
   AlertCircle,
-  ShieldAlert,
   Pencil,
   Trash2,
   Settings,
@@ -318,6 +317,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
                       onClick={() => handleEdit(ks)}
                       className="p-2 text-[#0033A7] hover:bg-[#F0F3FF] rounded-lg transition-colors"
                       title="Edit pengaturan"
+                      aria-label="Edit pengaturan"
                     >
                       <Pencil size={18} aria-hidden="true" />
                     </button>
@@ -327,6 +327,7 @@ export function SystemSettingsManager({ initialSettings, isAdmin }: Props) {
                         disabled={isPending}
                         className="p-2 text-[#BA1A1A] hover:bg-[#FFDAD6] rounded-lg transition-colors disabled:opacity-50"
                         title="Hapus pengaturan"
+                        aria-label="Hapus pengaturan"
                       >
                         <Trash2 size={18} aria-hidden="true" />
                       </button>

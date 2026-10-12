@@ -12,7 +12,6 @@ import {
   Clock,
   RefreshCw,
   Save,
-  Trash2,
   ChevronRight,
   Home,
 } from 'lucide-react';
@@ -112,9 +111,9 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
         <Link
           href="/admin/data-kewenangan"
-          className="inline-flex items-center gap-2 text-[13px] text-[#434654] hover:text-primary transition-colors group font-medium"
+          className="inline-flex items-center gap-2 text-[13px] text-[#434654] hover:text-[#0033A7] transition-colors font-medium"
         >
-          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
+          <ArrowLeft size={16} aria-hidden="true" />
           <span>Kembali ke Data Kewenangan</span>
         </Link>
         <div className="flex items-center gap-1.5 text-[11px] text-[#747686] tracking-wider font-semibold uppercase">
@@ -134,18 +133,18 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
       </div>
 
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-6 border-b border-[#C4C5D7]/60">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-6 border-b border-[#D9DEE7]">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-[26px] font-bold text-[#111C2D] tracking-tight">Aturan Kewenangan</h1>
             {isActive ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#94F6C4]/30 border border-[#78D9AA] text-[#004A30] text-[12px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#006443]"></span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[11px] font-semibold border border-[#B5E2CD]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]"></span>
                 <span>Aktif</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 border border-gray-300 text-gray-700 text-[12px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FFDAD6] text-[#BA1A1A] text-[11px] font-medium border border-[#FFB4AB]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#BA1A1A]"></span>
                 <span>Nonaktif / Ditangguhkan</span>
               </span>
             )}
@@ -155,8 +154,8 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#F0F3FF] border border-[#C4C5D7]/50 self-start lg:self-center">
-          <ShieldCheck size={20} className="text-primary" aria-hidden="true" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#F0F3FF] border border-[#D9DEE7] self-start lg:self-center">
+          <ShieldCheck size={20} className="text-[#0033A7]" aria-hidden="true" />
           <div className="flex flex-col text-left">
             <span className="text-[12px] font-semibold text-[#111C2D] tracking-wide font-mono">
               ID Aturan: {rule.rule_code}
@@ -177,7 +176,7 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
       )}
 
       {successMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-[#E8EEFF] border border-primary/30 text-primary text-[13px] flex items-start gap-3 animate-in fade-in">
+        <div className="mb-6 p-4 rounded-xl bg-[#EDF7F2] border border-[#B5E2CD] text-[#16845B] text-[13px] flex items-start gap-3">
           <CheckCircle2 size={20} className="shrink-0 mt-0.5" aria-hidden="true" />
           <span>{successMessage}</span>
         </div>
@@ -186,7 +185,7 @@ export function RuleDetailView({ rule, formData }: RuleDetailViewProps) {
       {/* Main Form Card */}
       <form
         onSubmit={handleUpdate}
-        className="bg-white rounded-xl border border-[#C4C5D7]/70 shadow-sm p-6 lg:p-8 flex flex-col gap-8"
+        className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-6 lg:p-8 flex flex-col gap-8"
       >
         {/* SECTION 1: Dasar Laporan & Yurisdiksi */}
         <section className="flex flex-col gap-5">

@@ -12,6 +12,7 @@ import {
   Network,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
 } from 'lucide-react';
 import { getInstitutionByIdAction } from '@/lib/actions/institutions';
@@ -87,10 +88,7 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
   if (isLoading) {
     return (
       <div className="p-16 text-center text-[#747686] flex flex-col items-center justify-center gap-3">
-        <svg className="animate-spin h-6 w-6 text-[#1749D2]" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
+        <RefreshCw className="animate-spin h-6 w-6 text-[#1749D2]" aria-hidden="true" />
         <p className="text-[14px]">Memuat detail instansi...</p>
       </div>
     );
@@ -291,8 +289,8 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse min-w-[750px]">
               <thead>
                 <tr className="bg-[#F8F9FB] text-[#747686] text-[11px] font-semibold uppercase tracking-wider border-b border-[#D9DEE7]">
                   <th className="py-3 px-5" scope="col">Nama Unit Kerja</th>
@@ -337,25 +335,25 @@ export default function DetailInstansiPage({ params }: { params: Promise<{ id: s
                       )}
                     </td>
                     <td className="py-3.5 px-5 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-2">
+                      <div className="inline-flex items-center justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedUnitForEdit(unit);
                             setIsUnitModalOpen(true);
                           }}
-                          className="p-1 rounded text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
                           title="Edit Unit"
-                          aria-label="Edit Unit"
+                          aria-label={`Edit unit ${unit.name}`}
                         >
                           <Pencil size={16} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setUnitToDelete(unit)}
-                          className="p-1 rounded text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#BA1A1A] hover:bg-[#FFDAD6]/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#BA1A1A]/30"
                           title="Hapus Unit"
-                          aria-label="Hapus Unit"
+                          aria-label={`Hapus unit ${unit.name}`}
                         >
                           <Trash2 size={16} aria-hidden="true" />
                         </button>

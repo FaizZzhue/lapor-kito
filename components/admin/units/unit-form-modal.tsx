@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Network, X, AlertCircle } from 'lucide-react';
+import { Network, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { createUnitAction, updateUnitAction } from '@/lib/actions/institutions';
 import type { InstitutionUnitRow } from '@/types/database';
 
@@ -105,21 +105,31 @@ export function UnitFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 overflow-y-auto">
       <div className="relative w-full max-w-xl bg-white rounded-xl border border-[#D9DEE7] shadow-xl overflow-hidden my-8">
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-[#F0F3FF] border-b border-[#D9DEE7] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Network className="w-5 h-5 text-[#0033A7]" aria-hidden="true" />
-            <h3 className="text-[17px] font-semibold text-[#111C2D]">
-              {isEdit ? 'Edit Unit Pelaksana' : 'Tambah Unit Pelaksana Baru'}
-            </h3>
+        <div className="px-6 py-5 bg-[#F8F9FB] border-b border-[#D9DEE7] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-[#EDF2FE] text-[#0033A7] flex items-center justify-center border border-[#D9DEE7]">
+              <Network className="w-5 h-5 text-[#0033A7]" aria-hidden="true" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#111C2D]">
+                {isEdit ? 'Edit Unit Pelaksana' : 'Tambah Unit Pelaksana Baru'}
+              </h3>
+              <p className="text-xs text-[#747686]">
+                {isEdit
+                  ? 'Perbarui data unit pelaksana teknis atau seksi operasional.'
+                  : 'Daftarkan unit pelaksana teknis baru di bawah naungan instansi induk.'}
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup dialog"
-            className="text-[#747686] hover:text-[#111C2D] p-1.5 rounded-lg hover:bg-white/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+            title="Tutup dialog"
+            className="text-[#747686] hover:text-[#111C2D] p-1.5 rounded-lg hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0033A7]/30"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -128,8 +138,8 @@ export function UnitFormModal({
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {errorMsg && (
-            <div className="p-3 rounded-lg bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[13px] flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-[#BA1A1A] shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -137,15 +147,15 @@ export function UnitFormModal({
           <div className="flex flex-col gap-4">
             {/* Instansi Induk */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#111C2D]">
-                Instansi Induk <span className="text-[#BA1A1A]">*</span>
+              <label className="text-xs font-semibold text-[#111C2D]">
+                Instansi Induk <span className="text-red-600">*</span>
               </label>
               <select
                 required
                 value={institutionId}
                 onChange={(e) => setInstitutionId(e.target.value)}
                 disabled={isEdit || !!defaultInstitutionId}
-                className="h-10 px-3 text-[14px] bg-white border border-[#C4C5D7] rounded-lg focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15 disabled:bg-[#F0F3FF]"
+                className="h-10 px-3.5 text-sm bg-white border border-[#D9DEE7] text-[#111C2D] rounded-lg focus:outline-none focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] disabled:bg-[#F8F9FB] disabled:text-[#747686] transition-all cursor-pointer"
               >
                 <option value="">-- Pilih Instansi Induk --</option>
                 {institutions.map((inst) => (
@@ -158,8 +168,8 @@ export function UnitFormModal({
 
             {/* Nama Unit */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#111C2D]">
-                Nama Unit Kerja / UPT <span className="text-[#BA1A1A]">*</span>
+              <label className="text-xs font-semibold text-[#111C2D]">
+                Nama Unit Kerja / UPT <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -167,14 +177,14 @@ export function UnitFormModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="misal: Seksi Pemeliharaan Jalan & Jembatan"
-                className="h-10 px-3 text-[14px] bg-white border border-[#C4C5D7] rounded-lg focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15"
+                className="h-10 px-3.5 text-sm bg-white border border-[#D9DEE7] text-[#111C2D] rounded-lg focus:outline-none focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] placeholder:text-[#747686] transition-all"
               />
             </div>
 
             {/* Kode Unit */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#111C2D]">
-                Kode Unit <span className="text-[#BA1A1A]">*</span>
+              <label className="text-xs font-semibold text-[#111C2D]">
+                Kode Unit <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -182,13 +192,13 @@ export function UnitFormModal({
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="misal: UPT-JALAN-SAKO"
-                className="h-10 px-3 text-[14px] font-mono bg-white border border-[#C4C5D7] rounded-lg focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15"
+                className="h-10 px-3.5 text-sm font-mono bg-white border border-[#D9DEE7] text-[#111C2D] rounded-lg focus:outline-none focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] placeholder:text-[#747686] transition-all"
               />
             </div>
 
             {/* Wilayah Kerja */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#111C2D]">
+              <label className="text-xs font-semibold text-[#111C2D]">
                 Wilayah Kerja / Cakupan Operasional
               </label>
               <input
@@ -196,13 +206,13 @@ export function UnitFormModal({
                 value={workArea}
                 onChange={(e) => setWorkArea(e.target.value)}
                 placeholder="misal: Kecamatan Sako, Sematang Borang, Kenten"
-                className="h-10 px-3 text-[14px] bg-white border border-[#C4C5D7] rounded-lg focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15"
+                className="h-10 px-3.5 text-sm bg-white border border-[#D9DEE7] text-[#111C2D] rounded-lg focus:outline-none focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] placeholder:text-[#747686] transition-all"
               />
             </div>
 
             {/* Deskripsi */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#111C2D]">
+              <label className="text-xs font-semibold text-[#111C2D]">
                 Deskripsi Tugas / Fungsi Teknis
               </label>
               <textarea
@@ -210,20 +220,20 @@ export function UnitFormModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Penanganan perkerasan jalan lingkungan, jembatan penghubung..."
-                className="p-3 text-[14px] bg-white border border-[#C4C5D7] rounded-lg focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15 resize-none"
+                className="p-3.5 text-sm bg-white border border-[#D9DEE7] text-[#111C2D] rounded-lg focus:outline-none focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] placeholder:text-[#747686] resize-none transition-all"
               />
             </div>
 
             {/* Status Aktif */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-2.5 pt-1">
               <input
                 type="checkbox"
                 id="unit-active"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="w-4 h-4 rounded border-[#C4C5D7] text-[#1749D2] focus:ring-[#1749D2]/20 cursor-pointer"
+                className="w-4 h-4 rounded border-[#D9DEE7] text-[#0033A7] focus:ring-[#0033A7]/20 cursor-pointer"
               />
-              <label htmlFor="unit-active" className="text-[13px] text-[#111C2D] cursor-pointer font-medium">
+              <label htmlFor="unit-active" className="text-xs text-[#111C2D] cursor-pointer font-medium">
                 Unit Pelaksana Aktif (Menerima penugasan laporan lapangan)
               </label>
             </div>
@@ -235,21 +245,18 @@ export function UnitFormModal({
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2 rounded-lg bg-white border border-[#C4C5D7] text-[#434654] hover:bg-[#F0F3FF] text-[13px] font-medium transition-colors"
+              className="h-9 px-4 rounded-lg bg-white border border-[#D9DEE7] text-[#434654] hover:bg-[#F0F3FF] text-xs font-semibold transition-colors"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-60"
+              className="h-9 px-5 rounded-lg bg-[#0033A7] hover:bg-[#1749D2] text-white text-xs font-semibold transition-colors flex items-center gap-2 shadow-xs disabled:opacity-50"
             >
               {isLoading ? (
                 <>
-                  <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
+                  <RefreshCw className="animate-spin h-3.5 w-3.5 text-white" aria-hidden="true" />
                   <span>Menyimpan...</span>
                 </>
               ) : (

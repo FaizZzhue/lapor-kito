@@ -17,7 +17,7 @@ import {
   FileText,
   Clock,
   Sparkles,
-  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { toggleCategoryStatusAction, deleteCategoryAction } from '@/lib/actions/categories';
 import type { CategoryWithReportsCount } from '@/lib/actions/categories';
@@ -30,7 +30,7 @@ interface CategoryDetailModalProps {
   onSuccess: () => void;
 }
 
-function renderCategoryIcon(iconName: string | null, className = 'w-6 h-6') {
+function renderCategoryIcon(iconName: string | null, className = 'w-5 h-5') {
   switch (iconName) {
     case 'road':
       return <Road className={className} />;
@@ -106,31 +106,31 @@ export function CategoryDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40">
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl border border-[#D9DEE7] flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-surface-container flex items-start justify-between bg-surface-container-low/40 shrink-0">
+        <div className="px-6 py-5 border-b border-[#D9DEE7] flex items-start justify-between bg-[#F8F9FB] shrink-0">
           <div className="flex items-start gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-surface-container text-primary flex items-center justify-center shrink-0 shadow-xs border border-surface-container-high">
-              {renderCategoryIcon(category.icon, "w-6 h-6")}
+            <div className="w-11 h-11 rounded-lg bg-[#EDF2FE] text-[#0033A7] flex items-center justify-center shrink-0 border border-[#D9DEE7]">
+              {renderCategoryIcon(category.icon, "w-5 h-5")}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-headline-sm text-headline-sm text-on-surface">
+                <h2 className="text-lg font-bold text-[#111C2D]">
                   {category.name_id}
                 </h2>
-                <span className="px-2 py-0.5 rounded font-mono text-xs font-semibold bg-surface-container text-primary uppercase tracking-wide">
+                <span className="px-2 py-0.5 rounded font-mono text-[11px] font-semibold bg-[#F0F3FF] text-[#0033A7] uppercase tracking-wide">
                   {category.slug}
                 </span>
                 {isCoreCategory && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EDF2FE] text-[#0033A7] text-[11px] font-semibold">
                     <Sparkles className="w-3 h-3" />
                     Standar MVP
                   </span>
                 )}
               </div>
               {category.name_en && (
-                <p className="font-body-sm text-body-sm text-on-surface-variant italic mt-0.5">
+                <p className="text-xs text-[#747686] italic mt-0.5">
                   EN: {category.name_en}
                 </p>
               )}
@@ -139,37 +139,39 @@ export function CategoryDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+            className="p-1.5 rounded-lg text-[#747686] hover:text-[#111C2D] hover:bg-[#F0F3FF] transition-colors"
+            title="Tutup dialog"
+            aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {error && (
-            <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Status & Metrics Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-surface-container-low/50 border border-surface-container">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-[#F8F9FB] border border-[#D9DEE7]">
             <div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider block">
+              <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider block">
                 Status
               </span>
               <span
-                className={`inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold ${
+                className={`inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                   category.is_active
-                    ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
-                    : 'bg-surface-container text-on-surface-variant'
+                    ? 'bg-[#EDF7F2] text-[#16845B]'
+                    : 'bg-[#F0F3FF] text-[#747686]'
                 }`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    category.is_active ? 'bg-tertiary' : 'bg-outline'
+                    category.is_active ? 'bg-[#16845B]' : 'bg-slate-400'
                   }`}
                 />
                 {category.is_active ? 'Aktif' : 'Non-Aktif'}
@@ -177,29 +179,29 @@ export function CategoryDetailModal({
             </div>
 
             <div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider block">
+              <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider block">
                 Urutan
               </span>
-              <span className="font-body-md text-body-md font-semibold text-on-surface mt-1 block">
+              <span className="text-sm font-semibold text-[#111C2D] mt-1 block">
                 Posisi #{category.display_order}
               </span>
             </div>
 
             <div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider block">
+              <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider block">
                 Laporan Terkait
               </span>
-              <span className="font-body-md text-body-md font-semibold text-primary mt-1 block">
+              <span className="text-sm font-semibold text-[#0033A7] mt-1 block">
                 {category.reports_count} Laporan
               </span>
             </div>
 
             <div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider block">
+              <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider block">
                 Dibuat Pada
               </span>
-              <span className="font-body-sm text-body-sm text-on-surface mt-1 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-outline" />
+              <span className="text-xs text-[#434654] mt-1 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-[#747686]" />
                 {new Date(category.created_at).toLocaleDateString('id-ID', {
                   day: 'numeric',
                   month: 'short',
@@ -211,47 +213,47 @@ export function CategoryDetailModal({
 
           {/* Deskripsi & Batasan Masalah */}
           <div className="space-y-2">
-            <h3 className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-primary" />
-              Deskripsi & Ruang Lingkup Masalah
+            <h3 className="text-xs font-semibold text-[#111C2D] flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-[#0033A7]" />
+              Deskripsi &amp; Ruang Lingkup Masalah
             </h3>
-            <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container font-body-md text-body-md text-on-surface-variant leading-relaxed">
+            <div className="p-4 rounded-xl bg-white border border-[#D9DEE7] text-sm text-[#434654] leading-relaxed">
               {category.description || 'Tidak ada deskripsi rinci untuk kategori ini.'}
             </div>
           </div>
 
           {/* Penggunaan Dalam Alur AI & Disposisi */}
           <div className="space-y-2">
-            <h3 className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              Penggunaan Dalam Alur & Tata Kelola
+            <h3 className="text-xs font-semibold text-[#111C2D] flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-[#0033A7]" />
+              Penggunaan Dalam Alur &amp; Tata Kelola
             </h3>
-            <div className="p-4 rounded-xl bg-surface-container-low/40 border border-surface-container space-y-2.5">
+            <div className="p-4 rounded-xl bg-[#F8F9FB] border border-[#D9DEE7] space-y-2.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-on-surface-variant font-medium">Model Klasifikasi AI:</span>
-                <span className="font-semibold text-on-surface">Gemini 3.8 Flash Civic Triage</span>
+                <span className="text-[#747686] font-medium">Model Klasifikasi AI:</span>
+                <span className="font-semibold text-[#111C2D]">Gemini 3.8 Flash Civic Triage</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-on-surface-variant font-medium">Validasi Pelapor Warga:</span>
-                <span className="font-semibold text-on-surface">Form Publik /lapor (Guest Mode)</span>
+                <span className="text-[#747686] font-medium">Validasi Pelapor Warga:</span>
+                <span className="font-semibold text-[#111C2D]">Form Publik /lapor (Guest Mode)</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-on-surface-variant font-medium">Pemetaan Disposisi:</span>
-                <span className="font-semibold text-primary">Data Kewenangan & Aturan Perutean</span>
+                <span className="text-[#747686] font-medium">Pemetaan Disposisi:</span>
+                <span className="font-semibold text-[#0033A7]">Data Kewenangan &amp; Aturan Perutean</span>
               </div>
             </div>
           </div>
 
           {/* Delete Confirmation Box if triggered */}
           {showDeleteConfirm && (
-            <div className="p-4 rounded-xl bg-error-container/40 border border-error/30 space-y-3 animate-in fade-in">
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-3">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 text-error shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <h4 className="font-label-md text-label-md font-semibold text-error">
+                  <h4 className="text-xs font-semibold text-red-700">
                     Konfirmasi Penghapusan Kategori
                   </h4>
-                  <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  <p className="text-xs text-red-600">
                     {isCoreCategory
                       ? 'Kategori standar MVP tidak dapat dihapus karena dilindungi oleh sistem tata kelola.'
                       : category.reports_count > 0
@@ -264,7 +266,7 @@ export function CategoryDetailModal({
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant font-label-md text-label-md text-on-surface hover:bg-surface-container-low transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-[#D9DEE7] text-xs font-medium text-[#434654] hover:bg-[#F0F3FF] transition-colors"
                 >
                   Batal
                 </button>
@@ -273,9 +275,9 @@ export function CategoryDetailModal({
                     type="button"
                     onClick={handleDelete}
                     disabled={loading}
-                    className="px-3.5 py-1.5 rounded-lg bg-error text-on-error font-label-md text-label-md font-semibold hover:bg-error/90 transition-colors flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors flex items-center gap-1.5"
                   >
-                    {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                     <span>Hapus Permanen</span>
                   </button>
                 )}
@@ -285,13 +287,13 @@ export function CategoryDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-surface-container flex flex-wrap items-center justify-between gap-3 bg-surface-container-low/40 shrink-0">
+        <div className="px-6 py-4 border-t border-[#D9DEE7] flex flex-wrap items-center justify-between gap-3 bg-[#F8F9FB] shrink-0">
           <div className="flex items-center gap-2">
             {!showDeleteConfirm && (
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="h-9 px-3 rounded-lg border border-outline-variant/60 text-error hover:bg-error-container/40 transition-colors font-label-md text-label-md flex items-center gap-1.5"
+                className="h-9 px-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors text-xs font-semibold flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Hapus Kategori</span>
@@ -302,10 +304,10 @@ export function CategoryDetailModal({
               type="button"
               onClick={handleToggleStatus}
               disabled={loading}
-              className={`h-9 px-3 rounded-lg border font-label-md text-label-md flex items-center gap-1.5 transition-colors ${
+              className={`h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                 category.is_active
-                  ? 'border-outline-variant text-on-surface-variant hover:bg-surface-container'
-                  : 'border-tertiary-fixed bg-tertiary-fixed text-on-tertiary-fixed-variant hover:bg-tertiary-fixed-dim font-semibold'
+                  ? 'border-[#D9DEE7] text-[#434654] hover:bg-[#F0F3FF]'
+                  : 'border-[#16845B] bg-[#EDF7F2] text-[#16845B] hover:bg-[#d8efe4]'
               }`}
             >
               <Power className="w-4 h-4" />
@@ -320,7 +322,7 @@ export function CategoryDetailModal({
                 onClose();
                 onEdit(category);
               }}
-              className="h-9 px-4 rounded-lg bg-primary text-on-primary hover:bg-primary-container font-label-md text-label-md font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+              className="h-9 px-4 rounded-lg bg-[#0033A7] text-white hover:bg-[#1749D2] text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
             >
               <Pencil className="w-4 h-4" />
               <span>Edit Kategori</span>
@@ -328,7 +330,7 @@ export function CategoryDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="h-9 px-4 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low font-label-md text-label-md font-medium transition-colors"
+              className="h-9 px-4 rounded-lg bg-white border border-[#D9DEE7] text-[#434654] hover:bg-[#F0F3FF] text-xs font-medium transition-colors"
             >
               Tutup
             </button>

@@ -105,8 +105,10 @@ function AdminLoginForm() {
       const isNormalized = loginEmail !== email;
       const isExpected = loginEmail.toLowerCase() === "admin@laporkito.local";
 
+
       if (error) {
         const errCode = (error as { code?: string }).code || "unknown";
+
         console.warn("[AUTH_DIAGNOSTIC]", {
           operation: "signInWithPassword",
           httpStatus: error.status,
@@ -119,23 +121,43 @@ function AdminLoginForm() {
           isExpectedEmail: isExpected,
         });
 
-        if (error.message.toLowerCase().includes("invalid login credentials") || errCode === "invalid_credentials") {
+        if (
+          error.message.toLowerCase().includes("invalid login credentials") ||
+          errCode === "invalid_credentials"
+        ) {
           setErrorMessage(
-            `Kredensial tidak cocok [${errCode} HTTP ${error.status || 400}]. ` +
-            `Surel atau kata sandi tidak sesuai dengan data terdaftar di Supabase Auth untuk "${loginEmail}".`
+            "Email atau kata sandi yang Anda masukkan tidak sesuai. " +
+            "Periksa kembali kredensial Anda dan pastikan menggunakan akun staf internal yang terdaftar."
           );
-        } else if (error.message.toLowerCase().includes("email not confirmed") || errCode === "email_not_confirmed") {
-          setErrorMessage("Surel akun belum dikonfirmasi di Supabase Auth. Silakan periksa kotak masuk email Anda.");
+        } else if (
+          error.message.toLowerCase().includes("email not confirmed") ||
+          errCode === "email_not_confirmed"
+        ) {
+          setErrorMessage(
+            "Email akun belum dikonfirmasi. Silakan selesaikan konfirmasi email atau hubungi administrator."
+          );
         } else if (errCode === "over_request_rate_limit") {
-          setErrorMessage("Terlalu banyak percobaan masuk. Silakan tunggu beberapa saat sebelum mencoba lagi.");
+          setErrorMessage(
+            "Terlalu banyak percobaan masuk. Silakan tunggu beberapa saat sebelum mencoba lagi."
+          );
         } else {
           setErrorMessage(
-            `Autentikasi gagal [${errCode} HTTP ${error.status || 500}]: ${error.message}`
+            "Login belum berhasil. Silakan coba kembali. Jika masalah berlanjut, hubungi administrator."
           );
         }
+
         setIsLoading(false);
         return;
       }
+
+      if (!data?.user) {
+        setErrorMessage(
+          "Login belum berhasil. Silakan periksa kembali akun Anda dan coba lagi."
+        );
+        setIsLoading(false);
+        return;
+      }
+
 
       if (data?.user) {
         console.info("[AUTH_DIAGNOSTIC]", {
@@ -212,7 +234,7 @@ function AdminLoginForm() {
       {/* Error Message Alert */}
       {errorMessage && (
         <div className="mb-5 p-3 rounded-lg bg-[#FFDAD6] border border-[#BA1A1A]/30 text-[#93000A] text-[13px] flex items-start gap-2.5 leading-snug">
-          <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
+          {/* <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span> */}
           <span>{errorMessage}</span>
         </div>
       )}
@@ -222,7 +244,7 @@ function AdminLoginForm() {
         {/* Email / Username Field */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[#111C2D]" htmlFor="internal-email">
-            Username / Email Kedinasan
+            Username
           </label>
           <div className="relative">
             <input
@@ -239,9 +261,9 @@ function AdminLoginForm() {
               className="w-full h-[42px] px-3 text-[14px] text-[#111C2D] bg-white border border-[#C4C5D7] rounded-lg transition-colors placeholder:text-[#747686] focus:outline-none focus:border-[#1749D2] focus:ring-2 focus:ring-[#1749D2]/15 disabled:bg-[#F0F3FF]"
             />
           </div>
-          <p className="text-[11px] text-[#747686]">
+          {/* <p className="text-[11px] text-[#747686]">
             Gunakan akun resmi staf (contoh: <span className="font-mono text-[#1749D2] font-semibold">admin@laporkito.local</span> atau <span className="font-mono text-[#1749D2] font-semibold">admin</span>)
-          </p>
+          </p> */}
         </div>
 
         {/* Password Field */}

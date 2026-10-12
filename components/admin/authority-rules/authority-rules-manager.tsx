@@ -7,7 +7,6 @@ import {
   Search,
   Plus,
   RefreshCw,
-  Info,
   ChevronRight,
   ChevronDown,
   Home,
@@ -89,9 +88,6 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
     });
   }, [rules, search, selectedCategory, selectedInstitution, selectedKecamatan, selectedStatus]);
 
-  const activeCount = useMemo(() => {
-    return rules.filter((r) => r.is_active).length;
-  }, [rules]);
 
   return (
     <div className="flex flex-col w-full">
@@ -132,7 +128,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
           <button
             type="button"
             onClick={() => setShowSyncNotice(true)}
-            className="h-10 px-4 rounded-lg bg-white border border-[#C4C5D7] hover:bg-[#F0F3FF] text-[#111C2D] text-[13px] font-medium inline-flex items-center gap-2 transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] hover:bg-[#F0F3FF] transition-colors shadow-sm text-[13px] font-medium"
           >
             <RefreshCw size={16} className="text-[#747686]" aria-hidden="true" />
             <span>Sinkronisasi Matriks Regulasi</span>
@@ -140,16 +136,16 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="h-10 px-4 rounded-lg bg-primary hover:bg-[#1749D2] text-white text-[13px] font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white transition-colors shadow-sm text-[13px] font-semibold"
           >
-            {/* <Plus size={16} aria-hidden="true" /> */}
+            <Plus size={16} aria-hidden="true" />
             <span>Tambah Aturan</span>
           </button>
         </div>
       </div>
 
       {/* 3. Search and Compact Filter Toolbar */}
-      <div className="bg-white p-3.5 rounded-xl border border-[#C4C5D7]/70 shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 mb-5">
+      <div className="bg-white p-4 rounded-xl border border-[#D9DEE7] shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 mb-5">
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Search Input */}
           <div className="relative w-full sm:w-72">
@@ -159,7 +155,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari aturan, konteks, regulasi..."
-              className="w-full h-10 pl-9 pr-3 rounded-lg bg-white border border-[#C4C5D7] text-[#111C2D] text-[13px] placeholder:text-[#747686] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              className="w-full h-10 pl-9 pr-3 rounded-lg bg-[#F0F3FF] border border-transparent focus:border-[#1749D2] text-[#111C2D] text-[13px] placeholder:text-[#747686] focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1749D2]/20"
             />
           </div>
 
@@ -242,10 +238,10 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
       </div>
 
       {/* 4. Master Authority Rules Table Container */}
-      <div className="bg-white rounded-xl border border-[#C4C5D7]/70 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden flex flex-col">
         {filteredRules.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-[#F0F3FF] border border-[#C4C5D7]/50 flex items-center justify-center text-primary">
+            <div className="w-14 h-14 rounded-2xl bg-[#F0F3FF] border border-[#D9DEE7] flex items-center justify-center text-[#0033A7]">
               <ShieldCheck size={28} aria-hidden="true" />
             </div>
             <h3 className="text-[17px] font-bold text-[#111C2D]">
@@ -262,7 +258,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="mt-2 h-10 px-5 rounded-lg bg-primary hover:bg-[#1749D2] text-white text-[13px] font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
+                className="mt-2 h-10 px-5 rounded-lg bg-[#1749D2] hover:bg-[#0033A7] text-white text-[13px] font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
               >
                 <Plus size={16} aria-hidden="true" />
                 <span>Buat Aturan Pertama</span>
@@ -271,11 +267,11 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
-                <tr className="bg-[#F0F3FF]/70 border-b border-[#C4C5D7]/60">
+                <tr className="bg-[#F8F9FB] border-b border-[#D9DEE7]">
                   <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-[#747686]">
-                    Kategori & Kode
+                    Kategori &amp; Kode
                   </th>
                   <th className="py-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-[#747686]">
                     Wilayah / Lokasi
@@ -297,16 +293,16 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#C4C5D7]/40 text-[13px] text-[#111C2D]">
+              <tbody className="divide-y divide-[#F0F3FF] text-[13px] text-[#111C2D]">
                 {filteredRules.map((rule) => (
-                  <tr key={rule.id} className="hover:bg-[#F0F3FF]/40 transition-colors">
+                  <tr key={rule.id} className="hover:bg-[#F9F9FF] transition-colors">
                     {/* Category & Code */}
                     <td className="py-3.5 px-4 align-top">
                       <div className="flex flex-col gap-1">
                         <span className="text-[14px] font-semibold text-[#111C2D]">
                           {rule.category?.name_id || 'Kategori Tidak Ditemukan'}
                         </span>
-                        <span className="inline-flex w-fit items-center px-1.5 py-0.5 rounded bg-[#E8EEFF] border border-[#C4C5D7]/50 text-[11px] text-primary font-mono font-bold">
+                        <span className="inline-flex w-fit items-center px-1.5 py-0.5 rounded bg-[#F0F3FF] text-[11px] text-[#0033A7] font-mono font-bold">
                           {rule.rule_code}
                         </span>
                       </div>
@@ -344,7 +340,7 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                     {/* Instansi Berwenang */}
                     <td className="py-3.5 px-4 align-top">
                       <div className="flex items-center gap-1.5 font-medium text-[#111C2D]">
-                        <Building2 size={16} className="text-primary" aria-hidden="true" />
+                        <Building2 size={16} className="text-[#0033A7]" aria-hidden="true" />
                         <span>{rule.institution?.name || 'Instansi Terhapus'}</span>
                       </div>
                     </td>
@@ -359,37 +355,38 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
                     </td>
 
                     {/* Status */}
-                    <td className="py-3.5 px-3 align-top text-center">
+                    <td className="py-3.5 px-3 align-top text-center whitespace-nowrap">
                       {rule.is_active ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#94F6C4]/30 border border-[#78D9AA] text-[#004A30] text-[11px] font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#006443]"></span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EDF7F2] text-[#16845B] text-[11px] font-semibold border border-[#B5E2CD]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#16845B]"></span>
                           Aktif
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-300 text-gray-700 text-[11px] font-semibold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FFDAD6] text-[#BA1A1A] text-[11px] font-medium border border-[#FFB4AB]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#BA1A1A]"></span>
                           Nonaktif
                         </span>
                       )}
                     </td>
 
                     {/* Aksi */}
-                    <td className="py-3.5 px-4 align-top text-right">
-                      <div className="inline-flex items-center gap-2">
+                    <td className="py-3.5 px-4 align-top text-right whitespace-nowrap">
+                      <div className="inline-flex items-center justify-end gap-1">
                         <Link
                           href={`/admin/data-kewenangan/${rule.id}`}
-                          className="text-primary hover:text-[#1749D2] text-[12px] font-semibold hover:underline inline-flex items-center gap-1"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                          title="Lihat Detail Aturan"
+                          aria-label={`Lihat detail aturan ${rule.context_title}`}
                         >
-                          <Pencil size={12} aria-hidden="true" />
-                          <span>Edit</span>
+                          <Eye size={16} aria-hidden="true" />
                         </Link>
-                        <span className="text-[#C4C5D7]">•</span>
                         <Link
                           href={`/admin/data-kewenangan/${rule.id}`}
-                          className="text-[#434654] hover:text-[#111C2D] text-[12px] font-medium hover:underline inline-flex items-center gap-1"
+                          className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                          title="Edit Aturan"
+                          aria-label={`Edit aturan ${rule.context_title}`}
                         >
-                          <Eye size={12} aria-hidden="true" />
-                          <span>Detail Aturan</span>
+                          <Pencil size={16} aria-hidden="true" />
                         </Link>
                       </div>
                     </td>
@@ -402,9 +399,10 @@ export function AuthorityRulesManager({ initialRules, formData }: AuthorityRules
 
         {/* Table Footer */}
         {filteredRules.length > 0 && (
-          <div className="p-3.5 bg-white border-t border-[#C4C5D7]/60 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="text-[12px] text-[#434654]">
-              Menampilkan <strong>{filteredRules.length}</strong> dari <strong>{rules.length}</strong> aturan kewenangan terdaftar
+          <div className="p-4 bg-white border-t border-[#D9DEE7] flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-[#747686]">
+            <span>
+              Menampilkan <strong className="text-[#111C2D] font-semibold">{filteredRules.length}</strong> dari{' '}
+              <strong className="text-[#111C2D] font-semibold">{rules.length}</strong> aturan kewenangan terdaftar
             </span>
           </div>
         )}

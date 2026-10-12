@@ -2,13 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import Link from "next/link";
 import {
-  ShieldCheck,
   Clock,
   MessageSquare,
   Bot,
   BadgeCheck,
-  Info,
-  Lock,
   Lightbulb,
   ArrowRight,
   type LucideIcon,
@@ -159,13 +156,13 @@ export default async function LogAuditPage() {
 
         {timeline.length > 0 ? (
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead className="bg-[#F9F9FF] border-b border-[#D9DEE7]">
+            <table className="w-full text-sm">
+              <thead className="bg-[#F8F9FB] border-b border-[#D9DEE7]">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Waktu</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Laporan</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Aksi</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Aktor</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Waktu</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Laporan</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Aksi</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Aktor</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F3FF]">
@@ -212,14 +209,14 @@ export default async function LogAuditPage() {
 
         {aiLogs.length > 0 ? (
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead className="bg-[#F9F9FF] border-b border-[#D9DEE7]">
+            <table className="w-full text-sm">
+              <thead className="bg-[#F8F9FB] border-b border-[#D9DEE7]">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Waktu</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Model</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Versi Prompt</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Token</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Waktu Proses</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Waktu</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Model</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Versi Prompt</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Token</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Waktu Proses</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F3FF]">
@@ -269,14 +266,14 @@ export default async function LogAuditPage() {
 
         {staff.length > 0 ? (
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead className="bg-[#F9F9FF] border-b border-[#D9DEE7]">
+            <table className="w-full text-sm">
+              <thead className="bg-[#F8F9FB] border-b border-[#D9DEE7]">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Nama</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Peran</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Status</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Terakhir Diperbarui</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Nama</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Email</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Peran</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Terakhir Diperbarui</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F3FF]">
@@ -351,13 +348,13 @@ export default async function LogAuditPage() {
 
         {responses.length > 0 ? (
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead className="bg-[#F9F9FF] border-b border-[#D9DEE7]">
+            <table className="w-full text-sm">
+              <thead className="bg-[#F8F9FB] border-b border-[#D9DEE7]">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Waktu</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Laporan</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Tipe</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[#434654]">Publik</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Waktu</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Laporan</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Tipe</th>
+                  <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-[#747686] uppercase tracking-wider">Publik</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F0F3FF]">

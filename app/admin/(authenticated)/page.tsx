@@ -508,7 +508,7 @@ function DataMasterRow({
           className="inline-flex items-center gap-1.5 text-[13px] text-[#0033A7] hover:text-[#1749D2] font-semibold transition-colors px-3 py-1.5 rounded-lg hover:bg-[#F0F3FF]"
         >
           <span>Buka</span>
-          {/* <ArrowRight size={16} strokeWidth={2} /> */}
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
         </Link>
       </div>
     </div>

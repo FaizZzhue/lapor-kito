@@ -571,14 +571,16 @@ export function ReportInboxClient({
 
                       {/* Action */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <Link
-                          href={`/admin/laporan/${report.id}`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-semibold text-[#0033A7] bg-[#F0F3FF] hover:bg-[#DFE8FF] rounded-lg transition-colors"
-                          aria-label={`Buka detail laporan ${report.tracking_code}`}
-                        >
-                          <Eye size={14} aria-hidden="true" />
-                          <span>Detail</span>
-                        </Link>
+                        <div className="inline-flex items-center justify-end gap-1">
+                          <Link
+                            href={`/admin/laporan/${report.id}`}
+                            className="p-1.5 rounded-lg text-[#747686] hover:text-[#0033A7] hover:bg-[#F0F3FF] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1749D2]/30"
+                            title="Buka Detail Laporan"
+                            aria-label={`Buka detail laporan ${report.tracking_code}`}
+                          >
+                            <Eye size={16} aria-hidden="true" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

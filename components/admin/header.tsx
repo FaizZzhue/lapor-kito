@@ -10,7 +10,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ user, onToggleSidebar }: AdminHeaderProps) {
   return (
-    <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-white/95 backdrop-blur-xl z-30 flex items-center justify-between px-3 sm:px-6 lg:px-8 border-b border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
+    <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-white z-30 flex items-center justify-between px-3 sm:px-6 lg:px-8 border-b border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
       {/* Mobile Drawer Trigger & Institutional Title */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
@@ -23,10 +23,10 @@ export function AdminHeader({ user, onToggleSidebar }: AdminHeaderProps) {
         </button>
 
         <div className="flex items-center gap-2 min-w-0">
-          {/* <Landmark className="w-4 h-4 text-[#747686] shrink-0 hidden sm:block" aria-hidden="true" /> */}
+          <Landmark className="w-4 h-4 text-[#747686] shrink-0 hidden sm:block" aria-hidden="true" />
           <span className="text-[12px] sm:text-[13px] text-[#434654] font-medium truncate">
-            {/* <span className="hidden sm:inline">Pemerintah Kota Palembang • </span> */}
-            <span className="sm:hidden font-bold text-[#0033A7]">LAPORKITO </span>
+            <span className="hidden sm:inline">Pemerintah Kota Palembang • </span>
+            <span className="font-semibold text-[#111C2D]">Konsol Operasional</span>
           </span>
         </div>
       </div>

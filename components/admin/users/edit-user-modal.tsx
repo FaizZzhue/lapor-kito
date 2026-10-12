@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, UserCheck, Mail, User, Phone, Shield, Loader2, AlertCircle } from 'lucide-react';
+import { X, UserCheck, Mail, User, Phone, Shield, RefreshCw, AlertCircle } from 'lucide-react';
 import { updateInternalUserAction } from '@/lib/actions/internal-users';
 import type { InternalUserRow } from '@/types/database';
 
@@ -64,27 +64,29 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/30 flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40">
+      <div className="w-full max-w-lg bg-white rounded-xl shadow-xl border border-[#D9DEE7] flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low/40 shrink-0">
+        <div className="px-6 py-5 border-b border-[#D9DEE7] flex items-center justify-between bg-[#F8F9FB] shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-surface-container text-primary">
+              <span className="p-1.5 rounded-lg bg-[#EDF2FE] text-[#0033A7]">
                 <UserCheck className="w-4 h-4" />
               </span>
-              <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+              <h2 className="text-base font-bold text-[#111C2D]">
                 Edit Profil Pengguna Internal
               </h2>
             </div>
-            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+            <p className="text-xs text-[#747686] mt-1">
               Perbarui identitas dan penugasan peran aparatur kedinasan.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+            className="p-1.5 rounded-lg text-[#747686] hover:text-[#111C2D] hover:bg-[#F0F3FF] transition-colors"
+            title="Tutup dialog"
+            aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -93,32 +95,32 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
           {error && (
-            <div className="p-3.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-error shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Surel (Read-only anchor) */}
           <div className="space-y-1.5">
-            <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-outline" />
+            <label className="text-xs font-semibold text-[#111C2D] flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5 text-[#747686]" />
               <span>Surel Kedinasan (Terkunci)</span>
             </label>
             <input
               type="email"
               disabled
               value={user.email}
-              className="w-full h-10 px-3.5 rounded-lg bg-surface-container-low border border-surface-container text-on-surface-variant font-mono text-sm cursor-not-allowed"
+              className="w-full h-10 px-3.5 rounded-lg bg-[#F8F9FB] border border-[#D9DEE7] text-[#747686] font-mono text-sm cursor-not-allowed"
             />
           </div>
 
           {/* Nama Lengkap */}
           <div className="space-y-1.5">
-            <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-primary" />
+            <label className="text-xs font-semibold text-[#111C2D] flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-[#0033A7]" />
               <span>Nama Lengkap &amp; Gelar</span>
-              <span className="text-error">*</span>
+              <span className="text-red-600">*</span>
             </label>
             <input
               type="text"
@@ -126,23 +128,23 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Contoh: Budi Santoso, S.T."
-              className="w-full h-10 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
+              className="w-full h-10 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-sm focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] outline-none transition-all placeholder:text-[#747686]"
             />
           </div>
 
           {/* Peran / Role */}
           <div className="space-y-1.5">
-            <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-primary" />
+            <label className="text-xs font-semibold text-[#111C2D] flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-[#0033A7]" />
               <span>Peran / Role Otoritas</span>
-              <span className="text-error">*</span>
+              <span className="text-red-600">*</span>
             </label>
             <div className="grid grid-cols-2 gap-3 pt-1">
               <label
-                className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all ${
+                className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
                   role === 'petugas'
-                    ? 'border-primary bg-surface-container-low text-primary ring-1 ring-primary'
-                    : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline'
+                    ? 'border-[#0033A7] bg-[#EDF2FE] text-[#0033A7]'
+                    : 'border-[#D9DEE7] bg-white text-[#434654] hover:bg-[#F0F3FF]'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -154,18 +156,18 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
                     onChange={() => setRole('petugas')}
                     className="sr-only"
                   />
-                  <span className="font-label-md text-label-md font-semibold">Petugas Lapangan</span>
+                  <span className="text-xs font-semibold">Petugas Lapangan</span>
                 </div>
-                <span className="text-xs text-on-surface-variant mt-1">
+                <span className="text-[11px] text-[#747686] mt-1">
                   Verifikasi laporan &amp; tindak lanjut aduan.
                 </span>
               </label>
 
               <label
-                className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all ${
+                className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-colors ${
                   role === 'admin'
-                    ? 'border-primary bg-surface-container-low text-primary ring-1 ring-primary'
-                    : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:border-outline'
+                    ? 'border-[#0033A7] bg-[#EDF2FE] text-[#0033A7]'
+                    : 'border-[#D9DEE7] bg-white text-[#434654] hover:bg-[#F0F3FF]'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -177,9 +179,9 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
                     onChange={() => setRole('admin')}
                     className="sr-only"
                   />
-                  <span className="font-label-md text-label-md font-semibold">Administrator</span>
+                  <span className="text-xs font-semibold">Administrator</span>
                 </div>
-                <span className="text-xs text-on-surface-variant mt-1">
+                <span className="text-[11px] text-[#747686] mt-1">
                   Kelola master data &amp; akses pengguna.
                 </span>
               </label>
@@ -188,8 +190,8 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
 
           {/* Nomor Telepon */}
           <div className="space-y-1.5">
-            <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-primary" />
+            <label className="text-xs font-semibold text-[#111C2D] flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-[#0033A7]" />
               <span>Nomor Kontak / WhatsApp</span>
             </label>
             <input
@@ -197,26 +199,26 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="081234567890"
-              className="w-full h-10 px-3.5 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface font-body-md text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-outline"
+              className="w-full h-10 px-3.5 rounded-lg bg-white border border-[#D9DEE7] text-[#111C2D] text-sm focus:border-[#0033A7] focus:ring-1 focus:ring-[#0033A7] outline-none transition-all placeholder:text-[#747686]"
             />
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-4 border-t border-surface-container flex items-center justify-end gap-3 shrink-0">
+          <div className="pt-4 border-t border-[#D9DEE7] flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="h-10 px-4 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container-low transition-colors font-label-md text-label-md font-medium"
+              className="h-9 px-4 rounded-lg bg-white border border-[#D9DEE7] text-[#434654] hover:bg-[#F0F3FF] transition-colors text-xs font-semibold"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="h-10 px-5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-md text-label-md font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50"
+              className="h-9 px-5 rounded-lg bg-[#0033A7] text-white hover:bg-[#1749D2] transition-colors text-xs font-semibold flex items-center gap-2 shadow-xs disabled:opacity-50"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               <span>Simpan Perubahan</span>
             </button>
           </div>
