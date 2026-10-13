@@ -463,6 +463,8 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
   // Submit Final Report
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting || isAnalyzing || isUploading) return;
+
     setFormError(null);
 
     if (!title.trim() || title.length < 5) {
@@ -503,48 +505,55 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
 
     setIsSubmitting(true);
 
-    const payload: CreateReportSchemaType = {
-      title: title.trim(),
-      description: description.trim(),
-      categoryId,
-      kecamatanId,
-      kelurahanId,
-      addressDetail: addressDetail.trim(),
-      latitude,
-      longitude,
-      reporterName: reporterName.trim() || undefined,
-      reporterPhone: reporterPhone.trim() || undefined,
-      reporterEmail: reporterEmail.trim() || undefined,
-      evidenceFiles,
-    };
+    try {
+      const payload: CreateReportSchemaType = {
+        title: title.trim(),
+        description: description.trim(),
+        categoryId,
+        kecamatanId,
+        kelurahanId,
+        addressDetail: addressDetail.trim(),
+        latitude,
+        longitude,
+        reporterName: reporterName.trim() || undefined,
+        reporterPhone: reporterPhone.trim() || undefined,
+        reporterEmail: reporterEmail.trim() || undefined,
+        evidenceFiles,
+      };
 
-    const aiMetadata = aiResult
-      ? {
-        confidence: aiResult.confidence,
-        summary: aiResult.summary,
-        authorityTarget: aiResult.recommendedAuthority || undefined,
-        priority: aiResult.priority,
-      }
-      : undefined;
-
-    const res = await submitReportAction(payload, aiMetadata);
-    setIsSubmitting(false);
-
-    if (res.success && res.trackingCode) {
-      const queryParams = new URLSearchParams();
-      queryParams.set("code", res.trackingCode);
-      if (res.emailNotification?.attempted) {
-        queryParams.set("emailSent", res.emailNotification.sent ? "true" : "false");
-        if (res.emailNotification.recipient) {
-          queryParams.set("recipient", res.emailNotification.recipient);
+      const aiMetadata = aiResult
+        ? {
+          confidence: aiResult.confidence,
+          summary: aiResult.summary,
+          authorityTarget: aiResult.recommendedAuthority || undefined,
+          priority: aiResult.priority,
         }
-        if (res.emailNotification.errorReason) {
-          queryParams.set("emailReason", res.emailNotification.errorReason);
+        : undefined;
+
+      const res = await submitReportAction(payload, aiMetadata);
+
+      if (res.success && res.trackingCode) {
+        const queryParams = new URLSearchParams();
+        queryParams.set("code", res.trackingCode);
+        if (res.emailNotification?.attempted) {
+          queryParams.set("emailSent", res.emailNotification.sent ? "true" : "false");
+          if (res.emailNotification.recipient) {
+            queryParams.set("recipient", res.emailNotification.recipient);
+          }
+          if (res.emailNotification.errorReason) {
+            queryParams.set("emailReason", res.emailNotification.errorReason);
+          }
         }
+        router.push(`/lapor/berhasil?${queryParams.toString()}`);
+      } else {
+        setIsSubmitting(false);
+        setFormError(res.error || "Gagal menyimpan laporan ke sistem.");
       }
-      router.push(`/lapor/berhasil?${queryParams.toString()}`);
-    } else {
-      setFormError(res.error || "Gagal menyimpan laporan ke sistem.");
+    } catch (err: unknown) {
+      setIsSubmitting(false);
+      setFormError(
+        err instanceof Error ? err.message : "Terjadi kesalahan jaringan saat mengirim laporan."
+      );
     }
   };
 
@@ -1221,8 +1230,8 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                 </div>
               )}
 
-              {/* Uploaded Evidence Grid */}
-              {evidenceFiles.length > 0 && (
+              {/* Uploaded Evidence Grid & Uploading Skeleton */}
+              {(evidenceFiles.length > 0 || isUploading) && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                   {evidenceFiles.map((ev, idx) => (
                     <div
@@ -1253,6 +1262,21 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                       </div>
                     </div>
                   ))}
+
+                  {/* Uploading Placeholder Card */}
+                  {isUploading && (
+                    <div className="relative rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/70 p-3 flex flex-col items-center justify-center gap-1.5 text-center h-28 animate-pulse select-none">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                      <span className="font-mono text-[11px] font-bold text-blue-800">
+                        Mengunggah berkas...
+                      </span>
+                      <span className="text-[10px] text-blue-600">
+                        Memproses kompresi & media
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1378,8 +1402,79 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                 </div>
               )}
 
-              {/* IF AI RESULT IS PRESENT */}
-              {aiResult ? (
+              {/* IF AI IS CURRENTLY ANALYZING */}
+              {isAnalyzing ? (
+                <div className="space-y-4">
+                  {/* Analysis Header Card */}
+                  <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-2xs shrink-0">
+                        <Sparkles className="h-5 w-5 animate-spin" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 font-mono uppercase tracking-wide">
+                          Gemini AI Sedang Menelaah Laporan...
+                        </h4>
+                        <p className="text-[11px] text-slate-600">
+                          Menganalisis uraian warga, bukti foto, dan memetakan kewenangan instansi
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-blue-200/60 text-[11px] font-mono">
+                      <div className="flex items-center gap-2 text-blue-900">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                        </span>
+                        <span className="font-semibold">Menelaah bahasa sehari-hari & istilah daerah Palembang</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <div className="h-2 w-2 rounded-full bg-slate-300" />
+                        <span>Menyusun draf ringkasan baku Bahasa Indonesia</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <div className="h-2 w-2 rounded-full bg-slate-300" />
+                        <span>Mencocokkan klasifikasi kewenangan instansi/OPD Pemkot</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Skeleton Card 1: Ringkasan Resmi */}
+                  <div className="rounded-xl border border-blue-200/80 bg-blue-50/30 p-4 space-y-2.5 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="h-3.5 w-48 rounded bg-blue-200" />
+                      <div className="h-4 w-16 rounded bg-blue-100" />
+                    </div>
+                    <div className="space-y-1.5 pt-1">
+                      <div className="h-3 w-full rounded bg-slate-200" />
+                      <div className="h-3 w-5/6 rounded bg-slate-200" />
+                      <div className="h-3 w-4/6 rounded bg-slate-200" />
+                    </div>
+                  </div>
+
+                  {/* Skeleton Card 2: Evaluasi Kategori */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3 animate-pulse">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                      <div className="h-3.5 w-40 rounded bg-slate-300" />
+                      <div className="h-4 w-28 rounded bg-slate-200" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-3 w-3/4 rounded bg-slate-200" />
+                      <div className="h-3 w-1/2 rounded bg-slate-200" />
+                    </div>
+                  </div>
+
+                  {/* Skeleton Card 3: Rekomendasi Instansi */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="h-3.5 w-44 rounded bg-slate-300" />
+                      <div className="h-4 w-20 rounded bg-slate-200" />
+                    </div>
+                    <div className="h-12 w-full rounded-lg bg-slate-100 border border-slate-200" />
+                  </div>
+                </div>
+              ) : aiResult ? (
                 <div className="space-y-4">
                   {/* Stale Text Warning */}
                   {isTextStale && (

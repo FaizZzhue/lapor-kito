@@ -1,17 +1,23 @@
 import { Loader2 } from "lucide-react";
 
-export default function Loading() {
+export default function RootLoading() {
   return (
-    <div className="w-full min-h-[60vh] flex flex-col items-center justify-center p-6 text-center space-y-3 bg-slate-50/60 civic-grid">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700 shadow-2xs">
-        <Loader2 className="h-6 w-6 animate-spin" />
+    <div className="w-full min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-4 bg-slate-50/60 civic-grid animate-in fade-in duration-150">
+      <div className="relative">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-800 text-white shadow-md">
+          <Loader2 className="h-7 w-7 animate-spin text-white" />
+        </div>
+        <div className="absolute -inset-1 rounded-2xl bg-blue-500/20 animate-pulse -z-10" />
       </div>
-      <p className="font-mono text-xs font-bold text-slate-800">
-        Memuat Data Layanan...
-      </p>
-      <p className="text-[11px] text-slate-500 font-mono">
-        LAPORKITO • Sistem Pendamping Pelaporan Warga Palembang
-      </p>
+
+      <div className="space-y-1">
+        <p className="font-mono text-xs font-bold uppercase tracking-wider text-slate-900">
+          Memuat Data Layanan
+        </p>
+        <p className="font-mono text-[11px] text-slate-500">
+          LAPORKITO • Portal Pengaduan Fasilitas Publik Kota Palembang
+        </p>
+      </div>
     </div>
   );
 }

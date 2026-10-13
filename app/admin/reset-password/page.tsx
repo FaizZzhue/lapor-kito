@@ -274,8 +274,23 @@ export default function AdminResetPasswordPage() {
         <div className="flex flex-col w-full items-center justify-center py-8">
           <Suspense
             fallback={
-              <div className="w-full max-w-[450px] mx-auto bg-white rounded-xl border border-[#C4C5D7]/60 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-10 text-center text-[#747686]">
-                Memuat formulir pemulihan...
+              <div className="w-full max-w-[450px] mx-auto bg-white rounded-xl border border-[#C4C5D7]/60 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-7 sm:p-10 space-y-6 animate-pulse">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="w-10 h-10 rounded-lg bg-[#DFE8FF]" />
+                  <div className="h-6 w-48 rounded bg-slate-300" />
+                  <div className="h-3.5 w-56 rounded bg-slate-200" />
+                </div>
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-24 rounded bg-slate-200" />
+                    <div className="h-10 w-full rounded-lg bg-[#F9F9FF] border border-[#C4C5D7]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-3.5 w-28 rounded bg-slate-200" />
+                    <div className="h-10 w-full rounded-lg bg-[#F9F9FF] border border-[#C4C5D7]" />
+                  </div>
+                  <div className="h-10 w-full rounded-lg bg-[#1749D2]/80 mt-2" />
+                </div>
               </div>
             }
           >

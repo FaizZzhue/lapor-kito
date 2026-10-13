@@ -368,7 +368,17 @@ export function ReportInboxClient({
       </div>
 
       {/* Main Table / List View */}
-      {filteredReports.length > 0 ? (
+      <div className="relative">
+        {isPending && (
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-[0.5px] z-20 flex items-start justify-center pt-24 rounded-xl transition-all pointer-events-none">
+            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-[#D9DEE7] shadow-lg text-[13px] font-semibold text-[#0033A7] animate-in fade-in zoom-in-95 duration-150">
+              <RefreshCw size={15} className="animate-spin text-[#0033A7]" />
+              <span>Memperbarui antrean data...</span>
+            </div>
+          </div>
+        )}
+
+        {filteredReports.length > 0 ? (
         <>
           {/* Mobile Card View (< md) */}
           <div className="md:hidden flex flex-col gap-3.5">
@@ -623,6 +633,7 @@ export function ReportInboxClient({
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
