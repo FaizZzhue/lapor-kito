@@ -12,11 +12,17 @@ import { trackingSearchSchema } from "@/lib/validators/report";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import { sendOfficialResponseEmail } from "@/lib/email/resend";
 import { resolveReportInstitutionAssignment } from "@/lib/actions/reports";
+import {
+  VALID_STATUS_TRANSITIONS,
+  STATUS_TRANSITIONS_METADATA,
+} from "@/lib/constants/report-status";
+import type { ReportStatus } from "@/types/database";
 
 export interface CreateOfficialResponseResult {
   success: boolean;
   responseId?: string;
   timelineId?: string;
+  newStatus?: ReportStatus;
   emailSent?: boolean;
   error?: string;
 }
@@ -47,15 +53,8 @@ async function requireStaff() {
 }
 
 /**
- * Creates an official response from authorized Petugas/Admin to citizens.
- * 
- * Enforces:
- * 1. Active staff session verification (requireStaff)
- * 2. Zod validation of message and responseType
- * 3. Report existence verification
- * 4. Atomic insertion of response and report_timeline (with compensating rollback)
- * 5. Email notification to reporter (non-fatal if email fails)
- * 6. Cache revalidation across internal and public tracking routes
+ * Creates an official response from authorized Petugas/Admin to citizens,
+ * supporting field documentation photos and optional status synchronization.
  */
 export async function createReportResponseAction(
   input: CreateOfficialResponseSchemaType
@@ -71,33 +70,41 @@ export async function createReportResponseAction(
       return { success: false, error: issue };
     }
 
-    const { reportId, message, responseType } = parsed.data;
+    const { reportId, message, responseType, documentationType, attachments, nextStatus } =
+      parsed.data;
     const adminSupabase = createAdminClient();
 
     // 3. Verify report exists
-    let report: {
+    type ReportDbRow = {
       id: string;
       tracking_code: string;
+      status: ReportStatus;
       title: string;
       reporter_id?: string | null;
       category_id?: string | null;
       authority_target?: string | null;
       assigned_institution_id?: string | null;
       assigned_unit_id?: string | null;
-    } | null = null;
+    };
+
+    let report: ReportDbRow | null = null;
 
     const { data: repWithAssigned, error: assignedErr } = await adminSupabase
       .from("reports")
-      .select("id, tracking_code, title, reporter_id, category_id, authority_target, assigned_institution_id, assigned_unit_id")
+      .select(
+        "id, tracking_code, status, title, reporter_id, category_id, authority_target, assigned_institution_id, assigned_unit_id"
+      )
       .eq("id", reportId)
       .maybeSingle();
 
     if (!assignedErr && repWithAssigned) {
-      report = repWithAssigned;
+      report = repWithAssigned as unknown as ReportDbRow;
     } else {
       const { data: baseRep, error: baseErr } = await adminSupabase
         .from("reports")
-        .select("id, tracking_code, title, reporter_id, category_id, authority_target")
+        .select(
+          "id, tracking_code, status, title, reporter_id, category_id, authority_target"
+        )
         .eq("id", reportId)
         .maybeSingle();
 
@@ -107,21 +114,96 @@ export async function createReportResponseAction(
           error: "Laporan tidak ditemukan dalam sistem.",
         };
       }
-      report = baseRep;
+      report = baseRep as unknown as ReportDbRow;
+    }
+
+    if (!report) {
+      return {
+        success: false,
+        error: "Laporan tidak ditemukan dalam sistem.",
+      };
     }
 
     // STRICT SERVER AUTHORIZATION: Petugas can only respond to reports assigned to their institution
     if (staff.role === "petugas") {
-      const assignment = await resolveReportInstitutionAssignment(report as any, adminSupabase);
-      if (!staff.institution_id || !assignment.institutionId || assignment.institutionId !== staff.institution_id) {
+      const assignment = await resolveReportInstitutionAssignment(report, adminSupabase);
+      if (
+        !staff.institution_id ||
+        !assignment.institutionId ||
+        assignment.institutionId !== staff.institution_id
+      ) {
         return {
           success: false,
-          error: "Akses ditolak: Anda hanya dapat memberikan tanggapan resmi pada laporan yang ditugaskan kepada instansi Anda.",
+          error:
+            "Akses ditolak: Anda hanya dapat memberikan tanggapan resmi pada laporan yang ditugaskan kepada instansi Anda.",
         };
       }
     }
 
-    // 4. Persist response in report_responses
+    const currentStatus = report.status as ReportStatus;
+    let targetStatusToSet: ReportStatus | undefined = undefined;
+
+    // Optional status update validation
+    if (nextStatus && nextStatus !== currentStatus) {
+      const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || [];
+      if (!allowedTransitions.includes(nextStatus as ReportStatus)) {
+        return {
+          success: false,
+          error: `Transisi status tidak diizinkan: dari '${currentStatus}' ke '${nextStatus}'.`,
+        };
+      }
+
+      // If transition to resolved, enforce completion photo documentation
+      if (nextStatus === "resolved") {
+        const hasDirectPhotos = Boolean(attachments && attachments.length > 0);
+        if (!hasDirectPhotos) {
+          const { data: existingResp } = await adminSupabase
+            .from("report_responses")
+            .select("id, attachments")
+            .eq("report_id", report.id)
+            .not("attachments", "is", null);
+
+          const hasPrevPhotos = existingResp?.some((r) => {
+            const atts = r.attachments;
+            return Array.isArray(atts) && atts.length > 0;
+          });
+
+          if (!hasPrevPhotos) {
+            return {
+              success: false,
+              error:
+                "Dokumentasi foto penyelesaian lapangan wajib disertakan sebelum laporan dapat ditandai selesai.",
+            };
+          }
+        }
+      }
+
+      targetStatusToSet = nextStatus as ReportStatus;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // If status needs update, update report
+    if (targetStatusToSet) {
+      const { error: updateStatusErr } = await adminSupabase
+        .from("reports")
+        .update({
+          status: targetStatusToSet,
+          updated_at: nowIso,
+        })
+        .eq("id", report.id)
+        .eq("status", currentStatus);
+
+      if (updateStatusErr) {
+        console.error("Failed to update report status with response:", updateStatusErr);
+        return {
+          success: false,
+          error: "Gagal memperbarui status laporan.",
+        };
+      }
+    }
+
+    // 4. Persist response in report_responses with field documentation attachments
     const { data: insertedResponse, error: respError } = await adminSupabase
       .from("report_responses")
       .insert({
@@ -129,7 +211,7 @@ export async function createReportResponseAction(
         responder_id: staff.id,
         response_type: responseType || "official",
         message: message.trim(),
-        attachments: [],
+        attachments: attachments || [],
         is_public: true,
       })
       .select("id")
@@ -137,25 +219,53 @@ export async function createReportResponseAction(
 
     if (respError || !insertedResponse) {
       console.error("Failed to insert report response:", respError);
+      // Rollback status if we changed it
+      if (targetStatusToSet) {
+        await adminSupabase
+          .from("reports")
+          .update({ status: currentStatus, updated_at: nowIso })
+          .eq("id", report.id);
+      }
       return {
         success: false,
         error: "Gagal menyimpan tanggapan resmi ke basis data.",
       };
     }
 
-    // 5. Atomic timeline audit recording
+    // 5. Determine action title
+    let actionTitle = "Tanggapan Resmi Dikirim";
+    if (targetStatusToSet) {
+      const transMeta = (STATUS_TRANSITIONS_METADATA[currentStatus as ReportStatus] || []).find(
+        (m: { targetStatus: ReportStatus }) => m.targetStatus === targetStatusToSet
+      );
+      actionTitle = transMeta?.actionTitle || "Status & Tanggapan Lapangan Diperbarui";
+    } else if (attachments && attachments.length > 0) {
+      if (documentationType === "completion") {
+        actionTitle = "Dokumentasi Hasil Akhir Lapangan";
+      } else if (documentationType === "investigation") {
+        actionTitle = "Dokumentasi Pemeriksaan Lapangan";
+      } else {
+        actionTitle = "Dokumentasi Pekerjaan Lapangan";
+      }
+    }
+
+    // 6. Atomic timeline audit recording
     const { data: insertedTimeline, error: timelineError } = await adminSupabase
       .from("report_timeline")
       .insert({
         report_id: report.id,
         actor_id: staff.id,
         actor_role: staff.role,
-        action: "Tanggapan Resmi Dikirim",
+        action: actionTitle,
         notes: message.trim(),
         metadata: {
           is_internal: false,
           response_type: responseType || "official",
+          documentation_type: documentationType || "progress",
           responder_name: staff.full_name,
+          previous_status: currentStatus,
+          next_status: targetStatusToSet || currentStatus,
+          photos: attachments || [],
         },
       })
       .select("id")
@@ -166,8 +276,14 @@ export async function createReportResponseAction(
         "Timeline insert failed for official response. Executing compensating rollback:",
         timelineError
       );
-      // Compensating rollback: delete created response
+      // Compensating rollback: delete created response and revert status
       await adminSupabase.from("report_responses").delete().eq("id", insertedResponse.id);
+      if (targetStatusToSet) {
+        await adminSupabase
+          .from("reports")
+          .update({ status: currentStatus, updated_at: nowIso })
+          .eq("id", report.id);
+      }
       return {
         success: false,
         error: "Gagal mencatat linimasa tanggapan resmi. Operasi dibatalkan.",
@@ -225,6 +341,7 @@ export async function createReportResponseAction(
       success: true,
       responseId: insertedResponse.id,
       timelineId: insertedTimeline.id,
+      newStatus: targetStatusToSet,
       emailSent,
     };
   } catch (err: unknown) {

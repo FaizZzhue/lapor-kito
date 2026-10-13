@@ -18,25 +18,39 @@ import {
   Phone,
   Mail,
   ShieldAlert,
+  AlertTriangle,
   Maximize2,
   X,
   FileText,
   History,
   Bot,
+  Camera,
 } from "lucide-react";
 import type { InternalReportDetailData } from "@/lib/actions/reports";
 import { ReportStatusBadge } from "./report-status-badge";
 import { ReportPriorityBadge } from "./report-priority-badge";
 import { ReportStatusManager } from "./report-status-manager";
 import { ReportResponseManager } from "./report-response-manager";
+import {
+  ReportAssignmentManager,
+  type AvailableInstitutionItem,
+  type AvailableUnitItem,
+} from "./report-assignment-manager";
 import type { ReportStatus } from "@/types/database";
 
 interface ReportDetailViewProps {
   data: InternalReportDetailData;
   userRole?: "admin" | "petugas";
+  availableInstitutions?: AvailableInstitutionItem[];
+  availableUnits?: AvailableUnitItem[];
 }
 
-export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailViewProps) {
+export function ReportDetailView({
+  data,
+  userRole = "petugas",
+  availableInstitutions = [],
+  availableUnits = [],
+}: ReportDetailViewProps) {
   const {
     report,
     category,
@@ -51,6 +65,19 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
 
   const [currentStatus, setCurrentStatus] = useState<ReportStatus>(report.status);
   const [timelineItems, setTimelineItems] = useState(timeline);
+
+  const [assignedInstitutionId, setAssignedInstitutionId] = useState<string | null>(
+    report.assigned_institution_id || null
+  );
+  const [assignedInstitutionName, setAssignedInstitutionName] = useState<string | null>(
+    report.assigned_institution_name || null
+  );
+  const [assignedUnitId, setAssignedUnitId] = useState<string | null>(
+    report.assigned_unit_id || null
+  );
+  const [assignedUnitName, setAssignedUnitName] = useState<string | null>(
+    report.assigned_unit_name || null
+  );
 
   const [previewImage, setPreviewImage] = useState<{
     url: string;
@@ -78,6 +105,43 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
         notes: newTimelineEntry.notes,
         metadata: null,
         created_at: newTimelineEntry.created_at,
+      },
+    ]);
+  };
+
+  const handleAssignmentSuccess = (assignmentData: {
+    assignedInstitutionId: string;
+    assignedInstitutionName: string;
+    assignedUnitId: string | null;
+    assignedUnitName: string | null;
+    assignedAt: string;
+    timelineEntry: {
+      id: string;
+      action: string;
+      notes: string | null;
+      actor_role: string;
+      created_at: string;
+    };
+  }) => {
+    setAssignedInstitutionId(assignmentData.assignedInstitutionId);
+    setAssignedInstitutionName(assignmentData.assignedInstitutionName);
+    setAssignedUnitId(assignmentData.assignedUnitId);
+    setAssignedUnitName(assignmentData.assignedUnitName);
+    setTimelineItems((prev) => [
+      ...prev,
+      {
+        id: assignmentData.timelineEntry.id,
+        actor_id: null,
+        actor_role: assignmentData.timelineEntry.actor_role,
+        action: assignmentData.timelineEntry.action,
+        notes: assignmentData.timelineEntry.notes,
+        metadata: {
+          assigned_institution_id: assignmentData.assignedInstitutionId,
+          assigned_institution_name: assignmentData.assignedInstitutionName,
+          assigned_unit_id: assignmentData.assignedUnitId,
+          assigned_unit_name: assignmentData.assignedUnitName,
+        },
+        created_at: assignmentData.timelineEntry.created_at,
       },
     ]);
   };
@@ -129,18 +193,75 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
     ? `https://www.google.com/maps/search/?api=1&query=${report.latitude},${report.longitude}`
     : null;
 
+  // Group all officer field documentation photos from responses and timeline
+  const fieldDocumentations: Array<{
+    id: string;
+    responderName: string;
+    responderRole: string;
+    createdAt: string;
+    message?: string | null;
+    isCompletion: boolean;
+    photos: Array<{
+      fileUrl: string;
+      storagePath?: string;
+      caption?: string;
+      fileName?: string;
+      fileSize?: number;
+    }>;
+  }> = [];
+
+  (responses || []).forEach((r) => {
+    if (Array.isArray(r.attachments) && r.attachments.length > 0) {
+      const isCompletion =
+        r.message?.toLowerCase().includes("selesai") ||
+        r.response_type === "official";
+      fieldDocumentations.push({
+        id: `resp-${r.id}`,
+        responderName: r.responder_name || "Petugas Instansi",
+        responderRole: r.responder_role || "petugas",
+        createdAt: r.created_at,
+        message: r.message,
+        isCompletion,
+        photos: r.attachments as any,
+      });
+    }
+  });
+
+  timelineItems.forEach((t) => {
+    const meta = t.metadata as Record<string, unknown> | null;
+    if (meta && Array.isArray(meta.photos) && meta.photos.length > 0) {
+      const photos = meta.photos as Array<{
+        fileUrl: string;
+        storagePath?: string;
+        caption?: string;
+        fileName?: string;
+        fileSize?: number;
+      }>;
+      const alreadyCaptured = fieldDocumentations.some((fd) =>
+        fd.photos.some((p) => photos.some((mp) => mp.fileUrl === p.fileUrl))
+      );
+      if (!alreadyCaptured) {
+        const isComp =
+          meta.documentation_type === "completion" ||
+          t.action.toLowerCase().includes("selesai");
+        fieldDocumentations.push({
+          id: `tl-${t.id}`,
+          responderName: (meta.actor_name as string) || "Petugas Operasional",
+          responderRole: t.actor_role,
+          createdAt: t.created_at,
+          message: t.notes || t.action,
+          isCompletion: isComp,
+          photos,
+        });
+      }
+    }
+  });
+
   return (
     <div className="flex flex-col w-full gap-6 pb-12">
       {/* Top Navigation & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D9DEE7]/80">
         <div className="flex items-center gap-3">
-          {/* <Link
-            href="/admin/laporan"
-            className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-[#D9DEE7] text-[#434654] hover:text-[#0033A7] hover:bg-[#F0F3FF] hover:border-[#C4D3F8] shadow-sm transition-all"
-            aria-label="Kembali ke antrean laporan masuk"
-          >
-            <ArrowLeft size={18} aria-hidden="true" />
-          </Link> */}
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider">
@@ -158,10 +279,10 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
-          {report.assigned_institution_name ? (
+          {assignedInstitutionName ? (
             <div className="flex items-center gap-1.5 px-3 py-1 bg-[#EEF2FC] border border-[#C4D3F8] rounded-lg text-[12px] font-semibold text-[#0033A7]">
               <Building2 size={14} aria-hidden="true" />
-              <span>{report.assigned_institution_name}</span>
+              <span>{assignedInstitutionName}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FEF3E6] border border-[#FCD7A9] rounded-lg text-[12px] font-semibold text-[#B2640A]">
@@ -173,6 +294,49 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
           <ReportStatusBadge status={currentStatus} size="md" />
         </div>
       </div>
+
+      {/* Official OPD Assignment Manager */}
+      <ReportAssignmentManager
+        reportId={report.id}
+        trackingCode={report.tracking_code}
+        reportTitle={report.title}
+        currentAssignedInstitutionId={assignedInstitutionId}
+        currentAssignedInstitutionName={assignedInstitutionName}
+        currentAssignedUnitId={assignedUnitId}
+        currentAssignedUnitName={assignedUnitName}
+        assignedAt={report.assigned_at || null}
+        recommendedInstitution={
+          authorityRule?.institution?.id
+            ? {
+                id: authorityRule.institution.id,
+                code: authorityRule.institution.code,
+                name: authorityRule.institution.name,
+                short_name: authorityRule.institution.short_name,
+              }
+            : report.recommended_institution_id
+            ? {
+                id: report.recommended_institution_id,
+                code: "OPD",
+                name: report.recommended_institution_name || "Instansi Rekomendasi",
+                short_name: null,
+              }
+            : null
+        }
+        recommendedUnit={
+          authorityRule?.unit?.id
+            ? {
+                id: authorityRule.unit.id,
+                code: authorityRule.unit.code,
+                name: authorityRule.unit.name,
+              }
+            : null
+        }
+        authorityRuleContext={authorityRule?.context_title}
+        availableInstitutions={availableInstitutions}
+        availableUnits={availableUnits}
+        userRole={userRole}
+        onAssignmentSuccess={handleAssignmentSuccess}
+      />
 
       {/* Operational Status Management Panel (Phase 6B Action Workflow) */}
       <ReportStatusManager
@@ -217,13 +381,15 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
             </div>
           </div>
 
-          {/* Section: Official Response & Communication Thread */}
+          {/* Section: Official Response & Field Documentation Area */}
           <ReportResponseManager
             reportId={report.id}
             trackingCode={report.tracking_code}
+            currentStatus={currentStatus}
             responses={responses || []}
             reporterEmail={reporter?.email}
             onResponseAdded={handleResponseAdded}
+            onStatusUpdated={(newStatus) => setCurrentStatus(newStatus)}
           />
 
           {/* Section C: Location */}
@@ -286,17 +452,17 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
             </div>
           </div>
 
-          {/* Section E: Evidence Files */}
+          {/* Section E: Citizen Initial Evidence */}
           <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-6">
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#F0F3FF]">
               <div className="flex items-center gap-2">
                 <Paperclip size={18} className="text-[#0033A7]" aria-hidden="true" />
                 <h2 className="text-[15px] font-bold text-[#111C2D]">
-                  Berkas Bukti ({evidence.length})
+                  Bukti Awal oleh Pelapor (Warga) ({evidence.length})
                 </h2>
               </div>
               <span className="text-[12px] text-[#747686]">
-                {evidence.length > 0 ? "Tersimpan di Cloud Storage" : "Tanpa Berkas"}
+                {evidence.length > 0 ? "Foto Kondisi Awal Saat Melapor" : "Tanpa Berkas"}
               </span>
             </div>
 
@@ -374,6 +540,102 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
                 </p>
                 <p className="text-[11px] text-[#747686] mt-0.5">
                   Pelapor tidak mengunggah foto atau dokumen untuk pengaduan ini.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Section F: Dedicated Officer Field Documentation & Completion Evidence */}
+          <div className="bg-white rounded-xl border border-[#D9DEE7] shadow-sm p-6">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#F0F3FF]">
+              <div className="flex items-center gap-2">
+                <Camera size={18} className="text-[#0033A7]" aria-hidden="true" />
+                <h2 className="text-[15px] font-bold text-[#111C2D]">
+                  Dokumentasi Tindak Lanjut Lapangan & Bukti Petugas ({fieldDocumentations.reduce((acc, curr) => acc + curr.photos.length, 0)})
+                </h2>
+              </div>
+              <span className="text-[12px] text-[#747686]">
+                Bukti Foto Petugas & Instansi di Lapangan
+              </span>
+            </div>
+
+            {fieldDocumentations.length > 0 ? (
+              <div className="space-y-4">
+                {fieldDocumentations.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-xl border border-[#D9DEE7] bg-[#F9F9FF] space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[12px] pb-2 border-b border-[#D9DEE7]/60">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#111C2D]">
+                          {item.responderName}
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
+                            item.isCompletion
+                              ? "bg-[#EDF7F2] text-[#16845B] border border-[#B5E2CD]"
+                              : "bg-[#DFE8FF] text-[#0033A7] border border-[#C4D3F8]"
+                          }`}
+                        >
+                          {item.isCompletion ? "Hasil Akhir (Penyelesaian)" : "Progres Penanganan"}
+                        </span>
+                      </div>
+                      <span className="text-[#747686]">{formatDate(item.createdAt)}</span>
+                    </div>
+
+                    {item.message && (
+                      <p className="text-[13px] text-[#434654] leading-relaxed">
+                        {item.message}
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
+                      {item.photos.map((photo, pIdx) => (
+                        <div
+                          key={photo.storagePath || pIdx}
+                          className="relative aspect-video rounded-lg overflow-hidden border border-[#D9DEE7] bg-white group shadow-2xs"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.fileUrl}
+                            alt={photo.caption || `Foto dokumentasi ${pIdx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            loading="lazy"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewImage({
+                                url: photo.fileUrl,
+                                caption: photo.caption || `Dokumentasi Lapangan #${pIdx + 1}`,
+                              })
+                            }
+                            aria-label={`Perbesar foto ${pIdx + 1}`}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity font-medium text-[11px] gap-1"
+                          >
+                            <Maximize2 size={14} aria-hidden="true" />
+                            <span>Perbesar</span>
+                          </button>
+                          {photo.caption && (
+                            <div className="absolute bottom-0 inset-x-0 bg-black/70 px-1.5 py-0.5 text-[10px] text-white truncate">
+                              {photo.caption}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-[#747686] bg-[#F9F9FF] rounded-lg border border-dashed border-[#D9DEE7]">
+                <Camera size={24} className="mx-auto mb-2 text-[#747686]/60" aria-hidden="true" />
+                <p className="text-[13px] font-medium text-[#434654]">
+                  Belum ada dokumentasi tindak lanjut lapangan
+                </p>
+                <p className="text-[11px] text-[#747686] mt-0.5">
+                  Foto pekerjaan atau hasil penyelesaian yang diunggah oleh petugas instansi akan ditampilkan di sini.
                 </p>
               </div>
             )}
@@ -527,33 +789,87 @@ export function ReportDetailView({ data, userRole = "petugas" }: ReportDetailVie
 
             {aiTriage && aiTriage.hasData ? (
               <div className="flex flex-col gap-3">
-                {/* Confidence score & Decision */}
+                {/* Confidence score & Information Completeness */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-[#F0F3FF] p-3 rounded-lg border border-[#C4D3F8]/60">
-                    <span className="text-[11px] text-[#747686] block">Tingkat Keyakinan</span>
+                    <span className="text-[11px] text-[#747686] block">Kecocokan Kategori (AI)</span>
                     <span className="text-[16px] font-bold text-[#0033A7]">
                       {aiTriage.confidence !== null && aiTriage.confidence !== undefined
                         ? `${Math.round(aiTriage.confidence * 100)}%`
                         : "N/A"}
                     </span>
+                    <span className="text-[10px] text-[#747686] block mt-0.5">Kesesuaian semantik teks</span>
                   </div>
 
                   <div className="bg-[#F0F3FF] p-3 rounded-lg border border-[#C4D3F8]/60">
-                    <span className="text-[11px] text-[#747686] block">Keputusan Rekomendasi</span>
+                    <span className="text-[11px] text-[#747686] block">Kelengkapan Informasi</span>
                     <span
-                      className={`text-[13px] font-bold ${aiTriage.decision === "RECOMMEND"
+                      className={`text-[14px] font-bold mt-0.5 block ${
+                        aiTriage.informationCompleteness === "minimal"
+                          ? "text-[#B2640A]"
+                          : aiTriage.informationCompleteness === "lengkap"
                           ? "text-[#16845B]"
-                          : "text-[#B2640A]"
-                        }`}
+                          : "text-[#0033A7]"
+                      }`}
                     >
-                      {aiTriage.decision === "RECOMMEND"
-                        ? "SIAP TERUSKAN"
-                        : aiTriage.decision === "NEEDS_REVIEW"
-                          ? "PERLU DITELAAH"
-                          : "OTOMATIS"}
+                      {aiTriage.informationCompleteness === "minimal"
+                        ? "TERBATAS"
+                        : aiTriage.informationCompleteness === "lengkap"
+                        ? "LENGKAP"
+                        : aiTriage.informationCompleteness === "cukup"
+                        ? "CUKUP"
+                        : "TERSEDIA"}
+                    </span>
+                    <span className="text-[10px] text-[#747686] block mt-0.5">
+                      {aiTriage.needsClarification ? "Perlu rincian tambahan" : "Cukup untuk telaah"}
                     </span>
                   </div>
                 </div>
+
+                {/* Status Rekomendasi Bar */}
+                <div className="bg-[#F9F9FF] p-2.5 rounded-lg border border-[#D9DEE7]/70 flex items-center justify-between text-[12px]">
+                  <span className="text-[#747686] font-medium">Status Rekomendasi:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                      aiTriage.decision === "RECOMMEND"
+                        ? "bg-emerald-50 text-[#16845B] border border-emerald-200"
+                        : "bg-amber-50 text-[#B2640A] border border-amber-200"
+                    }`}
+                  >
+                    {aiTriage.decision === "RECOMMEND"
+                      ? "SIAP TERUSKAN"
+                      : aiTriage.decision === "NEEDS_REVIEW"
+                      ? "PERLU DITELAAH PETUGAS"
+                      : "OTOMATIS"}
+                  </span>
+                </div>
+
+                {/* Urgency Evidence */}
+                {aiTriage.urgencyEvidence && (
+                  <div className="bg-[#F9F9FF] p-3 rounded-lg border border-[#D9DEE7]/70">
+                    <span className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider block">
+                      Dukungan Bukti Urgensi
+                    </span>
+                    <p className="text-[12px] text-[#434654] mt-1 leading-relaxed">
+                      {aiTriage.urgencyEvidence}
+                    </p>
+                  </div>
+                )}
+
+                {/* Clarification Points Needed */}
+                {aiTriage.needsClarification && aiTriage.clarificationQuestions && aiTriage.clarificationQuestions.length > 0 && (
+                  <div className="bg-amber-50/70 p-3 rounded-lg border border-amber-200">
+                    <div className="flex items-center gap-1.5 text-amber-900 text-[11px] font-bold uppercase tracking-wider">
+                      <AlertTriangle size={13} className="text-amber-700" />
+                      <span>Rincian yang Perlu Dikonfirmasi</span>
+                    </div>
+                    <ul className="mt-1.5 space-y-1 text-[12px] text-slate-700 list-disc list-inside">
+                      {aiTriage.clarificationQuestions.map((q, idx) => (
+                        <li key={idx} className="leading-snug">{q}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {/* AI Summary */}
                 {aiTriage.summary && (

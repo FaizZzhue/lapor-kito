@@ -25,6 +25,7 @@ export interface TrackingLookupResult {
     response_type: string;
     message: string;
     created_at: string;
+    attachments?: Array<{ fileUrl: string; caption?: string; fileName?: string }> | unknown[] | null;
   }>;
   error?: string;
 }
@@ -134,7 +135,7 @@ export async function getPublicReportAction(
     // 6. Fetch public responses (is_public = true)
     const { data: responseRows } = await supabase
       .from("report_responses")
-      .select("id, response_type, message, created_at")
+      .select("id, response_type, message, created_at, attachments")
       .eq("report_id", report.id)
       .eq("is_public", true)
       .order("created_at", { ascending: true });
@@ -147,7 +148,13 @@ export async function getPublicReportAction(
       kecamatanName,
       evidence: evidenceRows || [],
       timeline: timelineRows || [],
-      responses: responseRows || [],
+      responses: (responseRows || []).map((r) => ({
+        id: r.id,
+        response_type: r.response_type,
+        message: r.message,
+        created_at: r.created_at,
+        attachments: (r.attachments as unknown[]) || [],
+      })),
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Kesalahan sistem pelacakan";

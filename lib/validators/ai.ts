@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const aiClassificationOutputSchema = z.object({
   isValidComplaint: z.boolean(),
   rejectionReason: z.string().optional(),
-  categorySlug: z.string().min(1, 'Category slug is required'),
+  categorySlug: z.string().nullable().optional().transform((v) => (v ? v.trim() : 'invalid')),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   confidence: z.number().min(0).max(1),
   summary: z.string().min(5, 'Summary must be at least 5 characters'),
@@ -41,10 +41,13 @@ export const aiAuthorityRecommendationSchema = z
 
 export type AIAuthorityRecommendationOutput = z.infer<typeof aiAuthorityRecommendationSchema>
 
+export const informationCompletenessEnum = z.enum(['minimal', 'cukup', 'lengkap'])
+export type InformationCompletenessOutput = z.infer<typeof informationCompletenessEnum>
+
 export const aiTriageOutputSchema = z.object({
   isValidComplaint: z.boolean(),
   rejectionReason: z.string().optional().default(''),
-  categorySlug: z.string().min(1, 'Category slug is required'),
+  categorySlug: z.string().nullable().optional().transform((v) => (v ? v.trim() : 'invalid')),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   confidence: z.number().min(0).max(1),
   summary: z.string().min(5, 'Summary must be at least 5 characters'),
@@ -56,6 +59,10 @@ export const aiTriageOutputSchema = z.object({
   unverifiedDetails: z.array(z.string()).optional().default([]),
   ambiguousFlags: z.array(z.string()).optional().default([]),
   authorityRecommendation: aiAuthorityRecommendationSchema.optional(),
+  informationCompleteness: informationCompletenessEnum.optional().default('cukup'),
+  urgencyEvidence: z.string().optional().default(''),
+  needsClarification: z.boolean().optional().default(false),
+  clarificationQuestions: z.array(z.string()).optional().default([]),
 })
 
 export type AITriageOutput = z.infer<typeof aiTriageOutputSchema>

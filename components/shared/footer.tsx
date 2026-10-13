@@ -2,99 +2,144 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapPin, Lock } from "lucide-react";
+import { MapPin, Lock, ArrowUpRight } from "lucide-react";
 
 export function Footer() {
   const pathname = usePathname();
 
   // Do not render public citizen footer inside internal admin / petugas portals
-  if (pathname.startsWith('/admin') || pathname.startsWith('/petugas')) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/petugas")) {
     return null;
   }
-  return (
-    <footer className="w-full border-t border-[#D9DEE7] bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-12 pb-8 border-b border-[#D9DEE7]">
-          {/* Brand & Purpose */}
-          <div className="md:col-span-6 space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-[#1749D2] text-white shadow-sm transition-transform group-hover:scale-105">
-                <span className="relative block h-5 w-4">
-                  <span className="absolute left-0 top-0 h-full w-1 bg-white" />
-                  <span className="absolute left-0 top-0 h-1 w-full bg-white" />
-                </span>
 
-                <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-[#E58A1F]" />
+  return (
+    <footer className="w-full px-3 pb-3 pt-8 sm:px-6 sm:pb-4 sm:pt-10">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+
+        {/* Main Footer */}
+        <div className="grid grid-cols-1 gap-8 p-5 sm:p-7 md:grid-cols-12 md:gap-8 lg:p-8">
+
+          {/* Brand & Purpose */}
+          <div className="space-y-4 md:col-span-6">
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              aria-label="Beranda LAPORKITO Palembang"
+            >
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-white shadow-sm transition-transform group-hover:scale-105">
+                <span className="relative block h-5 w-4" aria-hidden="true">
+                  <span className="absolute left-0 top-0 h-full w-1 rounded-sm bg-white" />
+                  <span className="absolute left-0 top-0 h-1 w-full rounded-sm bg-white" />
+                </span>
+                <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-amber-500" />
               </div>
-              <span className="text-base font-bold text-[#111C2D]">LAPORKITO</span>
-              {/* <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2 py-0.5 font-mono text-[10px] text-[#434654]">
-                Kota Palembang
-              </span> */}
-            </div>
-            <p className="text-xs text-[#434654] leading-relaxed max-w-lg">
-              LAPORKITO adalah platform pendamping pra-pelaporan partisipasi warga, dirancang untuk
-              membantu menyusun uraian masalah yang jelas, menguji validitas bukti lapangan, dan
-              merekomendasikan instansi yang berwenang sebelum diteruskan ke kanal penanganan.
+
+              <div className="flex flex-col">
+                <span className="text-base font-bold leading-none tracking-tight text-slate-900">
+                  LAPORKITO
+                </span>
+              </div>
+            </Link>
+
+            <p className="max-w-lg text-xs leading-relaxed text-slate-600 sm:text-sm">
+              LAPORKITO adalah platform pendamping pra-pelaporan
+              partisipasi warga yang membantu menyusun uraian masalah,
+              menguji kelengkapan bukti lapangan, dan merekomendasikan
+              instansi berwenang sebelum laporan diteruskan ke kanal
+              penanganan.
             </p>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-[#667085]">
-              {/* <span className="flex items-center gap-1">
-                <Shield className="h-3.5 w-3.5 text-[#16845B]" /> Tanpa Login untuk Warga
-              </span> */}
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-[#1749D2]" /> 18 Kecamatan Palembang
+
+            {/* Trust Indicators */}
+            <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:gap-x-5">
+              <span className="flex items-center gap-2">
+                <MapPin
+                  className="h-4 w-4 shrink-0 text-blue-700"
+                  aria-hidden="true"
+                />
+                18 Kecamatan Palembang
               </span>
-              <span className="flex items-center gap-1">
-                <Lock className="h-3.5 w-3.5 text-[#E58A1F]" /> Data Pribadi Terlindungi
+
+              <span className="flex items-center gap-2">
+                <Lock
+                  className="h-4 w-4 shrink-0 text-amber-600"
+                  aria-hidden="true"
+                />
+                Data Pribadi Terlindungi
               </span>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div className="md:col-span-3 space-y-2">
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#111C2D]">
+          {/* Public Services */}
+          <div className="space-y-4 md:col-span-3 md:col-start-9">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-900">
               Layanan Publik
             </h4>
-            <ul className="space-y-1.5 text-xs text-[#434654]">
-              <li>
-                <Link href="/" className="hover:text-[#1749D2] transition-colors">
-                  Beranda
-                </Link>
-              </li>
-              <li>
-                <Link href="/lapor" className="hover:text-[#1749D2] transition-colors">
-                  Buat Laporan Baru
-                </Link>
-              </li>
-              <li>
-                <Link href="/pantau" className="hover:text-[#1749D2] transition-colors">
-                  Pantau Laporan (Kode Lacak)
-                </Link>
-              </li>
-              <li>
-                <Link href="/#cara-kerja" className="hover:text-[#1749D2] transition-colors">
-                  Cara Kerja Sistem
-                </Link>
-              </li>
-            </ul>
+
+            <nav aria-label="Layanan Publik">
+              <ul className="space-y-3 text-xs text-slate-600 sm:text-sm">
+                <li>
+                  <Link
+                    href="/"
+                    className="inline-flex items-center gap-1 transition-colors hover:text-blue-700"
+                  >
+                    Beranda
+                  </Link>
+                </li>
+
+                <li>
+                  <Link
+                    href="/lapor"
+                    className="inline-flex items-center gap-1 transition-colors hover:text-blue-700"
+                  >
+                    Buat Laporan Baru
+                  </Link>
+                </li>
+
+                <li>
+                  <Link
+                    href="/pantau"
+                    className="inline-flex items-center gap-1 transition-colors hover:text-blue-700"
+                  >
+                    Pantau Laporan
+                  </Link>
+                </li>
+
+                <li>
+                  <Link
+                    href="/#cara-kerja"
+                    className="inline-flex items-center gap-1 transition-colors hover:text-blue-700"
+                  >
+                    Cara Kerja Sistem
+                  </Link>
+                </li>
+
+                <li>
+                  <Link
+                    href="/#faq"
+                    className="inline-flex items-center gap-1 transition-colors hover:text-blue-700"
+                  >
+                    FAQ
+                  </Link>
+                </li>
+              </ul>
+            </nav>
           </div>
-
-          {/* Institutional Integrity Note */}
-          {/* <div className="md:col-span-3 space-y-2">
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#111C2D]">
-              Integritas & Keamanan
-            </h4>
-            <p className="text-xs text-[#667085] leading-relaxed">
-              Data pribadi pelapor (nama, telepon, email) dilindungi dan tidak dipublikasikan ke publik.
-              Pelacakan publik hanya menampilkan kode lacak, deskripsi kejadian, dan status penanganan.
-            </p>
-          </div> */}
         </div>
 
-        {/* Bottom Notice */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-[#667085]">
-          <span>© 2026 LAPORKITO. All Right Reserve</span>
-          {/* <span>Infrastruktur Transparansi & Tata Kelola Pengaduan Publik</span> */}
+        {/* Bottom Bar */}
+        <div className="flex flex-col gap-2 border-t border-slate-200/80 bg-slate-50/70 px-5 py-4 text-center sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:text-left lg:px-8">
+          <span className="text-[11px] text-slate-500">
+            © {new Date().getFullYear()} LAPORKITO. All Right Reserve.
+          </span>
+
+          <Link
+            href="/"
+            className="text-[11px] font-medium text-slate-500 transition-colors hover:text-blue-700"
+          >
+            Layanan Pengaduan Kota Palembang
+          </Link>
         </div>
+
       </div>
     </footer>
   );

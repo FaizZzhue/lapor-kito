@@ -38,6 +38,8 @@ export interface AIAuthorityRecommendation {
   context_title?: string | null
 }
 
+export type InformationCompleteness = 'minimal' | 'cukup' | 'lengkap'
+
 export interface AITriageResult {
   categorySlug: string
   priority: ReportPriority
@@ -56,5 +58,9 @@ export interface AITriageResult {
   evidenceAnalysis?: AIEvidenceAnalysis
   evidenceAnalyses?: AIEvidenceAnalysis[]
   potentialDuplicates?: AIDuplicateCandidate[]
+  informationCompleteness?: InformationCompleteness
+  urgencyEvidence?: string
+  needsClarification?: boolean
+  clarificationQuestions?: string[]
 }
 

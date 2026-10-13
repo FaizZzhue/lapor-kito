@@ -22,14 +22,6 @@ export function AdminHeader({ user, onToggleSidebar, onOpenChangePassword }: Adm
         >
           <Menu size={18} aria-hidden="true" />
         </button>
-
-        <div className="flex items-center gap-2 min-w-0">
-          <Landmark className="w-4 h-4 text-[#747686] shrink-0 hidden sm:block" aria-hidden="true" />
-          <span className="text-[12px] sm:text-[13px] text-[#434654] font-medium truncate">
-            <span className="hidden sm:inline">Pemerintah Kota Palembang • </span>
-            <span className="font-semibold text-[#111C2D]">Konsol Operasional</span>
-          </span>
-        </div>
       </div>
 
       {/* Status & Identity Right */}

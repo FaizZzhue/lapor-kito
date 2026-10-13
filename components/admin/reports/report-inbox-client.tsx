@@ -177,12 +177,6 @@ export function ReportInboxClient({
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-[#D9DEE7]/80">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1749D2]" />
-            <p className="text-[11px] font-semibold text-[#747686] uppercase tracking-wider">
-              Operasional Kedinasan • Laporan Warga
-            </p>
-          </div>
           <div className="flex items-center gap-3">
             <h1 className="text-[26px] font-semibold text-[#111C2D] tracking-tight">
               Laporan Masuk

@@ -18,7 +18,7 @@ export async function generateMetadata({
 export default async function TanggapanBerhasilPage({ params }: TanggapanBerhasilPageProps) {
   const resolvedParams = await params;
   return (
-    <div className="w-full bg-[#F9F9FF] min-h-screen py-12 px-4 sm:px-6 lg:px-8 civic-grid">
+    <div className="w-full bg-[#eef2f6] min-h-screen py-10 sm:py-14 px-3 sm:px-6 lg:px-8 space-y-6">
       <div className="mx-auto max-w-7xl">
         <TanggapanBerhasilView trackingCode={resolvedParams.tracking_code} />
       </div>

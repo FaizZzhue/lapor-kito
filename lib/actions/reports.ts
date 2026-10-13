@@ -29,8 +29,51 @@ export interface ReverseGeocodeResult {
   displayName?: string;
   kecamatanMatch?: { id: string; name: string };
   kelurahanMatch?: { id: string; name: string };
+  confidence?: "high" | "low" | "none";
   attribution: string;
   error?: string;
+}
+
+function normalizeAdminName(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\b(kecamatan|kec|kelurahan|kel|desa|nagari|kampung|rw|rt)\b\.?/gi, "")
+    .replace(/[\.,\-_/]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchAdminName(candidate: string, target: string): boolean {
+  const normCandidate = normalizeAdminName(candidate);
+  const normTarget = normalizeAdminName(target);
+  if (!normCandidate || !normTarget) return false;
+  if (normCandidate === normTarget) return true;
+
+  // Exact word boundary match
+  const escaped = normTarget.replace(/\s+/g, "\\s+");
+  if (new RegExp(`\\b${escaped}\\b`, "i").test(normCandidate)) return true;
+
+  // Roman numeral vs digit comparison (e.g. "ilir barat 1" vs "ilir barat i")
+  const toRoman = (s: string) =>
+    s
+      .replace(/\b1\b/g, "i")
+      .replace(/\b2\b/g, "ii")
+      .replace(/\b3\b/g, "iii")
+      .replace(/\bsukarame\b/g, "sukarami");
+  const toDigit = (s: string) =>
+    s
+      .replace(/\biii\b/g, "3")
+      .replace(/\bii\b/g, "2")
+      .replace(/\bi\b/g, "1")
+      .replace(/\bsukarame\b/g, "sukarami");
+
+  if (toRoman(normCandidate) === toRoman(normTarget)) return true;
+  if (toDigit(normCandidate) === toDigit(normTarget)) return true;
+
+  const escapedRoman = toRoman(normTarget).replace(/\s+/g, "\\s+");
+  if (new RegExp(`\\b${escapedRoman}\\b`, "i").test(toRoman(normCandidate))) return true;
+
+  return false;
 }
 
 /**
@@ -89,18 +132,25 @@ export async function reverseGeocodeAction(
 
     const data = await res.json();
     const address = data?.address || {};
+
+    // Extract actual road/street properties - do NOT treat display_name as road
     const road =
       address.road ||
       address.pedestrian ||
       address.street ||
       address.residential ||
+      address.footway ||
+      address.path ||
       undefined;
+
     const suburb =
       address.suburb ||
       address.village ||
       address.neighbourhood ||
+      address.quarter ||
       address.hamlet ||
       undefined;
+
     const cityDistrict =
       address.city_district || address.district || address.county || undefined;
     const city = address.city || address.town || address.municipality || undefined;
@@ -116,33 +166,51 @@ export async function reverseGeocodeAction(
         adminSupabase.from("kelurahan").select("id, name, kecamatan_id"),
       ]);
 
-      if (kecRes.data && (cityDistrict || suburb)) {
-        const targetSearch = (cityDistrict || suburb || "").toLowerCase();
-        const cleanSearch = targetSearch.replace(/kecamatan|kec\.?|kelurahan|kel\.?/gi, "").trim();
+      const candidateTexts: string[] = [
+        address.city_district,
+        address.district,
+        address.suburb,
+        address.neighbourhood,
+        address.village,
+        address.quarter,
+        address.hamlet,
+        address.county,
+      ].filter(Boolean) as string[];
 
-        const foundKec = kecRes.data.find((k) => {
-          const kName = k.name.toLowerCase();
-          return (
-            kName === cleanSearch ||
-            cleanSearch.includes(kName) ||
-            kName.includes(cleanSearch)
-          );
-        });
+      if (kecRes.data && candidateTexts.length > 0) {
+        // Step 1: Match Kecamatan
+        for (const text of candidateTexts) {
+          const foundKec = kecRes.data.find((k) => matchAdminName(text, k.name));
+          if (foundKec) {
+            kecamatanMatch = { id: foundKec.id, name: foundKec.name };
+            break;
+          }
+        }
 
-        if (foundKec) {
-          kecamatanMatch = { id: foundKec.id, name: foundKec.name };
-
-          if (kelRes.data && suburb) {
-            const cleanSub = suburb.toLowerCase().replace(/kelurahan|kel\.?/gi, "").trim();
-            const foundKel = kelRes.data.find(
-              (kel) =>
-                kel.kecamatan_id === foundKec.id &&
-                (kel.name.toLowerCase() === cleanSub ||
-                  cleanSub.includes(kel.name.toLowerCase()) ||
-                  kel.name.toLowerCase().includes(cleanSub))
-            );
-            if (foundKel) {
-              kelurahanMatch = { id: foundKel.id, name: foundKel.name };
+        // Step 2: Match Kelurahan
+        if (kelRes.data) {
+          if (kecamatanMatch) {
+            // Find kelurahan within matched kecamatan
+            const kelCandidates = kelRes.data.filter((k) => k.kecamatan_id === kecamatanMatch!.id);
+            for (const text of candidateTexts) {
+              const foundKel = kelCandidates.find((k) => matchAdminName(text, k.name));
+              if (foundKel) {
+                kelurahanMatch = { id: foundKel.id, name: foundKel.name };
+                break;
+              }
+            }
+          } else {
+            // If kecamatan not matched directly, check if a specific kelurahan matches across all kelurahan
+            for (const text of candidateTexts) {
+              const foundKel = kelRes.data.find((k) => matchAdminName(text, k.name));
+              if (foundKel) {
+                kelurahanMatch = { id: foundKel.id, name: foundKel.name };
+                const parentKec = kecRes.data.find((k) => k.id === foundKel.kecamatan_id);
+                if (parentKec) {
+                  kecamatanMatch = { id: parentKec.id, name: parentKec.name };
+                }
+                break;
+              }
             }
           }
         }
@@ -150,6 +218,9 @@ export async function reverseGeocodeAction(
     } catch {
       // Non-fatal if DB matching fails
     }
+
+    const confidence: "high" | "low" | "none" =
+      kecamatanMatch && road ? "high" : kecamatanMatch ? "low" : "none";
 
     return {
       success: true,
@@ -160,6 +231,7 @@ export async function reverseGeocodeAction(
       displayName: data?.display_name,
       kecamatanMatch,
       kelurahanMatch,
+      confidence,
       attribution,
     };
   } catch (err: unknown) {
@@ -326,9 +398,8 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
     const triage = await triageReportWithAI(triageInput);
 
     // ──── STEP 1.5: Enforce categorySlug against DB taxonomy ────
-    // Gemini may return a slug not exactly matching the DB (e.g. "penerangan-jalan-umum" vs "penerangan-jalan").
-    // We resolve it to the canonical DB slug to ensure authority_rules lookup succeeds.
-    if (triage.categorySlug && availableCategories.length > 0) {
+    // Only resolve category if report is valid and has a non-invalid slug.
+    if (triage.isValidComplaint && triage.categorySlug && triage.categorySlug !== "invalid" && availableCategories.length > 0) {
       const exactMatch = availableCategories.find((c) => c.slug === triage.categorySlug);
       if (!exactMatch) {
         // Try substring match: DB slug is a prefix of AI slug, or AI slug starts with DB slug
@@ -362,12 +433,16 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
           }
         }
       }
+    } else if (!triage.isValidComplaint || triage.categorySlug === "invalid") {
+      triage.categorySlug = "invalid";
+      triage.confidence = 0.0;
+      triage.recommendedAuthority = "";
     }
 
     // ──── STEP 2: Authority Recommendation from DB Rules ────
     let authorityRecommendation = triage.authorityRecommendation;
 
-    if (triage.isValidComplaint && triage.categorySlug) {
+    if (triage.isValidComplaint && triage.categorySlug && triage.categorySlug !== "invalid") {
       try {
         const dbCandidates = await getAuthorityCandidatesByCategorySlug(triage.categorySlug);
 
@@ -430,6 +505,19 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
           context_title: null,
         };
       }
+    } else {
+      authorityRecommendation = {
+        rule_code: null,
+        decision: "NEEDS_REVIEW",
+        confidence: 0,
+        reasoning: triage.rejectionReason || "Laporan memerlukan peninjauan khusus atau berada di luar cakupan kewenangan publik.",
+        institution_name: null,
+        institution_code: null,
+        unit_name: null,
+        unit_code: null,
+        context_title: null,
+      };
+      triage.recommendedAuthority = "";
     }
 
     // ──── STEP 2.5: Multimodal Evidence Verification (if images provided) ────
@@ -488,6 +576,10 @@ export async function analyzeReportAction(input: TriageInput): Promise<AnalyzeRe
           categorySlug: triage.categorySlug,
           priority: triage.priority,
           confidence: triage.confidence,
+          informationCompleteness: triage.informationCompleteness,
+          urgencyEvidence: triage.urgencyEvidence,
+          needsClarification: triage.needsClarification,
+          clarificationQuestions: triage.clarificationQuestions,
           summary: triage.summary,
           statedFacts: triage.statedFacts,
           inferences: triage.inferences,
@@ -635,6 +727,13 @@ export interface SubmitReportResult {
   trackingCode?: string;
   error?: string;
   emailSent?: boolean;
+  emailNotification?: {
+    attempted: boolean;
+    sent: boolean;
+    recipient?: string;
+    emailId?: string;
+    errorReason?: string;
+  };
 }
 
 /**
@@ -833,7 +932,11 @@ export async function submitReportAction(
 
     // 8. Optional Email Confirmation via Resend (Notification Layer)
     let emailSent = false;
-    if (data.reporterEmail) {
+    let emailId: string | undefined = undefined;
+    let emailErrorReason: string | undefined = undefined;
+    const targetEmail = data.reporterEmail?.trim();
+
+    if (targetEmail) {
       let resolvedCategoryName = "Pengaduan Publik";
       try {
         const { data: catData } = await adminSupabase
@@ -851,26 +954,63 @@ export async function submitReportAction(
       const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://laporkito.id"}/pantau/${newReport.tracking_code}`;
       try {
         const emailResult = await sendReportSubmittedEmail({
-          to: data.reporterEmail,
-          reporterName: data.reporterName || "Warga Palembang",
+          to: targetEmail,
+          reporterName: data.reporterName?.trim() || "Warga Palembang",
           trackingCode: newReport.tracking_code,
           reportTitle: newReport.title,
           categoryName: resolvedCategoryName,
           trackingUrl,
         });
+
         emailSent = emailResult.success;
-        if (!emailResult.success) {
-          console.warn("Resend email notification non-fatal failure:", emailResult.error || emailResult.reason);
+        if (emailResult.success) {
+          emailId = (emailResult.data as { id?: string })?.id;
+          try {
+            await adminSupabase.from("report_timeline").insert({
+              report_id: newReport.id,
+              actor_role: "system",
+              action: "Notifikasi Email Terkirim",
+              notes: `Email konfirmasi pendaftaran laporan berhasil diserahkan ke provider Resend (ID: ${emailId || "-"}) untuk penerima ${targetEmail}.`,
+              metadata: { is_internal: false, provider: "resend", email_id: emailId },
+            });
+          } catch (tlErr) {
+            console.warn("Timeline email sent log non-fatal warning:", tlErr);
+          }
+        } else {
+          const rawErr = (emailResult.error as { message?: string })?.message || String(emailResult.error || emailResult.reason || "Provider error");
+          emailErrorReason = rawErr;
+          console.warn("Resend email notification non-fatal failure:", rawErr);
+
+          try {
+            await adminSupabase.from("report_timeline").insert({
+              report_id: newReport.id,
+              actor_role: "system",
+              action: "Notifikasi Email Tertunda",
+              notes: `Email konfirmasi ke ${targetEmail} belum dapat diserahkan ke provider: ${rawErr}. Laporan tetap aman dengan kode lacak ${newReport.tracking_code}.`,
+              metadata: { is_internal: false, provider: "resend", failure_reason: rawErr },
+            });
+          } catch (tlErr) {
+            console.warn("Timeline email failure log non-fatal warning:", tlErr);
+          }
         }
       } catch (emailErr) {
-        console.warn("Resend email notification warning:", emailErr);
+        const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        emailErrorReason = msg;
+        console.warn("Resend email notification warning:", msg);
       }
     }
 
     return {
       success: true,
       trackingCode: newReport.tracking_code,
-      emailSent: data.reporterEmail ? emailSent : undefined,
+      emailSent: targetEmail ? emailSent : undefined,
+      emailNotification: {
+        attempted: Boolean(targetEmail),
+        sent: emailSent,
+        recipient: targetEmail,
+        emailId,
+        errorReason: emailErrorReason,
+      },
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Kesalahan tidak terduga saat membuat laporan";
@@ -910,6 +1050,129 @@ async function requireAdmin() {
   return staff;
 }
 
+export interface UploadFieldDocumentationResult {
+  success: boolean;
+  fileUrl?: string;
+  storagePath?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  error?: string;
+}
+
+/**
+ * Securely uploads field documentation photo by authorized staff (Admin & Petugas)
+ * to Supabase Storage bucket 'report-evidence'.
+ * Path format: field-documentation/[reportId]/[dateStr]/[randomHex].[ext]
+ */
+export async function uploadFieldDocumentationAction(
+  formData: FormData
+): Promise<UploadFieldDocumentationResult> {
+  try {
+    // 1. Authorize: user must be active staff (admin or petugas)
+    const staff = await requireStaff();
+
+    const reportId = formData.get("reportId") as string | null;
+    if (
+      !reportId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId)
+    ) {
+      return { success: false, error: "ID laporan tidak valid." };
+    }
+
+    const file = formData.get("file") as File | null;
+    if (!file) {
+      return { success: false, error: "File foto dokumentasi tidak ditemukan." };
+    }
+
+    // 2. Validate MIME type (strictly JPEG, PNG, WebP)
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: "Format berkas tidak didukung. Harap gunakan format JPG, PNG, atau WebP.",
+      };
+    }
+
+    // 3. Validate size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return { success: false, error: "Ukuran berkas dokumentasi maksimal 10MB." };
+    }
+
+    const adminSupabase = createAdminClient();
+
+    // 4. Verify report exists in DB
+    const { data: dbReport, error: repErr } = await adminSupabase
+      .from("reports")
+      .select("id, tracking_code, status, assigned_institution_id, category_id, authority_target")
+      .eq("id", reportId)
+      .maybeSingle();
+
+    if (repErr || !dbReport) {
+      return { success: false, error: "Laporan tidak ditemukan dalam sistem." };
+    }
+
+    // 5. STRICT Petugas authorization: only assigned institution staff can upload
+    if (staff.role === "petugas") {
+      const assignment = await resolveReportInstitutionAssignment(dbReport, adminSupabase);
+      if (
+        !staff.institution_id ||
+        !assignment.institutionId ||
+        assignment.institutionId !== staff.institution_id
+      ) {
+        return {
+          success: false,
+          error:
+            "Akses ditolak: Anda hanya dapat mengunggah bukti untuk laporan yang ditugaskan kepada instansi Anda.",
+        };
+      }
+    }
+
+    // 6. Generate unique scoped storage path
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const randomHex = crypto.randomBytes(6).toString("hex");
+    const storagePath = `field-documentation/${reportId}/${dateStr}/${randomHex}.${ext}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await adminSupabase.storage
+      .from("report-evidence")
+      .upload(storagePath, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.warn("Field documentation upload error:", uploadError);
+      return {
+        success: false,
+        error: "Gagal mengunggah foto ke penyimpanan cloud. Silakan coba kembali.",
+      };
+    }
+
+    const { data: publicUrlData } = adminSupabase.storage
+      .from("report-evidence")
+      .getPublicUrl(storagePath);
+
+    return {
+      success: true,
+      fileUrl: publicUrlData.publicUrl,
+      storagePath,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Gagal mengunggah dokumentasi.";
+    return { success: false, error: message };
+  }
+}
+
+
 export interface ReportInstitutionAssignmentResult {
   institutionId: string | null;
   institutionName: string | null;
@@ -917,14 +1180,18 @@ export interface ReportInstitutionAssignmentResult {
   unitId: string | null;
   unitName: string | null;
   isExplicitAssignment: boolean;
+  recommendedInstitutionId?: string | null;
+  recommendedInstitutionName?: string | null;
 }
 
 /**
  * Resolves the authoritative institution assignment for a report.
- * Priority:
- * 1. Explicit formal assignment: reports.assigned_institution_id & assigned_unit_id
- * 2. Deterministic fallback match: reports.authority_target matching public.institutions
- * 3. Authority matrix lookup: reports.category_id via public.authority_rules
+ * 
+ * CORE PRINCIPLE:
+ * 1. Official assignment comes SOLELY from explicit columns: reports.assigned_institution_id & assigned_unit_id.
+ * 2. An AI or citizen recommendation in reports.authority_target is NEVER an official assignment.
+ *    Officers (Petugas) MUST NOT receive access to reports based on authority_target alone.
+ *    Unassigned reports remain strictly in the Administrator triage queue.
  */
 export async function resolveReportInstitutionAssignment(
   report: {
@@ -936,7 +1203,7 @@ export async function resolveReportInstitutionAssignment(
   },
   adminSupabase: ReturnType<typeof createAdminClient>
 ): Promise<ReportInstitutionAssignmentResult> {
-  // 1. Check explicit assignment columns
+  // 1. Check explicit assignment columns (Official formal assignment)
   if (report.assigned_institution_id) {
     const [instRes, unitRes] = await Promise.all([
       adminSupabase
@@ -965,7 +1232,11 @@ export async function resolveReportInstitutionAssignment(
     }
   }
 
-  // 2. Fallback: match authority_target string if populated
+  // 2. Report is UNASSIGNED (no official assigned_institution_id).
+  // Resolve recommendation metadata if authority_target is present, but institutionId remains NULL.
+  let recId: string | null = null;
+  let recName: string | null = null;
+
   if (report.authority_target && report.authority_target.trim()) {
     const cleanTarget = report.authority_target.trim();
     const { data: matchedInst } = await adminSupabase
@@ -976,19 +1247,13 @@ export async function resolveReportInstitutionAssignment(
       .maybeSingle();
 
     if (matchedInst) {
-      return {
-        institutionId: matchedInst.id,
-        institutionName: matchedInst.name,
-        institutionCode: matchedInst.code,
-        unitId: null,
-        unitName: null,
-        isExplicitAssignment: false,
-      };
+      recId = matchedInst.id;
+      recName = matchedInst.name;
+    } else {
+      recName = cleanTarget;
     }
   }
 
-  // If report has neither explicit assignment nor authority_target, it is UNASSIGNED!
-  // authority_rules serves as a legal reference matrix, NOT as a direct access grant.
   return {
     institutionId: null,
     institutionName: null,
@@ -996,6 +1261,8 @@ export async function resolveReportInstitutionAssignment(
     unitId: null,
     unitName: null,
     isExplicitAssignment: false,
+    recommendedInstitutionId: recId,
+    recommendedInstitutionName: recName,
   };
 }
 
@@ -1062,6 +1329,8 @@ export interface InternalReportDetailData {
     assigned_institution_name?: string | null;
     assigned_unit_id?: string | null;
     assigned_unit_name?: string | null;
+    recommended_institution_id?: string | null;
+    recommended_institution_name?: string | null;
     assigned_at?: string | null;
     assigned_by_id?: string | null;
     is_explicit_assignment?: boolean;
@@ -1119,6 +1388,11 @@ export interface InternalReportDetailData {
     hasData: boolean;
     model?: string;
     confidence?: number | null;
+    informationCompleteness?: "minimal" | "cukup" | "lengkap" | null;
+    urgencyEvidence?: string | null;
+    needsClarification?: boolean | null;
+    clarificationQuestions?: string[] | null;
+    unverifiedDetails?: string[] | null;
     summary?: string | null;
     reasoning?: string | null;
     priority?: ReportPriority | null;
@@ -1136,11 +1410,13 @@ export interface InternalReportDetailData {
     context_description?: string | null;
     regulation_basis?: string;
     institution?: {
+      id?: string;
       code: string;
       name: string;
       short_name: string | null;
     } | null;
     unit?: {
+      id?: string;
       code: string;
       name: string;
     } | null;
@@ -1175,8 +1451,26 @@ export async function getInternalReportsAction(
       };
     }
 
-    // Attempt querying reports with assignment fields first, fallback if migration 00005 is pending
-    let reports: any[] = [];
+    type RawReportRow = {
+      id: string;
+      tracking_code: string;
+      title: string;
+      description: string;
+      address_detail: string;
+      category_id: string | null;
+      kelurahan_id: string | null;
+      status: ReportStatus;
+      priority: ReportPriority;
+      ai_confidence: number | null;
+      authority_target: string | null;
+      assigned_institution_id?: string | null;
+      assigned_unit_id?: string | null;
+      assigned_at?: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+
+    let reports: RawReportRow[] = [];
     const fullSelect = `
       id,
       tracking_code,
@@ -1234,16 +1528,16 @@ export async function getInternalReportsAction(
       return q;
     };
 
-    const { data: fullReports, error: fullErr } = await buildQuery(fullSelect, false);
+    const { data: fullReports, error: fullErr } = await buildQuery(fullSelect, true);
     if (!fullErr && fullReports) {
-      reports = fullReports;
+      reports = fullReports as unknown as RawReportRow[];
     } else {
-      const { data: baseReports, error: baseErr } = await buildQuery(baseSelect, false);
+      const { data: baseReports, error: baseErr } = await buildQuery(baseSelect, true);
       if (baseErr) {
         console.error("getInternalReportsAction error:", baseErr);
         return { success: false, data: [], totalCount: 0, error: "Gagal memuat daftar laporan dari basis data." };
       }
-      reports = baseReports || [];
+      reports = (baseReports || []) as unknown as RawReportRow[];
     }
 
     // Load category, geographic, communication, and institutions reference lookups in parallel
@@ -1302,28 +1596,14 @@ export async function getInternalReportsAction(
         ? latestResp.responder_id === null || latestResp.response_type === "clarification"
         : false;
 
-      // Determine authoritative assigned institution
-      let assignedInstId: string | null = r.assigned_institution_id || null;
+      // Determine authoritative assigned institution (OFFICIAL ASSIGNMENT ONLY)
+      const assignedInstId: string | null = r.assigned_institution_id || null;
       let assignedInstName: string | null = null;
-      let assignedUnitId: string | null = r.assigned_unit_id || null;
+      const assignedUnitId: string | null = r.assigned_unit_id || null;
       let assignedUnitName: string | null = null;
 
       if (assignedInstId && instMap.has(assignedInstId)) {
         assignedInstName = instMap.get(assignedInstId)!.name;
-      } else if (r.authority_target) {
-        // Fallback match to institutions by authority_target text
-        const targetClean = r.authority_target.trim().toLowerCase();
-        for (const inst of instRes.data || []) {
-          if (
-            inst.name.toLowerCase() === targetClean ||
-            (inst.short_name && inst.short_name.toLowerCase() === targetClean) ||
-            inst.code.toLowerCase() === targetClean
-          ) {
-            assignedInstId = inst.id;
-            assignedInstName = inst.name;
-            break;
-          }
-        }
       }
 
       if (assignedUnitId && unitMap.has(assignedUnitId)) {
@@ -1556,6 +1836,11 @@ export async function getInternalReportDetailAction(
         hasData: true,
         model: aiLog.model,
         confidence: typeof rawResp.confidence === "number" ? rawResp.confidence : report.ai_confidence,
+        informationCompleteness: (rawResp.informationCompleteness as "minimal" | "cukup" | "lengkap") || null,
+        urgencyEvidence: (rawResp.urgencyEvidence as string) || null,
+        needsClarification: typeof rawResp.needsClarification === "boolean" ? rawResp.needsClarification : null,
+        clarificationQuestions: Array.isArray(rawResp.clarificationQuestions) ? (rawResp.clarificationQuestions as string[]) : null,
+        unverifiedDetails: Array.isArray(rawResp.unverifiedDetails) ? (rawResp.unverifiedDetails as string[]) : null,
         summary: (rawResp.summary as string) || report.ai_summary || null,
         reasoning: (rawResp.reasoning as string) || null,
         priority: (rawResp.priority as ReportPriority) || report.priority,
@@ -1591,23 +1876,23 @@ export async function getInternalReportDetailAction(
           context_title,
           context_description,
           regulation_basis,
-          institutions(code, name, short_name),
-          institution_units(code, name)
+          institutions(id, code, name, short_name),
+          institution_units(id, code, name)
         `)
         .eq("rule_code", recommendedRuleCode)
         .maybeSingle();
 
       if (ruleWithRels) {
-        const inst = ruleWithRels.institutions as unknown as { code: string; name: string; short_name: string | null } | null;
-        const unit = ruleWithRels.institution_units as unknown as { code: string; name: string } | null;
+        const inst = ruleWithRels.institutions as unknown as { id?: string; code: string; name: string; short_name: string | null } | null;
+        const unit = ruleWithRels.institution_units as unknown as { id?: string; code: string; name: string } | null;
         authorityRuleData = {
           hasData: true,
           rule_code: ruleWithRels.rule_code,
           context_title: ruleWithRels.context_title,
           context_description: ruleWithRels.context_description,
           regulation_basis: ruleWithRels.regulation_basis,
-          institution: inst ? { code: inst.code, name: inst.name, short_name: inst.short_name } : null,
-          unit: unit ? { code: unit.code, name: unit.name } : null,
+          institution: inst ? { id: inst.id, code: inst.code, name: inst.name, short_name: inst.short_name } : null,
+          unit: unit ? { id: unit.id, code: unit.code, name: unit.name } : null,
         };
       }
     }
@@ -1621,8 +1906,8 @@ export async function getInternalReportDetailAction(
           context_title,
           context_description,
           regulation_basis,
-          institutions(code, name, short_name),
-          institution_units(code, name)
+          institutions(id, code, name, short_name),
+          institution_units(id, code, name)
         `)
         .eq("category_id", report.category_id)
         .eq("is_active", true)
@@ -1631,16 +1916,16 @@ export async function getInternalReportDetailAction(
         .maybeSingle();
 
       if (fallbackRule) {
-        const inst = fallbackRule.institutions as unknown as { code: string; name: string; short_name: string | null } | null;
-        const unit = fallbackRule.institution_units as unknown as { code: string; name: string } | null;
+        const inst = fallbackRule.institutions as unknown as { id?: string; code: string; name: string; short_name: string | null } | null;
+        const unit = fallbackRule.institution_units as unknown as { id?: string; code: string; name: string } | null;
         authorityRuleData = {
           hasData: true,
           rule_code: fallbackRule.rule_code,
           context_title: fallbackRule.context_title,
           context_description: fallbackRule.context_description,
           regulation_basis: fallbackRule.regulation_basis,
-          institution: inst ? { code: inst.code, name: inst.name, short_name: inst.short_name } : null,
-          unit: unit ? { code: unit.code, name: unit.name } : null,
+          institution: inst ? { id: inst.id, code: inst.code, name: inst.name, short_name: inst.short_name } : null,
+          unit: unit ? { id: unit.id, code: unit.code, name: unit.name } : null,
         };
       }
     }
@@ -1650,7 +1935,7 @@ export async function getInternalReportDetailAction(
       const targetSearch = assignment.institutionName || report.authority_target || "";
       const { data: matchedInst } = await adminSupabase
         .from("institutions")
-        .select("code, name, short_name")
+        .select("id, code, name, short_name")
         .or(`name.ilike.%${targetSearch}%,short_name.ilike.%${targetSearch}%`)
         .limit(1)
         .maybeSingle();
@@ -1661,6 +1946,7 @@ export async function getInternalReportDetailAction(
           context_title: `Kewenangan ${matchedInst.name}`,
           regulation_basis: "Peraturan Wali Kota Palembang tentang Tugas Pokok dan Fungsi Perangkat Daerah",
           institution: {
+            id: matchedInst.id,
             code: matchedInst.code,
             name: matchedInst.name,
             short_name: matchedInst.short_name,
@@ -1690,6 +1976,8 @@ export async function getInternalReportDetailAction(
           assigned_institution_name: assignment.institutionName,
           assigned_unit_id: assignment.unitId,
           assigned_unit_name: assignment.unitName,
+          recommended_institution_id: assignment.recommendedInstitutionId,
+          recommended_institution_name: assignment.recommendedInstitutionName,
           assigned_at: report.assigned_at || null,
           assigned_by_id: report.assigned_by_id || null,
           is_explicit_assignment: assignment.isExplicitAssignment,
@@ -1842,7 +2130,7 @@ export async function updateReportStatusAction(
 
     // STRICT SERVER AUTHORIZATION: Petugas can only mutate status of reports assigned to their institution
     if (staff.role === "petugas") {
-      const assignment = await resolveReportInstitutionAssignment(dbReport as any, adminSupabase);
+      const assignment = await resolveReportInstitutionAssignment(dbReport, adminSupabase);
       if (!staff.institution_id || !assignment.institutionId || assignment.institutionId !== staff.institution_id) {
         return {
           success: false,
@@ -1860,6 +2148,49 @@ export async function updateReportStatusAction(
         success: false,
         error: `Transisi status tidak diizinkan: dari '${currentStatus}' ke '${nextStatus}'.`,
       };
+    }
+
+    // Strict requirement: completion photos for 'resolved' status
+    if (nextStatus === "resolved") {
+      const hasDirectPhotos = Boolean(
+        parsed.data.completionPhotos && parsed.data.completionPhotos.length > 0
+      );
+
+      if (!hasDirectPhotos) {
+        // Check if report already has completion photos recorded in previous responses or timeline
+        const { data: existingRespWithAtt } = await adminSupabase
+          .from("report_responses")
+          .select("id, attachments")
+          .eq("report_id", reportId)
+          .not("attachments", "is", null);
+
+        const hasAttachedPhotos = existingRespWithAtt?.some((r) => {
+          const atts = r.attachments;
+          return Array.isArray(atts) && atts.length > 0;
+        });
+
+        const { data: existingTimelineWithPhotos } = await adminSupabase
+          .from("report_timeline")
+          .select("id, metadata")
+          .eq("report_id", reportId);
+
+        const hasTimelinePhotos = existingTimelineWithPhotos?.some((t) => {
+          const meta = t.metadata as Record<string, unknown> | null;
+          return (
+            meta &&
+            Array.isArray(meta.photos) &&
+            (meta.photos as unknown[]).length > 0
+          );
+        });
+
+        if (!hasAttachedPhotos && !hasTimelinePhotos) {
+          return {
+            success: false,
+            error:
+              "Dokumentasi foto penyelesaian lapangan wajib disertakan sebelum laporan dapat ditandai selesai.",
+          };
+        }
+      }
     }
 
     // Require reason notes for destructive terminal actions (rejected & duplicate)
@@ -1899,7 +2230,20 @@ export async function updateReportStatusAction(
       };
     }
 
-    // 6. Insert timeline audit record
+    // 6. Insert timeline audit record with field documentation metadata
+    const timelineMetadata: Record<string, unknown> = {
+      previous_status: currentStatus,
+      next_status: nextStatus,
+      actor_name: staff.full_name,
+      actor_email: staff.email,
+      is_internal: false, // Visible in public tracking timeline
+    };
+
+    if (parsed.data.completionPhotos && parsed.data.completionPhotos.length > 0) {
+      timelineMetadata.documentation_type = "completion";
+      timelineMetadata.photos = parsed.data.completionPhotos;
+    }
+
     const { data: insertedTimeline, error: timelineErr } = await adminSupabase
       .from("report_timeline")
       .insert({
@@ -1908,13 +2252,7 @@ export async function updateReportStatusAction(
         actor_role: staff.role,
         action: actionTitle,
         notes: finalNotes,
-        metadata: {
-          previous_status: currentStatus,
-          next_status: nextStatus,
-          actor_name: staff.full_name,
-          actor_email: staff.email,
-          is_internal: false, // Visible in public tracking timeline
-        },
+        metadata: timelineMetadata as unknown as Json,
       })
       .select("id")
       .single();
@@ -1934,6 +2272,18 @@ export async function updateReportStatusAction(
         success: false,
         error: "Gagal mencatat riwayat linimasa operasional. Perubahan status dibatalkan.",
       };
+    }
+
+    // 6.1 If completion photos provided, also record official response with attachments
+    if (parsed.data.completionPhotos && parsed.data.completionPhotos.length > 0) {
+      await adminSupabase.from("report_responses").insert({
+        report_id: reportId,
+        responder_id: staff.id,
+        response_type: "official",
+        message: finalNotes,
+        attachments: parsed.data.completionPhotos,
+        is_public: true,
+      });
     }
 
     // 6.5 Status Change Email Notification (Non-fatal, server-side triggered)
@@ -2013,6 +2363,25 @@ export async function updateReportStatusAction(
   }
 }
 
+export interface AssignReportInstitutionResult {
+  success: boolean;
+  error?: string;
+  data?: {
+    assignedInstitutionId: string;
+    assignedInstitutionName: string;
+    assignedUnitId: string | null;
+    assignedUnitName: string | null;
+    assignedAt: string;
+    timelineEntry: {
+      id: string;
+      action: string;
+      notes: string | null;
+      actor_role: string;
+      created_at: string;
+    };
+  };
+}
+
 /**
  * Server Action for Administrator to formally assign or reassign a report to an institution/unit.
  * Records formal audit history in report_timeline.
@@ -2022,7 +2391,7 @@ export async function assignReportInstitutionAction(input: {
   institutionId: string;
   unitId?: string | null;
   notes?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<AssignReportInstitutionResult> {
   try {
     const admin = await requireAdmin();
     const adminSupabase = createAdminClient();
@@ -2066,29 +2435,25 @@ export async function assignReportInstitutionAction(input: {
 
     const nowIso = new Date().toISOString();
 
-    // 4. Update assignment (support both migration 00005 columns and fallback authority_target)
-    const basePayload = {
-      authority_target: targetInst.name,
-      updated_at: nowIso,
-    };
+    // 4. Update assignment columns strictly (official assignment)
+    const { error: updateErr } = await adminSupabase
+      .from("reports")
+      .update({
+        authority_target: targetInst.name,
+        assigned_institution_id: targetInst.id,
+        assigned_unit_id: input.unitId || null,
+        assigned_at: nowIso,
+        assigned_by_id: admin.id,
+        updated_at: nowIso,
+      })
+      .eq("id", input.reportId);
 
-    try {
-      const { error: fullUpdateErr } = await adminSupabase
-        .from("reports")
-        .update({
-          ...basePayload,
-          assigned_institution_id: targetInst.id,
-          assigned_unit_id: input.unitId || null,
-          assigned_at: nowIso,
-          assigned_by_id: admin.id,
-        })
-        .eq("id", input.reportId);
-
-      if (fullUpdateErr) {
-        await adminSupabase.from("reports").update(basePayload).eq("id", input.reportId);
-      }
-    } catch {
-      await adminSupabase.from("reports").update(basePayload).eq("id", input.reportId);
+    if (updateErr) {
+      console.error("assignReportInstitutionAction error:", updateErr);
+      return {
+        success: false,
+        error: `Gagal memperbarui penugasan laporan pada basis data: ${updateErr.message}`,
+      };
     }
 
     // 5. Insert timeline audit record
@@ -2096,21 +2461,31 @@ export async function assignReportInstitutionAction(input: {
       input.notes?.trim() ||
       `Laporan secara resmi ditugaskan ke ${targetInst.name}${unitName ? ` (${unitName})` : ""} oleh ${admin.full_name}.`;
 
-    await adminSupabase.from("report_timeline").insert({
-      report_id: input.reportId,
-      actor_id: admin.id,
-      actor_role: "admin",
-      action: `Penugasan Instansi: ${targetInst.short_name || targetInst.code}`,
-      notes: auditNotes,
-      metadata: {
-        is_internal: false,
-        assigned_institution_id: targetInst.id,
-        assigned_institution_name: targetInst.name,
-        assigned_unit_id: input.unitId || null,
-        assigned_unit_name: unitName,
-        assigned_by_name: admin.full_name,
-      },
-    });
+    const timelineActionTitle = `Penugasan Instansi: ${targetInst.short_name || targetInst.code}`;
+
+    const { data: insertedTimeline, error: timelineErr } = await adminSupabase
+      .from("report_timeline")
+      .insert({
+        report_id: input.reportId,
+        actor_id: admin.id,
+        actor_role: "admin",
+        action: timelineActionTitle,
+        notes: auditNotes,
+        metadata: {
+          is_internal: false,
+          assigned_institution_id: targetInst.id,
+          assigned_institution_name: targetInst.name,
+          assigned_unit_id: input.unitId || null,
+          assigned_unit_name: unitName,
+          assigned_by_name: admin.full_name,
+        },
+      })
+      .select("id, action, notes, actor_role, created_at")
+      .single();
+
+    if (timelineErr) {
+      console.warn("Timeline insert warning during assignment:", timelineErr);
+    }
 
     try {
       revalidatePath("/admin/laporan");
@@ -2124,7 +2499,23 @@ export async function assignReportInstitutionAction(input: {
       // Safe fallback when executed outside Next.js request context
     }
 
-    return { success: true };
+    return {
+      success: true,
+      data: {
+        assignedInstitutionId: targetInst.id,
+        assignedInstitutionName: targetInst.name,
+        assignedUnitId: input.unitId || null,
+        assignedUnitName: unitName,
+        assignedAt: nowIso,
+        timelineEntry: insertedTimeline || {
+          id: `tl-assign-${Date.now()}`,
+          action: timelineActionTitle,
+          notes: auditNotes,
+          actor_role: "admin",
+          created_at: nowIso,
+        },
+      },
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Gagal menetapkan penugasan instansi laporan";
     return { success: false, error: msg };

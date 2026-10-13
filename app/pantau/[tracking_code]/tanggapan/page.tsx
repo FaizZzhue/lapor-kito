@@ -32,7 +32,7 @@ export default async function TanggapanPage({ params }: TanggapanPageProps) {
       : undefined;
 
   return (
-    <div className="w-full bg-[#F9F9FF] min-h-screen py-10 px-4 sm:px-6 lg:px-8 civic-grid">
+    <div className="w-full bg-[#eef2f6] min-h-screen py-8 sm:py-12 px-3 sm:px-6 lg:px-8 space-y-6">
       <div className="mx-auto max-w-7xl">
         <TanggapanForm
           trackingCode={rawCode}

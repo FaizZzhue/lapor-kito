@@ -210,17 +210,6 @@ export function PetugasDashboardView({
 
       {/* OPERATIONAL INBOX FOR PETUGAS */}
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-[18px] font-bold text-[#111C2D]">
-              Daftar Laporan Ditugaskan ke {institutionShortName}
-            </h2>
-            <p className="text-[13px] text-[#747686] mt-0.5">
-              Kelola pengaduan, perbarui status penanganan, dan berikan tanggapan resmi kepada warga.
-            </p>
-          </div>
-        </div>
-
         <ReportInboxClient
           initialReports={reports}
           categories={categories}

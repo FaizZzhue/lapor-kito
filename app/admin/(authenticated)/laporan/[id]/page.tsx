@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, FileQuestion } from "lucide-react";
 import { getCurrentInternalUser } from "@/lib/auth/session";
 import { getInternalReportDetailAction } from "@/lib/actions/reports";
+import { createAdminClient } from "@/lib/supabase/server";
 import { ReportDetailView } from "@/components/admin/reports/report-detail-view";
 
 export const dynamic = "force-dynamic";
@@ -49,5 +50,34 @@ export default async function AdminLaporanDetailPage({ params }: LaporanDetailPa
     );
   }
 
-  return <ReportDetailView data={result.data} userRole={internalUser.role} />;
+  let availableInstitutions: Array<{ id: string; code: string; name: string; short_name: string | null }> = [];
+  let availableUnits: Array<{ id: string; code: string; name: string; institution_id: string }> = [];
+
+  if (internalUser.role === "admin") {
+    const adminSupabase = createAdminClient();
+    const [instsRes, unitsRes] = await Promise.all([
+      adminSupabase
+        .from("institutions")
+        .select("id, code, name, short_name")
+        .eq("is_active", true)
+        .order("name", { ascending: true }),
+      adminSupabase
+        .from("institution_units")
+        .select("id, code, name, institution_id")
+        .eq("is_active", true)
+        .order("name", { ascending: true }),
+    ]);
+
+    availableInstitutions = instsRes.data || [];
+    availableUnits = unitsRes.data || [];
+  }
+
+  return (
+    <ReportDetailView
+      data={result.data}
+      userRole={internalUser.role}
+      availableInstitutions={availableInstitutions}
+      availableUnits={availableUnits}
+    />
+  );
 }

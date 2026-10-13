@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { documentationAttachmentSchema } from './tanggapan'
 
 export const evidenceItemSchema = z.object({
   fileUrl: z.string().url('URL bukti tidak valid'),
@@ -75,6 +76,7 @@ export const updateReportStatusSchema = z.object({
   reportId: z.string().uuid('ID laporan tidak valid'),
   nextStatus: reportStatusEnum,
   notes: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional(),
+  completionPhotos: z.array(documentationAttachmentSchema).optional(),
 })
 
 export type UpdateReportStatusSchemaType = z.infer<typeof updateReportStatusSchema>

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LAPORKITO — Kanal Pengaduan Warga Kota Palembang",
+  title: "LAPORKITO",
   description:
     "Sampaikan laporan permasalahan infrastruktur dan layanan publik di Kota Palembang secara cepat, transparan, dan terverifikasi AI.",
   keywords: [

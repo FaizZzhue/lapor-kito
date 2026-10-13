@@ -97,25 +97,44 @@ export class GeminiProvider implements AIProvider {
     const ai = this.ensureClient()
 
     const categoriesList = input.availableCategories && input.availableCategories.length > 0
-      ? `Daftar Kategori Resmi Terdaftar (PILIH SALAH SATU YANG PALING RELEVAN):\n${input.availableCategories.map((c) => `- ${c.slug}: ${c.name}`).join('\n')}`
-      : `Daftar Kategori Resmi Terdaftar:
-- infrastruktur-jalan: Kerusakan jalan, aspal berlubang, trotoar, jembatan, marka/pembatas jalan.
-- kebersihan-lingkungan: Sampah liar, penumpukan sampah, TPS meluap, sampah di ruang publik/sungai.
-- drainase-saluran-air: Saluran got tersumbat, sedimentasi parit, luapan air/banjir, tanggul rusak.
-- penerangan-jalan: Lampu Penerangan Jalan Umum (PJU) mati/padam, redup, tiang roboh, kabel putus.`
+      ? `Daftar Kategori Resmi Fasilitas Publik Kota Palembang:
+${input.availableCategories.map((c) => `- ${c.slug}: ${c.name}`).join('\n')}
+- invalid: Gunakan jika isi laporan berada di luar 4 kategori publik di atas, atau jika judul dan uraian bertentangan, atau jika merupakan masalah privat/bukan fasilitas umum.`
+      : `Daftar Kategori Resmi Fasilitas Publik Kota Palembang:
+- infrastruktur-jalan: Kerusakan fisik fasilitas jalan umum (aspal berlubang, trotoar, jembatan, marka/pembatas jalan). BUKAN kecelakaan pribadi di rumah, BUKAN sengketa kendaraan.
+- kebersihan-lingkungan: Sampah liar di ruang publik, penumpukan sampah, TPS meluap, sampah di saluran/sungai publik. BUKAN sampah privat pekarangan rumah tangga.
+- drainase-saluran-air: Saluran got tersumbat, sedimentasi parit, luapan air/banjir got ke jalan atau permukiman, tanggul drainase rusak. BUKAN pasang surut sungai besar alami (seperti Sungai Musi) tanpa kerusakan fasilitas drainase kota; BUKAN pipa bocor di dalam rumah.
+- penerangan-jalan: Lampu Penerangan Jalan Umum (PJU) mati/padam, redup, tiang roboh, kabel putus di jalan umum. BUKAN instalasi lampu dalam rumah.
+- invalid: Gunakan jika isi laporan berada di luar 4 kategori publik di atas, atau jika judul dan uraian bertentangan, atau jika merupakan masalah privat/bukan fasilitas umum.`
 
     const authoritiesList = input.availableAuthorities && input.availableAuthorities.length > 0
-      ? `Daftar Instansi/OPD Berwenang Resmi Terdaftar:\n${input.availableAuthorities.map((a) => `- ${a.name} (${a.code}): ${a.scope || '-'}`).join('\n')}\nATURAN KETAT: Rekomendasikan nama instansi HANYA jika ada dalam daftar di atas. Jika tidak ada yang cocok, isi dengan string kosong (""). JANGAN PERNAH mereka-reka nama instansi.`
+      ? `Daftar Instansi/OPD Berwenang Resmi Terdaftar:\n${input.availableAuthorities.map((a) => `- ${a.name} (${a.code}): ${a.scope || '-'}`).join('\n')}\nATURAN KETAT: Rekomendasikan nama instansi HANYA jika ada dalam daftar di atas dan laporan VALID. Jika tidak ada yang cocok atau laporan tidak valid, isi dengan string kosong (""). JANGAN PERNAH mereka-reka nama instansi.`
       : 'ATURAN KETAT: Belum ada daftar instansi terdaftar. Kosongkan nilai "recommendedAuthority" ("").'
 
     const prompt = `Anda adalah sistem AI profesional untuk pra-pelaporan pengaduan sipil publik LAPORKITO Kota Palembang.
 Tugas Anda:
-1. Memverifikasi validitas pengaduan warga.
-2. Memahami bahasa masukan warga — baik Bahasa Indonesia formal, informal, maupun Bahasa Palembang (dan campurannya).
-3. Mengklasifikasikan ke dalam SALAH SATU dari empat kategori resmi terdaftar.
-4. Mengevaluasi tingkat urgensi/prioritas secara objektif (low, medium, high, critical).
-5. Menyusun kembali deskripsi warga menjadi RINGKASAN BAHASA INDONESIA yang jelas, padat, tertata, dan tegas tanpa mengubah makna asli.
-6. Membedakan secara ketat antara: FAKTA yang dinyatakan pelapor, INFERENSI teknis AI, dan INFORMASI YANG BELUM DIKETAHUI.
+1. Memverifikasi validitas pengaduan warga dan mengevaluasi apakah pengaduan berada dalam cakupan fasilitas publik Kota Palembang.
+2. Memeriksa kesesuaian dan keterkaitan antara Judul dan Deskripsi pengaduan.
+3. Memahami bahasa masukan warga — baik Bahasa Indonesia formal, informal, maupun Bahasa Palembang (dan campurannya).
+4. Mengklasifikasikan ke dalam kategori resmi yang tepat, ATAU menetapkan "invalid" jika tidak sesuai cakupan / saling bertentangan.
+5. Mengevaluasi tingkat urgensi/prioritas secara objektif (low, medium, high, critical).
+6. MENGEVALUASI SECARA TERPISAH EMPAT DIMENSI BERIKUT (JANGAN DICAMPURADUKKAN):
+   a. KESESUAIAN KATEGORI ("confidence"):
+      - Nilai 0.0 sampai 1.0 yang HANYA merepresentasikan kepastian kecocokan teks dengan kategori yang dipilih.
+      - Jika laporan tidak valid, kontradiktif, atau di luar cakupan, set confidence: 0.0.
+      - JANGAN menganggap confidence kategori yang tinggi sebagai bukti bahwa seluruh aspek laporan sudah lengkap atau terverifikasi!
+   b. KECUKUPAN INFORMASI ("informationCompleteness"):
+      - "minimal": Teks sangat singkat atau hanya menyebut kata kunci objek tanpa titik lokasi pasti, tanpa ukuran/volume kerusakan, dan tanpa dampak (contoh: "Jalan rusak.", "Lampu mati.", "Sampah menumpuk.", "Air tergenang.").
+      - "cukup": Teks memuat objek masalah dan gambaran kondisi umum atau lokasi umum, namun masih ada rincian teknis yang belum lengkap.
+      - "lengkap": Teks memuat objek masalah, titik patokan lokasi yang jelas, kondisi/dimensi kerusakan nyata, dan dampak terhadap warga/lingkungan.
+   c. DUKUNGAN BUKTI TEKS TERHADAP URGENSI ("urgencyEvidence"):
+      - Jika informasi minimal: Nyatakan secara jujur bahwa prioritas merupakan estimasi awal berdasarkan jenis fasilitas; keparahan dampak belum dapat dipastikan karena ketiadaan rincian. JANGAN mengarang bahaya atau kecelakaan yang tidak ditulis pelapor!
+      - Jika ada bukti teks eksplisit: Nyatakan bukti teks spesifik yang mendasari penetapan prioritas tersebut.
+   d. KEBUTUHAN KLARIFIKASI ("needsClarification" & "clarificationQuestions"):
+      - Jika informationCompleteness === "minimal" atau terdapat ketidakjelasan/kiasan/kontradiksi, set "needsClarification": true dan ajukan 1-3 pertanyaan klarifikasi ramah dan terarah untuk memandu pelapor melengkapi informasi penting sebelum ditangani.
+      - Jika informasi sudah cukup/lengkap dan tidak ada keraguan, set "needsClarification": false dan "clarificationQuestions": [].
+7. Menyusun kembali deskripsi warga menjadi RINGKASAN BAHASA INDONESIA yang jelas, padat, tertata, dan faktual tanpa menambah fakta baru.
+8. Membedakan secara ketat antara: FAKTA yang dinyatakan pelapor, INFERENSI teknis AI, dan INFORMASI YANG BELUM DIKETAHUI.
 
 ${categoriesList}
 
@@ -135,17 +154,57 @@ PANDUAN KATA & UNGKAPAN BAHASA PALEMBANG / SEHARI-HARI:
 - "numpuk serakan" = menumpuk berserakan
 - "uwong" = orang / warga
 
-ATURAN ANTI-HALUSINASI DAN KETEPATAN (SANGAT KETAT):
-1. DILARANG MENAMBAHKAN PENYEBAB yang tidak dinyatakan pelapor (misal: JANGAN mengarang "diduga akibat truk bertonase besar" atau "akibat buangan limbah industri" jika pelapor tidak menyatakannya).
-2. DILARANG MENGARANG WAKTU, LOKASI, DAMPAK, ATAU KONDISI FISIK yang tidak ada di teks warga (misal: jika warga tidak menyebut waktu, jangan tulis "sejak seminggu lalu"; jika warga tidak menyebut korban, jangan sebutkan "memakan korban luka").
-3. JANGAN MENGUBAH KETIDAKPASTIAN MENJADI KEPASTIAN: Jika warga menyatakan dugaan ("caknyo", "mungkin", "katonyo"), pertahankan sebagai dugaan atau catat sebagai informasi belum terverifikasi.
-4. KATA/UNGKAPAN AMBIGU ATAU KIASAN: Jika warga menggunakan kiasan (misal "cak kapal karam", "lokak makan korban", "ancur mincur"), jangan artikan sebagai kapal karam sungguhan atau korban jiwa nyata. Pahami maksud kiasannya sebagai tingkat kerusakan berat dan catat di "ambiguousFlags".
-5. ATURAN VALIDITAS PENGADUAN: Jika laporan memuat objek masalah fasilitas/layanan publik nyata (seperti jalan rusak, tumpukan sampah, saluran got/banjir, lampu jalan padam), MAKA LAPORAN ADALAH VALID ("isValidComplaint": true), meskipun pelapor belum menuliskan lokasi detail. JANGAN menolak laporan hanya karena alamat belum lengkap (catat saja lokasi yang belum disebutkan di "unverifiedDetails"). HANYA tandai "isValidComplaint": false jika teks sama sekali tidak memuat masalah fisik (contoh: hanya "tolong min", sapaan "halo siang", spam, ujaran kebencian, atau teks tanpa substansi).
-6. BEDAKAN SECARA STRUKTURAL:
+ATURAN ANTI-HALUSINASI, VALIDASI, DAN INTEGRITAS KATEGORI (SANGAT KETAT):
+1. EVALUASI KESESUAIAN JUDUL DAN URAIAN (MUTUAL SUPPORT):
+   - Periksa apakah Judul dan Deskripsi saling mendukung dan berkaitan dengan topik permasalahan yang sama.
+   - Jika Judul dan Deskripsi SALING BERTENTANGAN SECARA MATERIAL (misalnya: Judul menyebut banjir di sungai, namun deskripsi menceritakan kecelakaan di rumah; atau judul menyebut jalan rusak tetapi isi deskripsi membahas urusan dagang/keluarga):
+     * Wajib tetapkan "isValidComplaint": false.
+     * "rejectionReason": "Judul laporan dan uraian kondisi lapangan saling bertentangan secara material dan tidak berhubungan."
+     * "categorySlug": "invalid".
+     * "confidence": 0.0.
+     * "needsClarification": true.
+     * "recommendedAuthority": "".
+     * Catat poin kontradiksi di "ambiguousFlags".
+
+2. EVALUASI LINGKUP FASILITAS PUBLIK (OUT-OF-SCOPE & PRIVATE DOMAIN):
+   - LAPORKITO menangani fasilitas publik perkotaan dan dampak infrastruktur publik (jalan umum kota, kebersihan ruang publik, drainase & pengendalian banjir permukiman, penerangan jalan umum).
+   - KETENTUAN KHUSUS BANJIR, GENANGAN, DAN BENCANA LUAPAN AIR DI PERMUKIMAN:
+     * Banjir bandang di permukiman, genangan banjir jalan/perumahan, air meluap ke lingkungan warga, atau debit air melimpas akibat keterbatasan saluran/parit/kolam retensi ADALAH PENGADUAN PUBLIK YANG SAH DAN VALID ("isValidComplaint": true) dengan kategori "drainase-saluran-air".
+     * JANGAN PERNAH menolak laporan banjir di permukiman hanya karena menyebut kata "banjir bandang" atau "bencana alam". Penanganan fisik saluran dan kolam retensi terkait DPUPR, dan penanggulangan kedaruratan bencana warga terkait BPBD. Ini urusan publik Pemerintah Kota yang sah.
+   - PENGADUAN YANG BENAR-BENAR DI LUAR LINGKUP (INVALID):
+     Hanya nyatakan "isValidComplaint": false jika isi laporan murni mengenai:
+     * Masalah instalasi pribadi di dalam rumah tinggal (misal: pipa wastafel/kamar mandi bocor di dalam rumah, genteng bocor, keramik retak),
+     * Kedaruratan medis pribadi, sengketa waris/keluarga, tindak pidana murni kejahatan (ranah kepolisian),
+     * Jual beli/transaksi perdata pribadi, sapaan tanpa isi keluhan, atau teks acak yang tidak bermakna:
+     * Untuk kasus ini, tetapkan:
+       - "isValidComplaint": false.
+       - "rejectionReason": "Laporan berada di luar lingkup fasilitas publik Kota Palembang (merupakan ranah privat, darurat non-infrastruktur, atau perdata)."
+       - "categorySlug": "invalid".
+       - "confidence": 0.0.
+       - "needsClarification": true.
+       - "recommendedAuthority": "".
+
+3. LARANGAN MENGHUBUNGKAN KATA KUNCI TANPA DASAR TEKS (KEYWORD MISASSOCIATION):
+   - Kata "kecelakaan" TIDAK OTOMATIS berarti infrastruktur-jalan! Kecelakaan hanya terkait infrastruktur-jalan bila teks eksplisit menyatakan disebabkan oleh kondisi jalan rusak/berlubang. Jika hanya menyebut "kecelakaan di rumah", ini adalah insiden privat.
+   - Kata "banjir di Sungai Musi" adalah perairan sungai alami, BUKAN jalan raya dan bukan fasilitas drainase got kota kecuali teks menyebut luapan parit/drainase perkotaan.
+   - DILARANG MENAMBAHKAN PENYEBAB yang tidak dinyatakan pelapor (misal: JANGAN mengarang "diduga akibat truk bertonase besar" atau "akibat buangan limbah industri").
+   - DILARANG MENGARANG WAKTU, LOKASI, DAMPAK, ATAU KONDISI FISIK yang tidak ada di teks warga.
+
+4. PENANGANAN PENGADUAN MINIMAL NAMUN VALID (CONTOH: "Jalan rusak.", "Lampu jalan mati."):
+   - Jika teks sangat singkat namun menyebut objek fasilitas publik nyata yang sah:
+     * Laporan adalah VALID: "isValidComplaint": true.
+     * Pilih kategori sesuai objek fisik ("infrastruktur-jalan", "penerangan-jalan", dll).
+     * "confidence": 0.90 (kecocokan semantik objek jelas).
+     * "informationCompleteness": "minimal".
+     * "urgencyEvidence": "Estimasi awal berdasarkan jenis fasilitas publik; tingkat keparahan dampak belum dapat dipastikan karena ketiadaan rincian kondisi lapangan." (DILARANG mengarang dampak!).
+     * "needsClarification": true.
+     * "clarificationQuestions": Buat 1-3 pertanyaan klarifikasi sopan untuk menanyakan titik lokasi patokan pasti dan ukuran/tingkat kerusakan.
+
+5. BEDAKAN SECARA STRUKTURAL:
    - "statedFacts": Daftar poin fakta yang benar-benar dinyatakan pelapor secara eksplisit.
-   - "inferences": Inferensi/kesimpulan teknis AI yang relevan (misal: potensi risiko keselamatan pengguna jalan).
-   - "unverifiedDetails": Rincian penting yang belum diketahui dari teks (misal: dimensi pasti, waktu awal kejadian, alamat lengkap jika belum ada).
-   - "ambiguousFlags": Peringatan kata kiasan atau ketidakjelasan yang butuh konfirmasi lanjutan.
+   - "inferences": Inferensi/kesimpulan teknis AI yang relevan dan objektif.
+   - "unverifiedDetails": Rincian penting yang belum diketahui dari teks (misal: patokan lokasi pasti, ukuran kerusakan).
+   - "ambiguousFlags": Peringatan kata kiasan, kontradiksi, atau ketidakjelasan yang butuh konfirmasi lanjutan.
 
 Data Pengaduan Warga:
 - Judul: ${input.title}
@@ -161,7 +220,11 @@ Berikan respon HANYA dalam format JSON valid:
   "rejectionReason": "",
   "categorySlug": "infrastruktur-jalan",
   "priority": "medium",
-  "confidence": 0.85,
+  "confidence": 0.95,
+  "informationCompleteness": "minimal",
+  "urgencyEvidence": "Estimasi awal berdasarkan objek fasilitas; keparahan dampak belum dapat dipastikan karena ketiadaan rincian.",
+  "needsClarification": true,
+  "clarificationQuestions": ["Di sebelah mana patokan lokasi pasti jalan yang rusak tersebut?", "Berapa perkiraan ukuran atau kedalaman kerusakan jalan?"],
   "summary": "Ringkasan formal Bahasa Indonesia tertata, objektif, padat (1-2 kalimat) tanpa menambah fakta baru",
   "originalLanguageDetected": "Bahasa Palembang",
   "statedFacts": ["fakta 1", "fakta 2"],
@@ -191,8 +254,15 @@ Berikan respon HANYA dalam format JSON valid:
       const validated = aiTriageOutputSchema.parse(parsed)
 
       // Strict enforcement: ensure recommendedAuthority is actually from the provided list
+      let finalCategorySlug = validated.categorySlug
+      let finalConfidence = validated.confidence
       let finalAuthority = validated.recommendedAuthority
-      if (input.availableAuthorities && input.availableAuthorities.length > 0) {
+
+      if (!validated.isValidComplaint || validated.categorySlug === 'invalid') {
+        finalCategorySlug = 'invalid'
+        finalConfidence = 0.0
+        finalAuthority = ''
+      } else if (input.availableAuthorities && input.availableAuthorities.length > 0) {
         const match = input.availableAuthorities.find(
           (a) => a.name.toLowerCase() === finalAuthority.toLowerCase() ||
                  a.code.toLowerCase() === finalAuthority.toLowerCase()
@@ -205,9 +275,9 @@ Berikan respon HANYA dalam format JSON valid:
       return {
         isValidComplaint: validated.isValidComplaint,
         rejectionReason: validated.rejectionReason,
-        categorySlug: validated.categorySlug,
+        categorySlug: finalCategorySlug,
         priority: validated.priority,
-        confidence: validated.confidence,
+        confidence: finalConfidence,
         summary: validated.summary,
         reasoning: validated.reasoning,
         recommendedAuthority: finalAuthority,
@@ -216,6 +286,10 @@ Berikan respon HANYA dalam format JSON valid:
         inferences: validated.inferences,
         unverifiedDetails: validated.unverifiedDetails,
         ambiguousFlags: validated.ambiguousFlags,
+        informationCompleteness: validated.informationCompleteness,
+        urgencyEvidence: validated.urgencyEvidence,
+        needsClarification: validated.needsClarification,
+        clarificationQuestions: validated.clarificationQuestions,
       }
     } catch (err) {
       if (err instanceof z.ZodError) {

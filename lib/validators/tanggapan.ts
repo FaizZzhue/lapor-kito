@@ -24,6 +24,17 @@ export const createResponseSchema = z.object({
 
 export type CreateResponseSchemaType = z.infer<typeof createResponseSchema>
 
+export const documentationAttachmentSchema = z.object({
+  fileUrl: z.string().url('URL lampiran tidak valid'),
+  storagePath: z.string().min(1, 'Path penyimpanan harus ditentukan'),
+  fileName: z.string().optional(),
+  fileSize: z.number().optional(),
+  fileType: z.string().optional(),
+  caption: z.string().max(255).optional(),
+})
+
+export type DocumentationAttachmentType = z.infer<typeof documentationAttachmentSchema>
+
 export const createOfficialResponseSchema = z.object({
   reportId: z.string().uuid('ID laporan tidak valid'),
   message: z
@@ -34,7 +45,10 @@ export const createOfficialResponseSchema = z.object({
     .refine((val) => !/<[^>]*script/i.test(val), {
       message: 'Pesan tidak boleh mengandung tag script atau kode berbahaya',
     }),
-  responseType: z.enum(['official', 'update']).default('official'),
+  responseType: z.enum(['official', 'update']).default('official').optional(),
+  documentationType: z.enum(['progress', 'completion', 'investigation', 'general']).default('progress').optional(),
+  attachments: z.array(documentationAttachmentSchema).default([]).optional(),
+  nextStatus: z.enum(['verifying', 'verified', 'in_progress', 'resolved', 'rejected', 'duplicate']).optional(),
 })
 
-export type CreateOfficialResponseSchemaType = z.infer<typeof createOfficialResponseSchema>
+export type CreateOfficialResponseSchemaType = z.input<typeof createOfficialResponseSchema>

@@ -527,20 +527,6 @@ export default function AdminLoginPage() {
           </div>
         </div>
       </main>
-
-      {/* Institutional Footer */}
-      <footer className="w-full py-4 bg-white border-t border-[#D9DEE7] shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-          <p className="text-[12px] text-[#434654]">
-            © 2026 LAPORKITO. All Right Reserve
-          </p>
-          {/* <div className="flex items-center gap-4 text-[11px] text-[#434654]">
-            <span>Kepatuhan Standar Siber BSSN</span>
-            <span>•</span>
-            <span>Akses Terenkripsi TLS 1.3</span>
-          </div> */}
-        </div>
-      </footer>
     </div>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Sparkles,
   UploadCloud,
   CheckCircle2,
+  ShieldCheck,
   AlertTriangle,
   Building2,
   Send,
@@ -15,6 +17,12 @@ import {
   Info,
   Navigation,
   RefreshCw,
+  FileText,
+  Check,
+  HelpCircle,
+  ExternalLink,
+  MapPin,
+  Camera,
 } from "lucide-react";
 import {
   analyzeReportAction,
@@ -25,6 +33,24 @@ import {
 } from "@/lib/actions/reports";
 import type { AITriageResult } from "@/types/ai";
 import type { CreateReportSchemaType } from "@/lib/validators/report";
+import { LocationPermissionModal } from "./location-permission-modal";
+import { PhotoSourceModal } from "./photo-source-modal";
+import { CameraCaptureModal } from "./camera-capture-modal";
+
+const InteractiveMapPicker = dynamic(
+  () => import("./interactive-map-picker").then((mod) => mod.InteractiveMapPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[270px] sm:h-[320px] w-full rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 text-xs text-slate-500 font-mono">
+        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+        <span>Memuat peta interaktif Palembang...</span>
+      </div>
+    ),
+  }
+);
+
+export type GpsAccuracyTier = "high" | "acceptable" | "coarse" | "very_coarse";
 
 interface ReportFormProps {
   initialMasterData: MasterDataResult;
@@ -46,13 +72,27 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterEmail, setReporterEmail] = useState("");
 
-  // GPS & Geolocation State
+  // GPS, Map & Geolocation State
   const [isLocating, setIsLocating] = useState(false);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsAccuracyTier, setGpsAccuracyTier] = useState<GpsAccuracyTier | null>(null);
+  const [isManualPin, setIsManualPin] = useState(false);
+  const [initialGpsCoords, setInitialGpsCoords] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+  } | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsBlocked, setGpsBlocked] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [detectedRoad, setDetectedRoad] = useState<string | null>(null);
+  const [detectedKecamatan, setDetectedKecamatan] = useState<{ id: string; name: string } | null>(null);
+  const [detectedKelurahan, setDetectedKelurahan] = useState<{ id: string; name: string } | null>(null);
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
+
+  // Request counter to prevent race conditions on fast repeated geolocation/map clicks
+  const geocodeRequestIdRef = useRef(0);
 
   // Ref to track addressDetail to avoid race condition when reverse geocoding completes
   const addressDetailRef = useRef(addressDetail);
@@ -70,11 +110,22 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Photo Source Selection & Camera Capture Modal state
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   // AI Analysis state
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AITriageResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState(true);
+  const [analyzedSignature, setAnalyzedSignature] = useState<string | null>(null);
+  const aiRequestIdRef = useRef(0);
+
+  // Checks whether the current title/description has changed since the last AI analysis
+  const currentTextSignature = `${title.trim()}:::${description.trim()}`;
+  const isTextStale = Boolean(aiResult && analyzedSignature && analyzedSignature !== currentTextSignature);
 
   // Submission state
   const [formError, setFormError] = useState<string | null>(null);
@@ -91,20 +142,118 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     return initialMasterData.categories.find((c) => c.id === categoryId);
   }, [categoryId, initialMasterData.categories]);
 
-  // Robust Geolocation & Reverse Geocoding Detector
-  const handleDetectLocation = () => {
+  // Step 1: User clicks "Deteksi GPS" -> Show explanatory permission dialog first
+  const handleRequestLocation = () => {
+    setShowLocationModal(true);
+  };
+
+  // Step 2: User approves via "Izinkan & Deteksi Lokasi" in dialog
+  const handleConfirmLocation = () => {
+    setShowLocationModal(false);
+    executeGeolocation();
+  };
+
+  // Resolve address and administrative area for a given coordinate
+  const resolveAddress = async (
+    lat: number,
+    lng: number,
+    tier: GpsAccuracyTier | "manual",
+    manualTrigger: boolean
+  ) => {
+    const currentReqId = ++geocodeRequestIdRef.current;
+    setIsResolvingAddress(true);
+    setGeocodingError(null);
+
+    try {
+      const res = await reverseGeocodeAction(lat, lng);
+      if (currentReqId !== geocodeRequestIdRef.current) return;
+      setIsResolvingAddress(false);
+
+      if (res.success) {
+        if (res.road) {
+          setDetectedRoad(res.road);
+          // STRICT NON-OVERWRITE POLICY:
+          // 1. If manualTrigger (user placed/dragged pin on map), NEVER auto-fill addressDetail.
+          //    The user can review it as a suggestion and click "Gunakan Saran Alamat Ini".
+          // 2. If geolocation: ONLY auto-fill if tier is "high" (accuracy <= 25m) AND user hasn't typed anything.
+          //    If accuracy is coarse (e.g. ±333m) or moderate, DO NOT auto-fill addressDetail.
+          if (!manualTrigger && tier === "high" && !addressDetailRef.current.trim()) {
+            setAddressDetail(res.road);
+            addressDetailRef.current = res.road;
+          }
+        } else {
+          setDetectedRoad(null);
+          setGeocodingError(
+            "Nama jalan spesifik tidak terdata pada peta OpenStreetMap di titik koordinat ini. Alamat manual dapat diisikan pada kolom alamat."
+          );
+        }
+
+        // Administrative boundary detection
+        if (res.kecamatanMatch) {
+          setDetectedKecamatan(res.kecamatanMatch);
+          setDetectedKelurahan(res.kelurahanMatch ?? null);
+
+          // STRICT POLICY for Kecamatan & Kelurahan:
+          // 1. NEVER overwrite if user has already chosen a kecamatan.
+          // 2. If user has NOT chosen a kecamatan:
+          //    - Only auto-select if GPS tier is "high" (<= 25m) or "acceptable" (<= 100m) AND NOT manual pin.
+          //    - If tier is "coarse" (e.g. ±333m) or "very_coarse", NEVER auto-select!
+          //      A ±333m uncertainty radius can easily cross district borders. Show explicit suggestion button instead.
+          if (!manualTrigger && (tier === "high" || tier === "acceptable")) {
+            setKecamatanId((prevKecId) => {
+              if (!prevKecId) {
+                if (res.kelurahanMatch) {
+                  setKelurahanId(res.kelurahanMatch.id);
+                } else {
+                  setKelurahanId("");
+                }
+                return res.kecamatanMatch!.id;
+              }
+              return prevKecId;
+            });
+          }
+        } else {
+          setDetectedKecamatan(null);
+          setDetectedKelurahan(null);
+          setGeocodingError(
+            "Titik koordinat berada di luar batas administrasi Kota Palembang atau belum terdata. Silakan pilih Kecamatan dan Kelurahan secara manual."
+          );
+        }
+      } else {
+        setGeocodingError(
+          res.error || "Pencarian alamat terdekat tidak berhasil. Alamat dapat diisi secara manual."
+        );
+      }
+    } catch {
+      if (currentReqId !== geocodeRequestIdRef.current) return;
+      setIsResolvingAddress(false);
+      setGeocodingError(
+        "Kendala teknis saat menghubungi layanan geocoding OpenStreetMap. Alamat manual dapat diisikan pada kolom alamat."
+      );
+    }
+  };
+
+  // Step 3: Execute browser Geolocation API
+  const executeGeolocation = () => {
     setGpsError(null);
+    setGpsBlocked(false);
     setDetectedRoad(null);
     setGeocodingError(null);
 
-    if (!navigator.geolocation) {
-      setGpsError("Perangkat atau peramban Anda tidak mendukung API geolokasi otomatis. Silakan masukkan alamat patokan secara manual.");
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setGpsError(
+        "Perangkat atau peramban Anda tidak mendukung API geolokasi otomatis. Anda dapat menentukan titik langsung pada peta interaktif di bawah atau menuliskan alamat patokan secara manual."
+      );
       return;
     }
 
+    const currentReqId = ++geocodeRequestIdRef.current;
     setIsLocating(true);
+
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
+        if (currentReqId !== geocodeRequestIdRef.current) return;
+
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
         const accuracy = Math.round(pos.coords.accuracy);
@@ -112,81 +261,103 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
         setLatitude(lat);
         setLongitude(lng);
         setGpsAccuracy(accuracy);
+        setIsManualPin(false);
+        setInitialGpsCoords({ lat, lng, accuracy });
         setIsLocating(false);
+        setGpsBlocked(false);
 
-        // Reverse geocoding to resolve street name and administrative area
-        setIsResolvingAddress(true);
-        try {
-          const res = await reverseGeocodeAction(lat, lng);
-          setIsResolvingAddress(false);
+        // Strict, honest accuracy tiering:
+        // <= 25m: high (True high-accuracy GPS outdoors)
+        // 26 - 100m: acceptable (Moderate neighborhood radius)
+        // 101 - 1000m: coarse (Low accuracy, e.g. ±333m - Wi-Fi/cell tower)
+        // > 1000m: very_coarse (Very low / IP-based estimate)
+        const tier: GpsAccuracyTier =
+          accuracy <= 25
+            ? "high"
+            : accuracy <= 100
+              ? "acceptable"
+              : accuracy <= 1000
+                ? "coarse"
+                : "very_coarse";
+        setGpsAccuracyTier(tier);
 
-          if (res.success) {
-            if (res.road) {
-              setDetectedRoad(res.road);
-              // Jangan menimpa jika kolom alamat sudah diisi manual oleh pengguna
-              if (!addressDetailRef.current.trim()) {
-                setAddressDetail(res.road);
-                addressDetailRef.current = res.road;
-              }
-            } else {
-              setGeocodingError("Nama jalan tidak ditemukan pada peta di titik koordinat ini. Anda dapat melengkapi alamat patokan secara manual.");
-            }
-
-            // Auto-suggest kecamatan & kelurahan if not yet selected by user
-            if (res.kecamatanMatch && !kecamatanId) {
-              setKecamatanId(res.kecamatanMatch.id);
-              if (res.kelurahanMatch && !kelurahanId) {
-                setKelurahanId(res.kelurahanMatch.id);
-              }
-            }
-          } else {
-            setGeocodingError(res.error || "Resolusi alamat otomatis tidak berhasil. Silakan isi alamat secara manual.");
-          }
-        } catch {
-          setIsResolvingAddress(false);
-          setGeocodingError("Kendala teknis saat menghubungi layanan reverse geocoding. Alamat manual dapat diisikan pada kolom alamat.");
-        }
+        // Trigger address and district resolution
+        resolveAddress(lat, lng, tier, false);
       },
       (err) => {
+        if (currentReqId !== geocodeRequestIdRef.current) return;
         setIsLocating(false);
         setIsResolvingAddress(false);
         let errorMsg = `Gagal mendeteksi lokasi GPS: ${err.message}`;
+        let isBlocked = false;
+
         if (err.code === 1) {
-          // PERMISSION_DENIED
-          errorMsg = "Izin akses lokasi ditolak oleh peramban. Silakan aktifkan izin lokasi di pengaturan browser Anda, atau isi alamat patokan secara manual di bawah.";
+          isBlocked = true;
+          errorMsg =
+            "Izin akses lokasi tidak diberikan atau diblokir oleh peramban Anda. Anda tetap dapat menentukan titik pada peta interaktif di bawah atau memilih Kecamatan, Kelurahan, dan menuliskan alamat patokan secara manual.";
         } else if (err.code === 2) {
-          // POSITION_UNAVAILABLE
-          errorMsg = "Sinyal GPS atau informasi lokasi tidak tersedia pada perangkat. Silakan isi alamat secara manual.";
+          errorMsg =
+            "Sinyal lokasi perangkat tidak tersedia. Pastikan fitur lokasi perangkat aktif, coba di area terbuka, atau pilih titik langsung pada peta interaktif di bawah.";
         } else if (err.code === 3) {
-          // TIMEOUT
-          errorMsg = "Waktu pencarian sinyal lokasi GPS habis (timeout). Silakan coba lagi atau isi alamat manual.";
+          errorMsg =
+            "Waktu pencarian sinyal lokasi GPS habis (timeout). Silakan coba lagi atau tentukan titik pada peta interaktif di bawah.";
         }
+        setGpsBlocked(isBlocked);
         setGpsError(errorMsg);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
-  // Handle File Upload
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Handler for manual pin drag/click on interactive map
+  const handleMapLocationSelect = (newLat: number, newLng: number) => {
+    setLatitude(newLat);
+    setLongitude(newLng);
+    setIsManualPin(true);
+    setGpsAccuracy(null); // Clear GPS accuracy circle for manual placement
+    setGpsAccuracyTier(null);
+    resolveAddress(newLat, newLng, "manual", true);
+  };
 
+  // Handler to restore initial GPS coordinates
+  const handleResetToGps = () => {
+    if (!initialGpsCoords) return;
+    setLatitude(initialGpsCoords.lat);
+    setLongitude(initialGpsCoords.lng);
+    setGpsAccuracy(initialGpsCoords.accuracy);
+    setIsManualPin(false);
+    const tier: GpsAccuracyTier =
+      initialGpsCoords.accuracy === null
+        ? "coarse"
+        : initialGpsCoords.accuracy <= 25
+          ? "high"
+          : initialGpsCoords.accuracy <= 100
+            ? "acceptable"
+            : initialGpsCoords.accuracy <= 1000
+              ? "coarse"
+              : "very_coarse";
+    setGpsAccuracyTier(tier);
+    resolveAddress(initialGpsCoords.lat, initialGpsCoords.lng, tier, false);
+  };
+
+  // Unified Photo Processing and Upload (Camera and Gallery)
+  const processAndUploadFile = async (file: File): Promise<boolean> => {
     setUploadError(null);
 
-    // Client-side file type validation
+    if (evidenceFiles.length >= 3) {
+      setUploadError("Maksimal 3 foto bukti yang dapat dilampirkan.");
+      return false;
+    }
+
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
       setUploadError("Format berkas harus JPG, PNG, atau WebP.");
-      e.target.value = "";
-      return;
+      return false;
     }
 
-    // Client-side file size validation (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       setUploadError("Ukuran foto maksimal 10 MB per berkas.");
-      e.target.value = "";
-      return;
+      return false;
     }
 
     setIsUploading(true);
@@ -196,32 +367,42 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
 
     const res = await uploadEvidenceAction(formData);
     setIsUploading(false);
-    e.target.value = "";
 
     if (res.success && res.fileUrl && res.storagePath && res.fileType && res.fileSize) {
-      setEvidenceFiles([
-        ...evidenceFiles,
+      setEvidenceFiles((prev) => [
+        ...prev,
         {
-          fileUrl: res.fileUrl,
-          fileType: res.fileType,
-          fileSize: res.fileSize,
-          storagePath: res.storagePath,
+          fileUrl: res.fileUrl!,
+          fileType: res.fileType!,
+          fileSize: res.fileSize!,
+          storagePath: res.storagePath!,
           caption: file.name,
         },
       ]);
+      return true;
     } else {
       setUploadError(res.error || "Gagal mengunggah foto bukti.");
+      return false;
     }
   };
 
+  // Handle File Upload from Gallery / Storage
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    await processAndUploadFile(file);
+    e.target.value = "";
+  };
+
   const handleRemoveEvidence = (index: number) => {
-    setEvidenceFiles(evidenceFiles.filter((_, i) => i !== index));
+    setEvidenceFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Trigger AI Analysis
   const handleTriggerAnalysis = async () => {
     if (description.trim().length < 15) {
-      setFormError("Tuliskan deskripsi masalah minimal 15 karakter sebelum meminta analisis AI.");
+      setFormError("Tuliskan uraian masalah minimal 15 karakter sebelum meminta analisis AI.");
       return;
     }
 
@@ -229,13 +410,19 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     setAiError(null);
     setIsAnalyzing(true);
 
+    const currentReqId = ++aiRequestIdRef.current;
+    const currentSig = `${title.trim()}:::${description.trim()}`;
+
     const selectedKec = initialMasterData.kecamatan.find((k) => k.id === kecamatanId);
     const selectedKel = initialMasterData.kelurahan.find((k) => k.id === kelurahanId);
+
+    // Only send categoryName if user previously analyzed this exact text, avoiding stale category bias
+    const categoryToSend = analyzedSignature === currentSig ? selectedCategory?.name_id : undefined;
 
     const res = await analyzeReportAction({
       title: title.trim() || description.slice(0, 50),
       description: description.trim(),
-      categoryName: selectedCategory?.name_id,
+      categoryName: categoryToSend,
       districtName: selectedKec?.name,
       subdistrictName: selectedKel?.name,
       addressDetail: addressDetail.trim(),
@@ -247,17 +434,26 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
       availableAuthorities: initialMasterData.authorities ?? [],
     });
 
+    // Guard against race conditions: if a newer analysis request was fired, ignore this one
+    if (currentReqId !== aiRequestIdRef.current) {
+      return;
+    }
+
     setIsAnalyzing(false);
     setAiConfigured(res.isConfigured);
 
     if (res.success && res.triage) {
       setAiResult(res.triage);
-      // Auto-suggest category if not set
-      if (!categoryId && res.triage.categorySlug) {
+      setAnalyzedSignature(currentSig);
+
+      // Automatically sync form category to AI recommendation when valid
+      if (res.triage.isValidComplaint && res.triage.categorySlug && res.triage.categorySlug !== "invalid") {
         const matched = initialMasterData.categories.find(
           (c) => c.slug.toLowerCase() === res.triage?.categorySlug.toLowerCase()
         );
-        if (matched) setCategoryId(matched.id);
+        if (matched) {
+          setCategoryId(matched.id);
+        }
       }
     } else {
       setAiError(res.error || "Analisis AI tidak dapat diselesaikan.");
@@ -269,7 +465,6 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     e.preventDefault();
     setFormError(null);
 
-    // Basic UX checks
     if (!title.trim() || title.length < 5) {
       setFormError("Judul laporan minimal 5 karakter.");
       return;
@@ -288,6 +483,13 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     }
     if (!kelurahanId) {
       setFormError("Silakan pilih Kelurahan.");
+      return;
+    }
+    const isKelInKec = initialMasterData.kelurahan.some(
+      (k) => k.id === kelurahanId && k.kecamatan_id === kecamatanId
+    );
+    if (!isKelInKec) {
+      setFormError("Kelurahan yang dipilih tidak sesuai dengan Kecamatan. Silakan pilih kembali Kelurahan.");
       return;
     }
     if (!addressDetail.trim() || addressDetail.length < 5) {
@@ -329,7 +531,18 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
     setIsSubmitting(false);
 
     if (res.success && res.trackingCode) {
-      router.push(`/lapor/berhasil?code=${res.trackingCode}`);
+      const queryParams = new URLSearchParams();
+      queryParams.set("code", res.trackingCode);
+      if (res.emailNotification?.attempted) {
+        queryParams.set("emailSent", res.emailNotification.sent ? "true" : "false");
+        if (res.emailNotification.recipient) {
+          queryParams.set("recipient", res.emailNotification.recipient);
+        }
+        if (res.emailNotification.errorReason) {
+          queryParams.set("emailReason", res.emailNotification.errorReason);
+        }
+      }
+      router.push(`/lapor/berhasil?${queryParams.toString()}`);
     } else {
       setFormError(res.error || "Gagal menyimpan laporan ke sistem.");
     }
@@ -338,201 +551,208 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
   return (
     <div className="w-full">
       {/* Route-Line Step Bar */}
-      <div className="mb-6 sm:mb-8 rounded-xl border border-[#D9DEE7] bg-white p-3 sm:p-4 shadow-xs">
+      <div className="mb-6 sm:mb-8 rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-2xs">
         <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          <div className="flex items-center gap-3 rounded-lg border border-[#1749D2] bg-[#F0F3FF] p-2 sm:p-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1749D2] font-mono text-xs font-bold text-white">
+          {/* Step 1 */}
+          <div className="flex items-center gap-3 rounded-lg border border-blue-600 bg-blue-50/70 p-2 sm:p-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-700 font-mono text-xs font-bold text-white">
               01
             </div>
             <div className="min-w-0">
-              <span className="font-mono text-[10px] font-bold text-[#1749D2] uppercase tracking-wider block">
+              <span className="font-mono text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
                 CERITAKAN
               </span>
-              <p className="truncate text-xs font-semibold text-[#111C2D]">Masukkan Masalah</p>
+              <p className="truncate text-xs font-semibold text-slate-900">Masukkan Masalah</p>
             </div>
           </div>
 
+          {/* Step 2 */}
           <div
-            className={`flex items-center gap-3 rounded-lg border p-2 sm:p-2.5 ${aiResult
-              ? "border-[#16845B] bg-[#E6F7EF]"
+            className={`flex items-center gap-3 rounded-lg border p-2 sm:p-2.5 transition-colors ${aiResult
+              ? "border-emerald-600 bg-emerald-50/70"
               : isAnalyzing
-                ? "border-[#E58A1F] bg-[#FFF8EF]"
-                : "border-[#D9DEE7] bg-[#F9F9FF]"
+                ? "border-amber-500 bg-amber-50/70"
+                : "border-slate-200 bg-slate-50/60"
               }`}
           >
             <div
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${aiResult
-                ? "bg-[#16845B] text-white"
+                ? "bg-emerald-700 text-white"
                 : isAnalyzing
-                  ? "bg-[#E58A1F] text-white"
-                  : "bg-white border border-[#D9DEE7] text-[#667085]"
+                  ? "bg-amber-600 text-white animate-pulse"
+                  : "bg-slate-200 text-slate-600"
                 }`}
             >
               02
             </div>
             <div className="min-w-0">
-              <span className="font-mono text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
+              <span className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 ANALISIS AI
               </span>
-              <p className="truncate text-xs font-semibold text-[#111C2D]">
-                {aiResult ? "Tervalidasi" : isAnalyzing ? "Memproses..." : "Pahami Masalah"}
+              <p className="truncate text-xs font-semibold text-slate-900">
+                {aiResult ? "Saran Tersedia" : isAnalyzing ? "Menganalisis..." : "Uji Analisis AI"}
               </p>
             </div>
           </div>
 
+          {/* Step 3 */}
           <div
-            className={`flex items-center gap-3 rounded-lg border p-2 sm:p-2.5 ${aiResult?.recommendedAuthority
-              ? "border-[#0033A7] bg-[#F0F3FF]"
-              : "border-[#D9DEE7] bg-[#F9F9FF]"
+            className={`flex items-center gap-3 rounded-lg border p-2 sm:p-2.5 transition-colors ${aiResult?.recommendedAuthority
+              ? "border-blue-700 bg-blue-50/70"
+              : "border-slate-200 bg-slate-50/60"
               }`}
           >
             <div
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-xs font-bold ${aiResult?.recommendedAuthority
-                ? "bg-[#0033A7] text-white"
-                : "bg-white border border-[#D9DEE7] text-[#667085]"
+                ? "bg-blue-700 text-white"
+                : "bg-slate-200 text-slate-600"
                 }`}
             >
               03
             </div>
             <div className="min-w-0">
-              <span className="font-mono text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
+              <span className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                 REKOMENDASI
               </span>
-              <p className="truncate text-xs font-semibold text-[#111C2D]">Pilih Instansi</p>
+              <p className="truncate text-xs font-semibold text-slate-900">
+                {aiResult?.recommendedAuthority ? "Instansi Ditemukan" : "Cari Instansi"}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-2 sm:p-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-[#D9DEE7] font-mono text-xs font-bold text-[#667085]">
+          {/* Step 4 */}
+          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-2 sm:p-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-200 font-mono text-xs font-bold text-slate-600">
               04
             </div>
             <div className="min-w-0">
-              <span className="font-mono text-[10px] font-bold text-[#667085] uppercase tracking-wider block">
-                SIAP KIRIM
+              <span className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                KODE LACAK
               </span>
-              <p className="truncate text-xs font-semibold text-[#111C2D]">Konfirmasi Laporan</p>
+              <p className="truncate text-xs font-semibold text-slate-900">Simpan & Pantau</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Dual-Column Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:gap-8 lg:grid-cols-12 items-start">
-        {/* LEFT COLUMN: Input Form */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
+        {/* LEFT COLUMN: Input Form Sections */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="rounded-xl border border-[#D9DEE7] bg-white p-4 sm:p-6 shadow-sm">
-            <div className="flex items-start justify-between pb-4 border-b border-[#D9DEE7]">
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-[#111C2D] mt-1">
-                  Ada masalah apa di sekitar Anda?
-                </h2>
-                {/* <p className="text-xs text-[#434654] mt-1 leading-relaxed">
-                  Ceritakan kondisi dengan bahasa sehari-hari. Sistem AI akan membantu menyusun rincian teknisnya.
-                </p> */}
+          {/* Form Error Banner */}
+          {formError && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 shadow-2xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-bold font-mono">Pemeriksaan Formulir:</span>
+                <p className="leading-relaxed">{formError}</p>
               </div>
-              {/* <span className="rounded bg-[#F0F3FF] border border-[#D9DEE7] px-2.5 py-1 font-mono text-xs font-semibold text-[#434654]">
-                01
-              </span> */}
             </div>
+          )}
 
-            {/* Error Banner */}
-            {formError && (
-              <div className="mt-4 flex items-start gap-2 rounded-lg border border-[#FFDAD6] bg-[#FFF5F5] p-3 text-xs text-[#BA1A1A]">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{formError}</span>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* SECTION 1: DETAIL MASALAH */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700 font-mono text-xs font-bold">
+                    01
+                  </span>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Detail Kerusakan Fasilitas
+                  </h2>
+                </div>
               </div>
-            )}
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
               {/* Judul Laporan */}
               <div className="space-y-1.5">
                 <label
                   htmlFor="report-title"
-                  className="block text-xs font-mono font-semibold uppercase text-[#111C2D]"
+                  className="block text-xs font-mono font-semibold uppercase text-slate-800"
                 >
-                  Judul Singkat Masalah <span className="text-[#BA1A1A]">*</span>
+                  Judul Ringkas Masalah <span className="text-red-600">*</span>
                 </label>
                 <input
                   id="report-title"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Contoh: Aspal Berlubang Parah di Simpang Lampu Merah Charitas"
-                  className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] px-3 text-sm text-[#111C2D] placeholder:text-[#667085] focus:border-[#1749D2] focus:bg-white focus:outline-none"
+                  placeholder="Contoh: Aspal amblas di Jalan R. Sukamto depan lorong musholla"
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                   required
                 />
               </div>
 
-              {/* Uraian Cerita */}
+              {/* Kategori Masalah */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="report-category"
+                  className="block text-xs font-mono font-semibold uppercase text-slate-800"
+                >
+                  Kategori Fasilitas <span className="text-red-600">*</span>
+                </label>
+                <select
+                  id="report-category"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-sm text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                  required
+                >
+                  <option value="">-- Pilih Kategori Permasalahan --</option>
+                  {initialMasterData.categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Uraian Kondisi Lapangan */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label
-                    htmlFor="report-desc"
-                    className="block text-xs font-mono font-semibold uppercase text-[#111C2D]"
+                    htmlFor="report-description"
+                    className="block text-xs font-mono font-semibold uppercase text-slate-800"
                   >
-                    Uraian Kondisi Lapangan <span className="text-[#BA1A1A]">*</span>
+                    Uraian Kondisi di Lapangan <span className="text-red-600">*</span>
                   </label>
-                  <span className="font-mono text-[11px] text-[#667085]">
+                  <span className="font-mono text-[11px] text-slate-400">
                     {description.length} karakter (min. 20)
                   </span>
                 </div>
                 <textarea
-                  id="report-desc"
-                  rows={5}
+                  id="report-description"
+                  rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ceritakan dengan jelas apa yang terjadi, sejak kapan, perkiraan dimensi (misal: lubang 30cm), dan dampaknya bagi warga sekitar..."
-                  className="w-full rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 text-sm text-[#111C2D] placeholder:text-[#667085] focus:border-[#1749D2] focus:bg-white focus:outline-none leading-relaxed resize-y"
+                  placeholder="Ceritakan kejadian dengan bebas, boleh bahasa sehari-hari atau bahasa Palembang. Contoh: Lobang jalan la lamo dak dibeneri, pas ujan terendam banyu dak keliatan samo sekali, la banyak motor taborong..."
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 resize-y leading-relaxed transition-all"
                   required
                 />
-                <p className="text-[11px] text-[#667085] flex items-center gap-1 font-mono">
-                  <Info className="h-3 w-3 text-[#16845B]" />
-                  <span>Sebutkan indikasi bahaya fisik dan dampak bagi kenyamanan mobilitas warga.</span>
-                </p>
+              </div>
+            </div>
+
+            {/* SECTION 2: LOKASI KEJADIAN */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700 font-mono text-xs font-bold">
+                    02
+                  </span>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Lokasi di Kota Palembang
+                  </h2>
+                </div>
               </div>
 
-              {/* Kategori */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="report-category"
-                  className="block text-xs font-mono font-semibold uppercase text-[#111C2D]"
-                >
-                  Kategori Permasalahan <span className="text-[#BA1A1A]">*</span>
-                </label>
-                {initialMasterData.categories.length > 0 ? (
-                  <select
-                    id="report-category"
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] px-3 text-sm text-[#111C2D] focus:border-[#1749D2] focus:bg-white focus:outline-none"
-                    required
-                  >
-                    <option value="">-- Pilih Kategori Permasalahan --</option>
-                    {initialMasterData.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name_id}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-3 text-xs text-[#434654] font-mono">
-                    <p className="font-semibold text-[#8C5000]">Status Data Master Kategori:</p>
-                    <p className="mt-0.5">
-                      Belum ada data kategori tersimpan di database. Sistem tetap dapat menerima laporan
-                      berdasarkan analisis teks awal oleh petugas.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Wilayah Palembang: Kecamatan & Kelurahan */}
+              {/* Kecamatan & Kelurahan Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label
                     htmlFor="report-kecamatan"
-                    className="block text-xs font-mono font-semibold uppercase text-[#111C2D]"
+                    className="block text-xs font-mono font-semibold uppercase text-slate-800"
                   >
-                    Kecamatan di Palembang <span className="text-[#BA1A1A]">*</span>
+                    Kecamatan <span className="text-red-600">*</span>
                   </label>
                   {initialMasterData.kecamatan.length > 0 ? (
                     <select
@@ -542,7 +762,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                         setKecamatanId(e.target.value);
                         setKelurahanId("");
                       }}
-                      className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] px-3 text-sm text-[#111C2D] focus:border-[#1749D2] focus:bg-white focus:outline-none"
+                      className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-sm text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                       required
                     >
                       <option value="">-- Pilih Kecamatan --</option>
@@ -553,8 +773,8 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                       ))}
                     </select>
                   ) : (
-                    <div className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-2.5 text-xs text-[#667085] font-mono">
-                      Data Kecamatan belum dimigrasi di database.
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-500 font-mono">
+                      Data Kecamatan sedang dimuat...
                     </div>
                   )}
                 </div>
@@ -562,16 +782,16 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="report-kelurahan"
-                    className="block text-xs font-mono font-semibold uppercase text-[#111C2D]"
+                    className="block text-xs font-mono font-semibold uppercase text-slate-800"
                   >
-                    Kelurahan <span className="text-[#BA1A1A]">*</span>
+                    Kelurahan <span className="text-red-600">*</span>
                   </label>
                   {availableKelurahan.length > 0 ? (
                     <select
                       id="report-kelurahan"
                       value={kelurahanId}
                       onChange={(e) => setKelurahanId(e.target.value)}
-                      className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] px-3 text-sm text-[#111C2D] focus:border-[#1749D2] focus:bg-white focus:outline-none"
+                      className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-sm text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                       required
                     >
                       <option value="">-- Pilih Kelurahan --</option>
@@ -585,7 +805,7 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                     <select
                       id="report-kelurahan"
                       disabled
-                      className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-gray-100 px-3 text-xs text-[#667085] cursor-not-allowed"
+                      className="w-full h-10 rounded-lg border border-slate-200 bg-slate-100 px-3 text-xs text-slate-400 cursor-not-allowed"
                     >
                       <option value="">
                         {kecamatanId ? "-- Tidak ada kelurahan terdaftar --" : "-- Pilih kecamatan terlebih dahulu --"}
@@ -595,30 +815,30 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                 </div>
               </div>
 
-              {/* Patokan Alamat Detail & GPS */}
-              <div className="space-y-1.5">
+              {/* Patokan Alamat Detail & GPS Deteksi */}
+              <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
                   <label
                     htmlFor="report-address"
-                    className="block text-xs font-mono font-semibold uppercase text-[#111C2D]"
+                    className="block text-xs font-mono font-semibold uppercase text-slate-800"
                   >
-                    Alamat Detail / Patokan Lapangan <span className="text-[#BA1A1A]">*</span>
+                    Alamat Detail / Patokan Lapangan <span className="text-red-600">*</span>
                   </label>
                   <button
                     type="button"
-                    onClick={handleDetectLocation}
+                    onClick={handleRequestLocation}
                     disabled={isLocating || isResolvingAddress}
-                    className="inline-flex items-center gap-1 font-mono text-[11px] text-[#1749D2] hover:underline cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-blue-700 hover:text-blue-800 hover:underline cursor-pointer disabled:opacity-50"
                   >
-                    <Navigation className={`h-3 w-3 ${isLocating ? "animate-spin" : ""}`} />
+                    <Navigation className={`h-3.5 w-3.5 ${isLocating ? "animate-spin" : ""}`} />
                     <span>
                       {isLocating
                         ? "Mencari Sinyal GPS..."
                         : isResolvingAddress
-                        ? "Mengambil Nama Jalan..."
-                        : latitude !== null
-                        ? "Deteksi Ulang GPS"
-                        : "Deteksi GPS"}
+                          ? "Membaca Peta Jalan..."
+                          : latitude !== null
+                            ? "Deteksi Ulang GPS"
+                            : "Deteksi Koordinat GPS"}
                     </span>
                   </button>
                 </div>
@@ -630,645 +850,852 @@ export function ReportForm({ initialMasterData }: ReportFormProps) {
                     setAddressDetail(e.target.value);
                     addressDetailRef.current = e.target.value;
                   }}
-                  placeholder="Contoh: Jl. Sudirman KM 3.5, depan toko roti, dekat tiang listrik No. 12"
-                  className="w-full h-10 rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] px-3 text-sm text-[#111C2D] placeholder:text-[#667085] focus:border-[#1749D2] focus:bg-white focus:outline-none"
+                  placeholder="Contoh: Jl. Demang Lebar Daun No. 42, depan minimarket, samping tiang trafo"
+                  className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50/60 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                   required
                 />
 
-                {/* GPS Status & Error Messages */}
+                {/* GPS Status & Error Handling Box */}
                 {gpsError && (
-                  <div className="flex items-start gap-2 rounded-lg border border-[#FFDAD6] bg-[#FFF5F5] p-2.5 text-xs text-[#BA1A1A]">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="leading-relaxed">{gpsError}</p>
-                      <button
-                        type="button"
-                        onClick={handleDetectLocation}
-                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#BA1A1A] underline cursor-pointer hover:text-[#93000A]"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        <span>Coba Deteksi Ulang</span>
-                      </button>
+                  <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
+                    <div className="flex-1 space-y-2">
+                      <div>
+                        <p className="leading-relaxed font-semibold text-amber-900">
+                          {gpsError}
+                        </p>
+                        <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                          Anda tetap dapat melanjutkan pengisian formulir dengan memilih <strong>Kecamatan</strong>, <strong>Kelurahan</strong>, dan menuliskan alamat patokan secara manual pada kolom di atas.
+                        </p>
+                      </div>
+
+                      {gpsBlocked && (
+                        <div className="rounded-lg bg-white/95 p-3 border border-amber-200/90 text-[11px] text-slate-700 space-y-1.5">
+                          <p className="font-bold text-slate-900">Petunjuk mengaktifkan izin lokasi di peramban:</p>
+                          <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-0.5">
+                            <li>Klik ikon <strong>Setelan Situs / Gembok (🔒)</strong> di bilah alamat browser Anda.</li>
+                            <li>Ubah opsi izin <strong>Lokasi</strong> menjadi <strong>Izinkan (Allow)</strong>.</li>
+                            <li>Tekan tombol <strong>Coba Deteksi Ulang</strong> di bawah atau muat ulang halaman.</li>
+                          </ol>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={handleRequestLocation}
+                          className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-amber-900 underline hover:text-amber-950 cursor-pointer"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          <span>Coba Deteksi Ulang</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Status GPS Terdeteksi (Kotak Hijau) */}
+                {/* Status Koordinat Terdeteksi / Dipilih Manual */}
                 {latitude !== null && longitude !== null && (
-                  <div className="space-y-1.5">
-                    <div className="rounded-md bg-[#E6F7EF] border border-[#78D9AA]/50 p-2.5 sm:p-3 text-xs text-[#006443]">
-                      {/* Baris Utama: Status Sukses, Koordinat, Akurasi, dan Tombol Deteksi Ulang */}
+                  <div className="space-y-2">
+                    <div
+                      className={`rounded-lg p-3 text-xs space-y-2 border ${isManualPin
+                        ? "bg-blue-50/80 border-blue-200 text-blue-950"
+                        : gpsAccuracyTier === "very_coarse"
+                          ? "bg-red-50/90 border-red-200 text-red-950"
+                          : gpsAccuracyTier === "coarse"
+                            ? "bg-amber-50/90 border-amber-300 text-amber-950"
+                            : gpsAccuracyTier === "acceptable"
+                              ? "bg-blue-50/80 border-blue-200 text-blue-950"
+                              : "bg-emerald-50/80 border-emerald-200 text-emerald-900"
+                        }`}
+                    >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#006443]" />
-                          <span className="font-mono text-xs break-all">
-                            Koordinat GPS: {latitude}, {longitude}
-                            {gpsAccuracy !== null && ` (Akurasi: ±${gpsAccuracy} meter)`}
-                          </span>
+                          {isManualPin ? (
+                            <MapPin className="h-4 w-4 shrink-0 text-blue-700" />
+                          ) : gpsAccuracyTier === "coarse" || gpsAccuracyTier === "very_coarse" ? (
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                          ) : (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+                          )}
+                          <div className="font-mono text-xs font-semibold leading-tight">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span>
+                                {isManualPin
+                                  ? "Titik Peta: "
+                                  : gpsAccuracyTier === "very_coarse"
+                                    ? "Perkiraan Jaringan: "
+                                    : "Koordinat Lokasi: "}
+                                {latitude}, {longitude}
+                              </span>
+                              {!isManualPin && gpsAccuracy !== null && (
+                                <span className="text-[11px] font-normal opacity-90">
+                                  (Toleransi: ±{gpsAccuracy >= 1000 ? `${(gpsAccuracy / 1000).toFixed(1)} km` : `${gpsAccuracy} m`})
+                                </span>
+                              )}
+                              <a
+                                href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 underline ml-1 cursor-pointer"
+                                title="Buka titik koordinat pada Google Maps"
+                              >
+                                <span>Lihat di Google Maps</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleDetectLocation}
-                          disabled={isLocating || isResolvingAddress}
-                          className="self-start sm:self-auto inline-flex items-center gap-1 font-mono text-[11px] font-semibold underline text-[#006443] hover:text-[#004D33] cursor-pointer disabled:opacity-50 shrink-0"
-                        >
-                          <RefreshCw className={`h-3 w-3 ${isLocating || isResolvingAddress ? "animate-spin" : ""}`} />
-                          <span>Deteksi Ulang</span>
-                        </button>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                          <span
+                            className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold border ${isManualPin
+                              ? "bg-blue-100 text-blue-800 border-blue-300"
+                              : gpsAccuracyTier === "very_coarse"
+                                ? "bg-red-100 text-red-800 border-red-300"
+                                : gpsAccuracyTier === "coarse"
+                                  ? "bg-amber-100 text-amber-900 border-amber-300"
+                                  : gpsAccuracyTier === "acceptable"
+                                    ? "bg-blue-100 text-blue-800 border-blue-200"
+                                    : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                              }`}
+                          >
+                            {isManualPin
+                              ? "Titik Manual Peta"
+                              : gpsAccuracyTier === "very_coarse"
+                                ? "Akurasi Sangat Rendah (IP)"
+                                : gpsAccuracyTier === "coarse"
+                                  ? `Akurasi Rendah (±${gpsAccuracy} m)`
+                                  : gpsAccuracyTier === "acceptable"
+                                    ? `Akurasi Sedang (±${gpsAccuracy} m)`
+                                    : `Akurasi Tinggi (±${gpsAccuracy} m)`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleRequestLocation}
+                            disabled={isLocating || isResolvingAddress}
+                            className="inline-flex items-center gap-1 font-mono text-[11px] font-bold underline hover:opacity-80 cursor-pointer disabled:opacity-50"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${isLocating || isResolvingAddress ? "animate-spin" : ""}`} />
+                            <span>Perbarui GPS</span>
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Status Pemuatan Resolusi Alamat */}
-                      {isResolvingAddress && (
-                        <div className="mt-2 pt-2 border-t border-[#78D9AA]/40 flex items-center gap-1.5 text-[11px] text-[#006443]">
-                          <Loader2 className="h-3 w-3 animate-spin shrink-0" />
-                          <span>Menghubungi peta satelit untuk mengenali nama jalan...</span>
+                      {/* Warning notice if accuracy is low (> 100m) or IP-based */}
+                      {!isManualPin && gpsAccuracy !== null && gpsAccuracy > 100 && (
+                        <div className="pt-2 border-t border-amber-200/80 text-[11px] text-amber-900 leading-relaxed space-y-1">
+                          <p className="font-semibold flex items-center gap-1">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                            Akurasi sinyal lokasi saat ini ±{gpsAccuracy >= 1000 ? `${(gpsAccuracy / 1000).toFixed(1)} km` : `${gpsAccuracy} m`}.
+                          </p>
+                          <p className="text-amber-800 text-[10px]">
+                            {gpsAccuracyTier === "very_coarse"
+                              ? "Sinyal berasal dari perkiraan jaringan internet/IP penyedia dengan radius sangat luas (>1 km). Pastikan Anda menyesuaikan posisi pin pada peta interaktif di bawah atau memilih Kecamatan/Kelurahan secara manual."
+                              : "Toleransi lokasi mencapai ratusan meter dari titik fisik sebenarnya. Anda dapat menggeser pin biru pada peta interaktif di bawah agar titik laporan lebih tepat sasaran."}
+                          </p>
                         </div>
                       )}
 
-                      {/* Kondisi 1: Nama Jalan Berhasil Diperoleh */}
+                      {/* Resolving Status */}
+                      {isResolvingAddress && (
+                        <div className="pt-2 border-t border-slate-200/70 flex items-center gap-1.5 text-[11px] text-slate-700">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-blue-600" />
+                          <span>Mencari nama jalan dan wilayah terdekat pada OpenStreetMap...</span>
+                        </div>
+                      )}
+
+                      {/* Nama Jalan Berhasil */}
                       {!isResolvingAddress && detectedRoad && (
-                        <div className="mt-2 pt-2 border-t border-[#78D9AA]/40 space-y-1">
+                        <div className="pt-2 border-t border-slate-200/70 space-y-1">
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1.5">
                             <div className="min-w-0 flex-1">
-                              <span className="block text-[10px] font-mono font-semibold uppercase text-[#004D33]">
-                                Nama Jalan / Alamat Terdeteksi:
+                              <span className="block text-[10px] font-mono font-bold uppercase opacity-80">
+                                {isManualPin
+                                  ? "Saran Alamat dari Titik Peta:"
+                                  : gpsAccuracyTier === "high"
+                                    ? "Alamat Jalan Terdeteksi:"
+                                    : "Saran Alamat Terdekat (Estimasi Peta):"}
                               </span>
-                              <p className="font-semibold text-xs text-[#004D33] break-words">
+                              <p className="font-semibold text-xs break-words mt-0.5">
                                 {detectedRoad}
                               </p>
-                              {/* Jika alamat di input berbeda (pengguna sudah mengetik manual), sediakan tombol ganti */}
-                              {addressDetail.trim() && addressDetail.trim() !== detectedRoad && (
+                              {addressDetail.trim() !== detectedRoad && (
                                 <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                                  <span className="text-[#006443]">
-                                    (Alamat manual Anda tetap dipertahankan)
-                                  </span>
+                                  {addressDetail.trim() && (
+                                    <span className="opacity-80">
+                                      (Alamat manual Anda tetap dipertahankan)
+                                    </span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setAddressDetail(detectedRoad);
                                       addressDetailRef.current = detectedRoad;
                                     }}
-                                    className="font-semibold underline text-[#004D33] hover:text-[#003322] cursor-pointer"
+                                    className="font-bold underline text-blue-900 hover:text-blue-950 cursor-pointer"
                                   >
-                                    Gunakan Alamat Ini
+                                    Gunakan Saran Alamat Ini
                                   </button>
                                 </div>
                               )}
                             </div>
-                            <span className="shrink-0 text-[10px] text-[#006443]/80 font-mono sm:self-end">
-                              Data peta: © OpenStreetMap contributors
+                            <span className="shrink-0 text-[10px] opacity-70 font-mono sm:self-end">
+                              Peta & Geocoding: © OpenStreetMap
                             </span>
                           </div>
                         </div>
                       )}
 
-                      {/* Kondisi 2: Nama Jalan Tidak Ditemukan atau Gagal */}
+                      {/* Sugesti wilayah terdeteksi (tidak menimpa pilihan manual) */}
+                      {!isResolvingAddress && detectedKecamatan && !kecamatanId && (
+                        <div className="pt-2 border-t border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px]">
+                          <span>
+                            Estimasi wilayah dari titik: <strong>Kec. {detectedKecamatan.name}</strong>
+                            {detectedKelurahan && `, Kel. ${detectedKelurahan.name}`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKecamatanId(detectedKecamatan.id);
+                              if (detectedKelurahan) setKelurahanId(detectedKelurahan.id);
+                            }}
+                            className="font-bold underline text-blue-900 hover:text-blue-950 cursor-pointer self-start sm:self-auto"
+                          >
+                            Gunakan Wilayah Ini
+                          </button>
+                        </div>
+                      )}
+
+                      {!isResolvingAddress && detectedKecamatan && kecamatanId && detectedKecamatan.id !== kecamatanId && (
+                        <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] bg-amber-100/50 p-2 rounded">
+                          <span className="text-amber-950">
+                            Titik koordinat berada di <strong>Kec. {detectedKecamatan.name}</strong> (Pilihan manual Anda: <strong>Kec. {initialMasterData.kecamatan.find(k => k.id === kecamatanId)?.name || kecamatanId}</strong>)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKecamatanId(detectedKecamatan.id);
+                              if (detectedKelurahan) setKelurahanId(detectedKelurahan.id);
+                            }}
+                            className="font-bold underline text-amber-900 hover:text-amber-950 cursor-pointer self-start sm:self-auto"
+                          >
+                            Sesuaikan ke Wilayah Titik
+                          </button>
+                        </div>
+                      )}
+
+                      {!isResolvingAddress && !detectedKecamatan && (
+                        <div className="pt-2 border-t border-slate-200/70 text-[11px] text-slate-600">
+                          <p className="leading-relaxed opacity-90">
+                            Wilayah kecamatan tidak dapat dipetakan secara pasti dari koordinat ini. Pilihan Kecamatan dan Kelurahan pada menu di atas dipertahankan secara manual.
+                          </p>
+                        </div>
+                      )}
+
                       {!isResolvingAddress && !detectedRoad && (
-                        <div className="mt-2 pt-2 border-t border-[#78D9AA]/40">
-                          <p className="text-[11px] text-[#006443] leading-relaxed break-words">
+                        <div className="pt-2 border-t border-slate-200/70">
+                          <p className="text-[11px] leading-relaxed opacity-90">
                             {geocodingError ||
-                              "Alamat atau nama jalan belum dapat dikenali dari peta satelit. Silakan isi alamat patokan secara manual pada kolom di atas."}
+                              "Nama jalan spesifik belum terpetakan di titik koordinat ini. Alamat manual Anda di atas akan digunakan sebagai patokan utama."}
                           </p>
                         </div>
                       )}
                     </div>
-
-                    <p className="text-[10px] text-[#667085] font-mono leading-tight">
-                      *Koordinat GPS merekam titik lokasi perangkat pelapor dan tidak menggantikan bukti kerusakan fisik di lapangan.
-                    </p>
                   </div>
                 )}
-              </div>
 
-              {/* Bukti Foto Pendukung (Supabase Storage) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-mono font-semibold uppercase text-[#111C2D]">
-                    Foto Bukti Kondisi Fisik <span className="text-[#BA1A1A]">*</span>
-                  </label>
-                  <span className="font-mono text-[11px] text-[#667085]">
-                    {evidenceFiles.length}/3 berkas terunggah
+                {/* Interactive Map Pin Picker */}
+                <div className="pt-2">
+                  <InteractiveMapPicker
+                    latitude={latitude}
+                    longitude={longitude}
+                    accuracy={gpsAccuracy}
+                    isManualPin={isManualPin}
+                    onLocationSelect={handleMapLocationSelect}
+                    onResetToGps={initialGpsCoords ? handleResetToGps : undefined}
+                    gpsCoords={initialGpsCoords}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: BUKTI FOTO PENDUKUNG */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700 font-mono text-xs font-bold">
+                    03
                   </span>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Foto Bukti Kondisi Fisik Lapangan
+                  </h2>
                 </div>
-
-                {/* Uploaded Files Preview with Multi-image Verification */}
-                {evidenceFiles.length > 0 && (
-                  <div className="space-y-2">
-                    {evidenceFiles.map((ev, index) => {
-                      const evAnalysis =
-                        aiResult?.evidenceAnalyses?.[index] ||
-                        (index === 0 ? aiResult?.evidenceAnalysis : undefined);
-
-                      return (
-                        <div
-                          key={index}
-                          className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-2.5 space-y-2"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden bg-white border border-[#D9DEE7]">
-                                <Image
-                                  src={ev.fileUrl}
-                                  alt="Bukti Laporan"
-                                  fill
-                                  unoptimized
-                                  className="object-cover"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-medium text-[#111C2D]">
-                                  {ev.caption || `Bukti ${index + 1}`}
-                                </p>
-                                <span className="font-mono text-[10px] text-[#667085]">
-                                  {(ev.fileSize / (1024 * 1024)).toFixed(2)} MB · Terunggah
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveEvidence(index)}
-                              className="p-1 text-[#BA1A1A] hover:bg-[#FFDAD6]/50 rounded cursor-pointer"
-                              aria-label="Hapus foto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-
-                          {/* Verification Analysis Badge */}
-                          {evAnalysis && (
-                            <div className="pt-1.5 border-t border-[#D9DEE7]/70 text-[11px]">
-                              {evAnalysis.status === "relevant" && (
-                                <div className="flex items-start gap-1.5 text-[#006443] bg-[#E6F7EF] border border-[#78D9AA]/60 rounded p-1.5">
-                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                  <div>
-                                    <span className="font-semibold font-mono text-[10px] uppercase">Bukti Visual Sesuai:</span>{" "}
-                                    <span>{evAnalysis.description}</span>
-                                  </div>
-                                </div>
-                              )}
-                              {evAnalysis.status === "irrelevant" && (
-                                <div className="flex items-start gap-1.5 text-[#BA1A1A] bg-[#FFF5F5] border border-[#FFDAD6] rounded p-1.5">
-                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                  <div>
-                                    <span className="font-semibold font-mono text-[10px] uppercase">Peringatan: Bukti Tidak Sesuai</span>
-                                    <p className="mt-0.5 text-[10px] leading-relaxed">
-                                      {evAnalysis.reasoning || evAnalysis.description}
-                                    </p>
-                                    <p className="mt-1 text-[10px] font-semibold">
-                                      Foto terdeteksi bukan bukti fisik kerusakan di lapangan (misal logo/poster/gambar tidak terkait). Mohon ganti dengan foto kondisi lapangan sebenarnya.
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                              {evAnalysis.status === "ambiguous" && (
-                                <div className="flex items-start gap-1.5 text-[#8C5000] bg-[#FFF8EF] border border-[#E58A1F]/40 rounded p-1.5">
-                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                                  <div>
-                                    <span className="font-semibold font-mono text-[10px] uppercase">Peringatan: Foto Kurang Jelas / Buram</span>
-                                    <p className="mt-0.5 text-[10px] leading-relaxed">
-                                      {evAnalysis.reasoning || evAnalysis.description}. Disarankan mengambil foto dengan sudut dan pencahayaan lebih jelas.
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                              {evAnalysis.status === "technical_failure" && (
-                                <div className="flex items-start gap-1.5 text-[#434654] bg-[#F9F9FF] border border-[#D9DEE7] rounded p-1.5">
-                                  <Info className="h-3.5 w-3.5 text-[#1749D2] shrink-0 mt-0.5" />
-                                  <div>
-                                    <span className="font-semibold font-mono text-[10px] uppercase">Verifikasi Visual Tertunda</span>
-                                    <p className="mt-0.5 text-[10px] leading-relaxed">
-                                      Analisis otomatis tidak dapat disimpulkan karena gangguan teknis. Bukti akan diperiksa langsung oleh petugas verifikator.
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Upload Trigger Box */}
-                {evidenceFiles.length < 3 && (
-                  <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#D9DEE7] bg-[#F9F9FF] p-6 text-center cursor-pointer transition-colors hover:bg-[#F0F3FF]">
-                    <UploadCloud className="h-8 w-8 text-[#1749D2] mb-2" />
-                    <span className="text-xs font-semibold text-[#1749D2]">
-                      {isUploading ? "Mengunggah berkas..." : "+ Unggah Foto Bukti Lapangan"}
-                    </span>
-                    <span className="font-mono text-[10px] text-[#667085] mt-1">
-                      Format JPG, PNG, atau WebP (Maksimal 10MB per berkas)
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleFileChange}
-                      disabled={isUploading}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-
-                {uploadError && (
-                  <p className="text-xs text-[#BA1A1A] font-mono">{uploadError}</p>
-                )}
-              </div>
-
-              {/* Data Pelapor (Opsional) */}
-              <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-4 space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-[#D9DEE7]">
-                  <span className="font-mono text-xs font-semibold uppercase text-[#111C2D]">
-                    Identitas Pelapor (Opsional)
-                  </span>
-                  {/* <span className="font-mono text-[10px] text-[#16845B] bg-[#E6F7EF] px-2 py-0.5 rounded border border-[#78D9AA]/50">
-                    Bukan Akun Login
-                  </span> */}
-                </div>
-                <p className="text-xs text-[#434654] leading-relaxed">
-                  Warga tidak perlu membuat akun. Jika Anda menyertakan email atau nomor HP, sistem
-                  akan mengirimkan kode lacak dan notifikasi kemajuan penanganan secara otomatis.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <div>
-                    <label className="block text-[11px] font-mono text-[#667085] mb-1">
-                      Nama Lengkap
-                    </label>
-                    <input
-                      type="text"
-                      value={reporterName}
-                      onChange={(e) => setReporterName(e.target.value)}
-                      placeholder="Nama Anda"
-                      className="w-full h-9 rounded-md border border-[#D9DEE7] bg-white px-2.5 text-xs text-[#111C2D] focus:border-[#1749D2] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-mono text-[#667085] mb-1">
-                      Nomor HP / WA
-                    </label>
-                    <input
-                      type="tel"
-                      value={reporterPhone}
-                      onChange={(e) => setReporterPhone(e.target.value)}
-                      placeholder="08xxxxxxxxxx"
-                      className="w-full h-9 rounded-md border border-[#D9DEE7] bg-white px-2.5 text-xs text-[#111C2D] focus:border-[#1749D2] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-mono text-[#667085] mb-1">
-                      Email Notifikasi
-                    </label>
-                    <input
-                      type="email"
-                      value={reporterEmail}
-                      onChange={(e) => setReporterEmail(e.target.value)}
-                      placeholder="email@domain.com"
-                      className="w-full h-9 rounded-md border border-[#D9DEE7] bg-white px-2.5 text-xs text-[#111C2D] focus:border-[#1749D2] focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-[#D9DEE7]">
-                <button
-                  type="button"
-                  onClick={handleTriggerAnalysis}
-                  disabled={isAnalyzing || isSubmitting}
-                  className="w-full sm:w-auto flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#1749D2] bg-[#F0F3FF] px-4 font-mono text-xs font-semibold text-[#1749D2] hover:bg-[#DFE8FF] transition-colors disabled:opacity-50"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Menganalisis Teks & Bukti...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      <span>Uji Analisis AI Pra-Lapor</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting || isAnalyzing}
-                  className="w-full sm:w-auto flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#1749D2] px-6 font-mono text-xs font-semibold text-white shadow-sm hover:bg-[#0033A7] transition-all disabled:opacity-50 active:scale-95"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Menyimpan Laporan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      <span>Kirim Laporan Resmi</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: Live Draf Laporan Sipil Tervalidasi */}
-        <div className="lg:col-span-5 space-y-5">
-          <div className="rounded-xl border border-[#D9DEE7] bg-white shadow-sm overflow-hidden">
-            {/* Header */}
-            {/* <div className="bg-[#F0F3FF] border-b border-[#D9DEE7] px-5 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#E58A1F] animate-pulse" />
-                <span className="font-mono text-xs font-semibold text-[#111C2D]">
-                  DRAF LAPORAN SIPIL
+                <span className="font-mono text-xs font-bold text-blue-700">
+                  {evidenceFiles.length}/3 Berkas
                 </span>
               </div>
-              <span className="rounded bg-white border border-[#D9DEE7] px-2 py-0.5 font-mono text-[10px] text-[#667085]">
-                PRA-PELAPORAN
-              </span>
-            </div> */}
 
+              {/* Upload Drop / Action Area */}
+              {evidenceFiles.length < 3 && (
+                <div className="space-y-3">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => !isUploading && setShowPhotoSourceModal(true)}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === " ") && !isUploading) {
+                        e.preventDefault();
+                        setShowPhotoSourceModal(true);
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center hover:bg-blue-50/50 hover:border-blue-400 transition-colors cursor-pointer select-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                        {isUploading ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Camera className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                        <UploadCloud className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-blue-800 block">
+                        {isUploading
+                          ? "Mengunggah berkas ke penyimpanan..."
+                          : "Klik untuk Ambil Foto Kamera atau Pilih Berkas"}
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Format: JPG, PNG, atau WebP (Maksimal 10 MB per foto, hingga 3 berkas)
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isUploading) setShowCameraModal(true);
+                        }}
+                        disabled={isUploading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-700 text-white font-mono text-[11px] font-semibold hover:bg-blue-800 transition-colors shadow-2xs cursor-pointer"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        <span>Kamera</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isUploading) fileInputRef.current?.click();
+                        }}
+                        disabled={isUploading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-mono text-[11px] font-semibold hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
+                      >
+                        <UploadCloud className="h-3.5 w-3.5" />
+                        <span>Galeri / File</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Hidden file input for gallery picker */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileChange}
+                    disabled={isUploading}
+                    className="hidden"
+                  />
+                </div>
+              )}
+
+              {/* Upload Error */}
+              {uploadError && (
+                <div className="flex items-center gap-2 text-xs text-red-700 bg-red-50 p-2.5 rounded-lg border border-red-200">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              {/* Uploaded Evidence Grid */}
+              {evidenceFiles.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  {evidenceFiles.map((ev, idx) => (
+                    <div
+                      key={idx}
+                      className="relative rounded-lg border border-slate-200 bg-slate-50 overflow-hidden group shadow-2xs"
+                    >
+                      <div className="relative h-28 w-full bg-slate-200">
+                        <Image
+                          src={ev.fileUrl}
+                          alt={ev.caption || `Bukti ${idx + 1}`}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="p-2 flex items-center justify-between text-[11px] font-mono bg-white">
+                        <span className="truncate max-w-[120px] text-slate-700">
+                          {ev.caption || `Foto ${idx + 1}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEvidence(idx)}
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1 rounded transition-colors"
+                          aria-label="Hapus foto"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 4: INFORMASI PELAPOR (OPSIONAL & DILINDUNGI) */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-700 font-mono text-xs font-bold">
+                    04
+                  </span>
+                  <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                    Informasi Pelapor (Opsional & Dirahasiakan)
+                  </h2>
+                </div>
+                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  Data Pribadi Terlindungi
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Anda dapat melapor secara anonim tanpa memasukkan data pribadi. Jika dicantumkan, kontak hanya dipakai untuk mengirimkan notifikasi status dan verifikasi lapangan oleh petugas.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-mono text-slate-600">Nama Pelapor</label>
+                  <input
+                    type="text"
+                    value={reporterName}
+                    onChange={(e) => setReporterName(e.target.value)}
+                    placeholder="Nama Lengkap / Panggilan"
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 text-xs text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-mono text-slate-600">Nomor HP / WhatsApp</label>
+                  <input
+                    type="tel"
+                    value={reporterPhone}
+                    onChange={(e) => setReporterPhone(e.target.value)}
+                    placeholder="08xxxxxxxxxx"
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 text-xs text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-mono text-slate-600">Email Notifikasi</label>
+                  <input
+                    type="email"
+                    value={reporterEmail}
+                    onChange={(e) => setReporterEmail(e.target.value)}
+                    placeholder="alamat@email.com"
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 text-xs text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ACTION BUTTONS (SUBMIT & AI TRIGGER) */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleTriggerAnalysis}
+                disabled={isAnalyzing || isSubmitting}
+                className="w-full sm:w-auto flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-blue-600 bg-blue-50 px-4 font-mono text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
+                    <span>Menganalisis Uraian & Foto...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span>Uji Analisis AI Pra-Lapor</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || isAnalyzing}
+                className="w-full sm:w-auto flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 font-mono text-xs font-bold text-white shadow-md hover:bg-blue-800 transition-all disabled:opacity-50 active:scale-98 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Menyimpan Laporan Resmi...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>Kirim Laporan Resmi</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* RIGHT COLUMN: TELAAH AI PRA-PELAPORAN & REKOMENDASI INSTANSI */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="p-5 space-y-5">
-              {/* AI Status / Error Notice */}
+              {/* Notice if Gemini AI is not configured */}
               {!aiConfigured && (
-                <div className="rounded-lg border border-[#E58A1F]/40 bg-[#FFF8EF] p-3 text-xs text-[#8C5000] space-y-1">
-                  <div className="flex items-center gap-1.5 font-semibold font-mono">
-                    <Info className="h-4 w-4 shrink-0" />
-                    <span>Konfigurasi Gemini AI Belum Disetel</span>
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold font-mono">
+                    <Info className="h-4 w-4 shrink-0 text-amber-600" />
+                    <span>Konfigurasi Gemini AI Belum Diaktifkan</span>
                   </div>
                   <p className="text-[11px] leading-relaxed">
-                    Kunci API Gemini (GEMINI_API_KEY) belum aktif di server. Fitur analisis otomatis
-                    ditangguhkan. Laporan Anda tetap dapat dikirimkan secara langsung untuk diperiksa
-                    oleh petugas.
+                    Kunci API Gemini belum dipasang di environment server. Fitur analisis otomatis ditangguhkan, namun laporan Anda tetap dapat dikirimkan langsung untuk diverifikasi manual oleh petugas.
                   </p>
                 </div>
               )}
 
+              {/* AI Error Notice */}
               {aiError && (
-                <div className="rounded-lg border border-[#FFDAD6] bg-[#FFF5F5] p-3 text-xs text-[#BA1A1A]">
-                  <p className="font-semibold">Catatan Sistem:</p>
-                  <p className="mt-0.5 text-[11px]">{aiError}</p>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 space-y-0.5">
+                  <p className="font-bold font-mono">Catatan Sistem AI:</p>
+                  <p className="text-[11px]">{aiError}</p>
                 </div>
               )}
 
-              {/* SECTION: 02 / ANALISIS AI */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-semibold uppercase text-[#1749D2] flex items-center gap-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded bg-[#DFE8FF] text-[#0033A7] text-[10px] font-bold">
-                      02
-                    </span>
-                    ANALISIS AI · KLASIFIKASI & REKONSTRUKSI BAHASA
-                  </span>
-                  {aiResult && (
-                    <span className="font-mono text-[10px] bg-[#E6F7EF] text-[#006443] px-2 py-0.5 rounded border border-[#78D9AA]/50 font-medium">
-                      Keyakinan AI: {Math.round(aiResult.confidence * 100)}%
-                    </span>
+              {/* IF AI RESULT IS PRESENT */}
+              {aiResult ? (
+                <div className="space-y-4">
+                  {/* Stale Text Warning */}
+                  {isTextStale && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 space-y-1 text-amber-950">
+                      <div className="flex items-center gap-2 font-mono text-xs font-bold text-amber-900">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                        <span>Teks Telah Diubah Sejak Analisis Terakhir</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-amber-800">
+                        Hasil evaluasi di bawah mencerminkan versi teks sebelumnya. Tekan tombol{" "}
+                        <strong className="text-amber-950">&quot;Uji Analisis AI Pra-Lapor&quot;</strong> di sebelah kiri untuk mengevaluasi teks terbaru Anda.
+                      </p>
+                    </div>
                   )}
-                </div>
+                  {/* Alert Banner: Laporan Di Luar Cakupan / Perlu Peninjauan Khusus */}
+                  {!aiResult.isValidComplaint && (
+                    <div className="rounded-xl border border-red-300 bg-red-50 p-4 space-y-2 text-red-950">
+                      <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase text-red-800">
+                        <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                        <span>Perlu Peninjauan Khusus / Di Luar Lingkup Fasilitas Publik</span>
+                      </div>
+                      <p className="text-xs leading-relaxed font-medium">
+                        {aiResult.rejectionReason ||
+                          "Uraian laporan atau kombinasi judul dan deskripsi terdeteksi tidak saling mendukung, bersifat privat/non-publik, atau tidak memuat kerusakan fasilitas publik kota yang sah."}
+                      </p>
+                      <div className="text-[11px] text-red-800 bg-white/80 p-2.5 rounded border border-red-200">
+                        <strong>Catatan Sistem:</strong> Laporan ini tidak direkomendasikan langsung ke dinas tertentu dan akan ditandai untuk peninjauan verifikator sebelum diproses.
+                      </div>
+                    </div>
+                  )}
 
-                {aiResult && (
-                  <p className="text-[10px] text-[#667085] font-mono leading-tight">
-                    *Tingkat keyakinan model bahasa (self-assessed confidence) atas pemahaman teks, bukan jaminan verifikasi fisik di lapangan.
-                  </p>
-                )}
+                  {/* Card A: Ringkasan Resmi Bahasa Indonesia */}
+                  <div className="rounded-xl border border-blue-200/80 bg-blue-50/50 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-blue-800 flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5 text-blue-700" />
+                        Ringkasan Resmi Bahasa Indonesia
+                      </span>
+                      <span className="font-mono text-[10px] bg-white text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
+                        Disusun AI
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                      {aiResult.summary}
+                    </p>
+                    <span className="font-mono text-[10px] text-slate-500 block">
+                      *Disusun baku dan lugas untuk mempermudah telaah instansi tanpa menambah fakta baru.
+                    </span>
+                  </div>
 
-                <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3.5 space-y-2.5 text-xs">
-                  {aiResult ? (
-                    <>
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono text-[11px] text-[#667085]">
-                          Kategori Terdeteksi:
+                  {/* Card B: Klasifikasi & Evaluasi Multidimensi */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold uppercase text-slate-800">
+                        Evaluasi Semantik & Kategori
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Status Kelengkapan Informasi */}
+                        {aiResult.informationCompleteness === "minimal" ? (
+                          <span className="font-mono text-[10px] bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-300 font-bold flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3 text-amber-600" />
+                            Informasi Terbatas
+                          </span>
+                        ) : aiResult.informationCompleteness === "lengkap" ? (
+                          <span className="font-mono text-[10px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold flex items-center gap-1">
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            Informasi Lengkap
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px] bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
+                            Informasi Cukup
+                          </span>
+                        )}
+
+                        {/* Nilai Kecocokan Kategori (Bukan probabilitas kebenaran laporan) */}
+                        <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-300 font-bold">
+                          Kecocokan Kategori: {Math.round(aiResult.confidence * 100)}%
                         </span>
-                        <span className="font-semibold text-[#111C2D]">
-                          {aiResult.categorySlug}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-500 block uppercase">Kategori Terdeteksi:</span>
+                        <span className={`font-bold mt-0.5 block truncate ${aiResult.categorySlug === "invalid" ? "text-red-700" : "text-slate-900"}`}>
+                          {aiResult.categorySlug === "invalid" ? "Di Luar Cakupan Publik" : aiResult.categorySlug}
                         </span>
                       </div>
 
-                      {aiResult.originalLanguageDetected && (
-                        <div className="flex justify-between items-center pt-1 border-t border-[#D9DEE7]/70">
-                          <span className="font-mono text-[11px] text-[#667085]">
-                            Bahasa Input:
-                          </span>
-                          <span className="font-mono text-[11px] bg-[#F0F3FF] text-[#1749D2] px-2 py-0.5 rounded border border-[#D9DEE7]">
-                            {aiResult.originalLanguageDetected}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-center pt-1 border-t border-[#D9DEE7]/70">
-                        <span className="font-mono text-[11px] text-[#667085]">
-                          Tingkat Urgensi:
-                        </span>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                        <span className="text-[10px] text-slate-500 block uppercase">Estimasi Prioritas:</span>
                         <span
-                          className={`font-mono text-[11px] font-semibold uppercase px-2 py-0.5 rounded ${aiResult.priority === "critical"
-                            ? "bg-[#FFF5F5] text-[#BA1A1A] border border-[#FFDAD6]"
+                          className={`font-bold mt-0.5 uppercase block ${aiResult.priority === "critical"
+                            ? "text-red-700"
                             : aiResult.priority === "high"
-                              ? "bg-[#FFF8EF] text-[#8C5000] border border-[#E58A1F]/40"
-                              : "bg-[#F0F3FF] text-[#1749D2] border border-[#D9DEE7]"
+                              ? "text-amber-700"
+                              : "text-blue-700"
                             }`}
                         >
                           {aiResult.priority}
                         </span>
                       </div>
+                    </div>
 
-                      {/* Ambiguous Flags Notice */}
-                      {aiResult.ambiguousFlags && aiResult.ambiguousFlags.length > 0 && (
-                        <div className="rounded-md border border-[#E58A1F]/40 bg-[#FFF8EF] p-2 text-[11px] text-[#8C5000] space-y-1">
-                          <div className="flex items-center gap-1 font-semibold font-mono">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            <span>Catatan Kiasan / Informasi Ambigu:</span>
-                          </div>
-                          <ul className="list-disc list-inside space-y-0.5">
-                            {aiResult.ambiguousFlags.map((flag, idx) => (
-                              <li key={idx}>{flag}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* Stated Facts vs Inferences Separation */}
-                      {aiResult.statedFacts && aiResult.statedFacts.length > 0 && (
-                        <div className="pt-2 border-t border-[#D9DEE7]/70 space-y-1">
-                          <span className="font-mono text-[10px] text-[#006443] uppercase tracking-wider block font-semibold">
-                            Fakta Eksplisit dari Warga:
-                          </span>
-                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#111C2D]">
-                            {aiResult.statedFacts.map((fact, idx) => (
-                              <li key={idx}>{fact}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {aiResult.inferences && aiResult.inferences.length > 0 && (
-                        <div className="pt-2 border-t border-[#D9DEE7]/70 space-y-1">
-                          <span className="font-mono text-[10px] text-[#1749D2] uppercase tracking-wider block font-semibold">
-                            Inferensi Teknis AI:
-                          </span>
-                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#434654]">
-                            {aiResult.inferences.map((inf, idx) => (
-                              <li key={idx}>{inf}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {aiResult.unverifiedDetails && aiResult.unverifiedDetails.length > 0 && (
-                        <div className="pt-2 border-t border-[#D9DEE7]/70 space-y-1">
-                          <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block font-semibold">
-                            Informasi Belum Disebutkan (Butuh Konfirmasi):
-                          </span>
-                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#667085]">
-                            {aiResult.unverifiedDetails.map((det, idx) => (
-                              <li key={idx}>{det}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div className="pt-2 border-t border-[#D9DEE7]/70">
-                        <span className="font-mono text-[11px] text-[#667085] block mb-1">
-                          Penalaran Semantik Klasifikasi:
+                    {/* Dukungan Bukti Teks terhadap Prioritas */}
+                    {aiResult.urgencyEvidence && (
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs">
+                        <span className="text-[10px] text-slate-500 font-mono block uppercase font-medium">
+                          Dukungan Bukti Tingkat Urgensi:
                         </span>
-                        <blockquote className="rounded bg-white p-2.5 border-l-2 border-[#1749D2] italic text-[#111C2D] text-[11px] leading-relaxed">
-                          &quot;{aiResult.reasoning}&quot;
-                        </blockquote>
+                        <p className="text-slate-700 text-[11px] mt-0.5 leading-relaxed">
+                          {aiResult.urgencyEvidence}
+                        </p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="py-2 text-center text-[#667085] font-mono text-[11px]">
-                      {isAnalyzing ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-[#1749D2]" />
-                          <span>Menganalisis masukan warga & bukti visual...</span>
-                        </div>
-                      ) : (
-                        <span>
-                          Klik tombol &quot;Uji Analisis AI Pra-Lapor&quot; untuk melihat estimasi
-                          klasifikasi, normalisasi bahasa, dan instansi berwenang.
+                    )}
+
+                    {aiResult.originalLanguageDetected && (
+                      <div className="flex items-center justify-between text-xs font-mono pt-1 text-slate-600">
+                        <span>Bahasa Asal Terdeteksi:</span>
+                        <span className="font-bold bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-800">
+                          {aiResult.originalLanguageDetected}
                         </span>
-                      )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card B.1: Saran Melengkapi Laporan (Klarifikasi Proaktif jika Informasi Terbatas) */}
+                  {aiResult.needsClarification && aiResult.clarificationQuestions && aiResult.clarificationQuestions.length > 0 && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-amber-900 font-mono text-xs font-bold uppercase tracking-wider">
+                        <HelpCircle className="h-4 w-4 text-amber-700 shrink-0" />
+                        <span>Saran Rincian untuk Mempercepat Verifikasi</span>
+                      </div>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        Laporan Anda memiliki informasi ringkas. Menambahkan rincian berikut pada kolom deskripsi akan membantu petugas OPD menindaklanjuti lebih cepat tanpa perlu survei pendahuluan:
+                      </p>
+                      <ul className="space-y-1.5 text-xs text-slate-800 bg-white/90 p-3 rounded-lg border border-amber-200/80">
+                        {aiResult.clarificationQuestions.map((q, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-[11px]">
+                            <span className="font-mono text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <span className="leading-snug text-slate-700">{q}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* SECTION: 03 / REKOMENDASI INSTANSI */}
-              <div className="space-y-2.5 pt-3 border-t border-[#D9DEE7]">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-semibold uppercase text-[#1749D2] flex items-center gap-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded bg-[#DFE8FF] text-[#0033A7] text-[10px] font-bold">
-                      03
-                    </span>
-                    REKOMENDASI INSTANSI PENANGANAN
-                  </span>
-                </div>
-
-                <div className="rounded-xl border border-[#1749D2]/30 bg-[#F0F3FF] p-4 space-y-2.5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white border border-[#D9DEE7] text-[#1749D2]">
-                      <Building2 className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block">
-                        INSTANSI TUJUAN (BERDASARKAN ATURAN RESMI):
+                  {/* Card C: Rekomendasi Instansi Berwenang (Rule Engine) */}
+                  <div className="rounded-xl border border-blue-600/30 bg-blue-50/70 p-4 space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-blue-200">
+                      <span className="font-mono text-xs font-bold uppercase text-blue-900 flex items-center gap-1.5">
+                        <Building2 className="h-4 w-4 text-blue-700" />
+                        Rekomendasi Instansi Berwenang
                       </span>
-                      <h4 className="text-sm font-bold text-[#111C2D] leading-tight mt-0.5">
-                        {aiResult?.recommendedAuthority || "Menunggu Verifikasi Instansi"}
+                      <span className="rounded bg-white text-blue-800 px-2 py-0.5 font-mono text-[10px] font-bold border border-blue-200">
+                        Rule & Authority Engine
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {/* <span className="font-mono text-[10px] text-slate-500 uppercase">
+                        Organisasi Perangkat Daerah (OPD) Tujuan:
+                      </span> */}
+                      <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                        {aiResult.recommendedAuthority || "Menunggu Verifikasi Petugas"}
                       </h4>
-                      {aiResult?.authorityRecommendation?.rule_code && (
-                        <p className="font-mono text-[10px] text-[#1749D2] mt-1">
-                          Dasar Aturan: {aiResult.authorityRecommendation.rule_code}
+                      {/* {aiResult.authorityRecommendation?.rule_code && (
+                        <p className="font-mono text-[11px] text-blue-700 mt-1">
+                          Dasar Katalog Kewenangan: {aiResult.authorityRecommendation.rule_code}
                         </p>
-                      )}
+                      )} */}
+                    </div>
+
+                    <div className="rounded-lg bg-white/90 p-2.5 border border-blue-200 text-[11px] text-slate-600 space-y-1">
+                      <div className="flex items-center gap-1 font-bold text-slate-800">
+                        <ShieldCheck className="h-3.5 w-3.5 text-blue-700" />
+                        <span>Status Peninjauan:</span>
+                      </div>
+                      <p className="leading-relaxed">
+                        Rekomendasi instansi memerlukan peninjauan oleh petugas verifikator sebelum disposisi lapangan dilakukan. Rekomendasi ini bukan penetapan resmi.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card D: Fakta Eksplisit vs Inferensi */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 text-xs">
+                    {/* Stated Facts */}
+                    {aiResult.statedFacts && aiResult.statedFacts.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="font-mono text-[11px] font-bold uppercase text-emerald-800 flex items-center gap-1">
+                          <Check className="h-3 w-3 text-emerald-700" />
+                          Fakta Eksplisit dari Uraian Warga:
+                        </span>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-800 leading-relaxed pl-1">
+                          {aiResult.statedFacts.map((fact, idx) => (
+                            <li key={idx}>{fact}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Technical Inferences */}
+                    {aiResult.inferences && aiResult.inferences.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        <span className="font-mono text-[11px] font-bold uppercase text-blue-800 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3 text-blue-600" />
+                          Inferensi Teknis AI:
+                        </span>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-600 leading-relaxed pl-1">
+                          {aiResult.inferences.map((inf, idx) => (
+                            <li key={idx}>{inf}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Unverified Details / Informasi Belum Lengkap */}
+                    {aiResult.unverifiedDetails && aiResult.unverifiedDetails.length > 0 && (
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        <span className="font-mono text-[11px] font-bold uppercase text-amber-800 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 text-amber-600" />
+                          Informasi Belum Lengkap (Butuh Konfirmasi):
+                        </span>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-600 leading-relaxed pl-1">
+                          {aiResult.unverifiedDetails.map((det, idx) => (
+                            <li key={idx}>{det}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Ambiguous Flags Notice */}
+                    {aiResult.ambiguousFlags && aiResult.ambiguousFlags.length > 0 && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-900 space-y-1 mt-2">
+                        <div className="flex items-center gap-1 font-bold font-mono">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
+                          <span>Catatan Bahasa Daerah / Informasi Ambigu:</span>
+                        </div>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {aiResult.ambiguousFlags.map((flag, idx) => (
+                            <li key={idx}>{flag}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Semantic Reasoning */}
+                    <div className="pt-2 border-t border-slate-100 space-y-1">
+                      <span className="font-mono text-[10px] text-slate-500 uppercase block">
+                        Penalaran Semantik Model:
+                      </span>
+                      <blockquote className="rounded-lg bg-slate-50 p-3 border-l-2 border-blue-600 italic text-slate-700 text-xs leading-relaxed">
+                        &quot;{aiResult.reasoning}&quot;
+                      </blockquote>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* SECTION: 04 / RINGKASAN SIAP DITERUSKAN */}
-              <div className="space-y-2.5 pt-3 border-t border-[#D9DEE7]">
-                <span className="font-mono text-xs font-semibold uppercase text-[#16845B] flex items-center gap-1.5">
-                  <span className="flex h-5 w-5 items-center justify-center rounded bg-[#E6F7EF] text-[#16845B] text-[10px] font-bold">
-                    04
-                  </span>
-                  PRATINJAU DRAF LAPORAN SEBELUM PENGIRIMAN
-                </span>
-
-                {/* Side-by-side original vs normalized preview */}
-                <div className="space-y-2">
-                  <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 space-y-1">
-                    <span className="font-mono text-[10px] text-[#667085] uppercase tracking-wider block font-semibold">
-                      Deskripsi Asli Warga:
-                    </span>
-                    <p className="text-xs text-[#111C2D] leading-relaxed italic">
-                      &quot;{description || "(Belum diisi)"}&quot;
+              ) : (
+                /* EMPTY STATE / PANDUAN AWAL */
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-6 text-center space-y-3">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-900 font-mono uppercase tracking-wide">
+                      Belum Diuji Analisis AI
+                    </h4>
+                    <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+                      Ketikkan uraian masalah Anda di kolom kiri, lalu klik tombol{" "}
+                      <strong className="text-blue-700">&quot;Uji Analisis AI Pra-Lapor&quot;</strong>.
                     </p>
                   </div>
-
-                  {aiResult?.summary && (
-                    <div className="rounded-lg border border-[#16845B]/40 bg-[#E6F7EF] p-3 space-y-1">
-                      <span className="font-mono text-[10px] text-[#006443] uppercase tracking-wider block font-semibold">
-                        Ringkasan Resmi Bahasa Indonesia (Disusun AI):
-                      </span>
-                      <p className="text-xs text-[#111C2D] leading-relaxed font-medium">
-                        {aiResult.summary}
-                      </p>
-                      <span className="font-mono text-[9px] text-[#006443] block mt-1">
-                        *Disusun tegas untuk disposisi instansi tanpa menambah fakta baru.
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-[#D9DEE7] bg-[#F9F9FF] p-3 text-xs font-mono space-y-2 text-[#434654]">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
-                    <span>Judul:</span>
-                    <span className="font-semibold text-[#111C2D] truncate sm:max-w-[200px]">
-                      {title || "(Belum diisi)"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
-                    <span>Kategori:</span>
-                    <span className="text-[#111C2D]">
-                      {selectedCategory?.name_id || "(Belum dipilih)"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
-                    <span>Prioritas AI:</span>
-                    <span className="font-semibold text-[#111C2D] capitalize">
-                      {aiResult?.priority || "Medium (Standar)"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
-                    <span>Bukti Foto:</span>
-                    <span className="font-semibold text-[#16845B]">
-                      {evidenceFiles.length} berkas terunggah
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5">
-                    <span>Pelapor:</span>
-                    <span className="text-[#111C2D] break-all sm:break-normal">
-                      {reporterEmail ? `Notifikasi ke ${reporterEmail}` : "Anonim (Tanpa Kontak)"}
-                    </span>
+                  <div className="rounded-lg bg-white p-3 border border-slate-200 text-left text-[11px] font-mono text-slate-600 space-y-1">
+                    <div className="font-bold text-slate-800">Manfaat Uji Analisis AI:</div>
+                    <div>• Menyusun ringkasan formal Bahasa Indonesia</div>
+                    <div>• Memvalidasi kesesuaian kategori masalah</div>
+                    <div>• Merekomendasikan dinas/OPD yang berwenang</div>
+                    <div>• Menilai apakah foto pendukung sudah memadai</div>
                   </div>
                 </div>
-              </div>
-
-              {/* Institutional Principle */}
-              {/* <div className="rounded-lg border border-[#D9DEE7] bg-[#F0F3FF] p-3 flex items-start gap-2 text-xs text-[#434654]">
-                <Shield className="h-4 w-4 text-[#1749D2] shrink-0 mt-0.5" />
-                <p className="text-[11px] leading-relaxed">
-                  <strong>Prinsip Kedaulatan Warga:</strong> AI hanya memberikan rekomendasi awal. Anda
-                  dapat mengoreksi atau mengubah data sebelum laporan disimpan secara resmi.
-                </p>
-              </div> */}
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Location Permission Explanation Dialog */}
+      <LocationPermissionModal
+        isOpen={showLocationModal}
+        onConfirm={handleConfirmLocation}
+        onClose={() => setShowLocationModal(false)}
+      />
+
+      {/* Photo Source Selection Dialog */}
+      <PhotoSourceModal
+        isOpen={showPhotoSourceModal}
+        onClose={() => setShowPhotoSourceModal(false)}
+        onSelectCamera={() => setShowCameraModal(true)}
+        onSelectGallery={() => fileInputRef.current?.click()}
+        currentCount={evidenceFiles.length}
+        maxCount={3}
+      />
+
+      {/* Camera Capture Dialog */}
+      <CameraCaptureModal
+        isOpen={showCameraModal}
+        onClose={() => setShowCameraModal(false)}
+        onPhotoCaptured={async (file) => {
+          await processAndUploadFile(file);
+        }}
+        onSwitchToGallery={() => {
+          fileInputRef.current?.click();
+        }}
+      />
     </div>
   );
 }

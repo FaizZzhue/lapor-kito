@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   RefreshCw,
@@ -13,14 +13,22 @@ import {
   AlertTriangle,
   X,
   FileCheck2,
+  Camera,
+  Upload,
+  Trash2,
+  Image as ImageIcon,
 } from "lucide-react";
-import { updateReportStatusAction } from "@/lib/actions/reports";
+import {
+  updateReportStatusAction,
+  uploadFieldDocumentationAction,
+} from "@/lib/actions/reports";
 import {
   STATUS_TRANSITIONS_METADATA,
   type StatusTransitionConfig,
 } from "@/lib/constants/report-status";
 import { ReportStatusBadge } from "./report-status-badge";
 import type { ReportStatus } from "@/types/database";
+import type { DocumentationAttachmentType } from "@/lib/validators/tanggapan";
 
 interface ReportStatusManagerProps {
   reportId: string;
@@ -39,6 +47,15 @@ interface ReportStatusManagerProps {
   ) => void;
 }
 
+interface CompletionPhotoItem {
+  id: string;
+  file?: File;
+  previewUrl: string;
+  isUploading: boolean;
+  uploadError?: string | null;
+  uploadedAttachment?: DocumentationAttachmentType;
+}
+
 export function ReportStatusManager({
   reportId,
   trackingCode,
@@ -50,10 +67,14 @@ export function ReportStatusManager({
   const [currentStatus, setCurrentStatus] = useState<ReportStatus>(initialStatus);
   const [selectedTransition, setSelectedTransition] = useState<StatusTransitionConfig | null>(null);
   const [notesInput, setNotesInput] = useState("");
+  const [completionPhotos, setCompletionPhotos] = useState<CompletionPhotoItem[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   const availableTransitions = STATUS_TRANSITIONS_METADATA[currentStatus] || [];
   const isTerminal = ["resolved", "rejected", "duplicate"].includes(currentStatus);
@@ -61,6 +82,7 @@ export function ReportStatusManager({
   const openConfirmation = (config: StatusTransitionConfig) => {
     setSelectedTransition(config);
     setNotesInput(config.requiresReason ? "" : config.defaultNotes);
+    setCompletionPhotos([]);
     setValidationError(null);
     setActionError(null);
   };
@@ -69,8 +91,92 @@ export function ReportStatusManager({
     if (isPending) return;
     setSelectedTransition(null);
     setNotesInput("");
+    setCompletionPhotos([]);
     setValidationError(null);
     setActionError(null);
+  };
+
+  const handleUploadCompletionFile = async (file: File) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setValidationError("Format gambar tidak didukung. Harap gunakan format JPG, PNG, atau WebP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setValidationError("Ukuran gambar maksimal 10MB.");
+      return;
+    }
+
+    const photoId = `comp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const previewUrl = URL.createObjectURL(file);
+
+    setCompletionPhotos((prev) => [
+      ...prev,
+      {
+        id: photoId,
+        file,
+        previewUrl,
+        isUploading: true,
+        uploadError: null,
+      },
+    ]);
+
+    try {
+      const formData = new FormData();
+      formData.append("reportId", reportId);
+      formData.append("file", file);
+
+      const res = await uploadFieldDocumentationAction(formData);
+
+      if (!res.success || !res.fileUrl || !res.storagePath) {
+        setCompletionPhotos((prev) =>
+          prev.map((p) =>
+            p.id === photoId
+              ? {
+                  ...p,
+                  isUploading: false,
+                  uploadError: res.error || "Gagal mengunggah foto.",
+                }
+              : p
+          )
+        );
+        return;
+      }
+
+      const attachment: DocumentationAttachmentType = {
+        fileUrl: res.fileUrl,
+        storagePath: res.storagePath,
+        fileName: res.fileName,
+        fileSize: res.fileSize,
+        fileType: res.fileType,
+        caption: "Foto Bukti Penyelesaian Lapangan",
+      };
+
+      setCompletionPhotos((prev) =>
+        prev.map((p) =>
+          p.id === photoId
+            ? {
+                ...p,
+                isUploading: false,
+                uploadedAttachment: attachment,
+                uploadError: null,
+              }
+            : p
+        )
+      );
+    } catch (err: unknown) {
+      setCompletionPhotos((prev) =>
+        prev.map((p) =>
+          p.id === photoId
+            ? {
+                ...p,
+                isUploading: false,
+                uploadError: err instanceof Error ? err.message : "Gagal mengunggah foto.",
+              }
+            : p
+        )
+      );
+    }
   };
 
   const handleConfirm = () => {
@@ -81,8 +187,32 @@ export function ReportStatusManager({
       return;
     }
 
+    // Require completion photos when marking resolved
+    if (selectedTransition.targetStatus === "resolved") {
+      const isUploading = completionPhotos.some((p) => p.isUploading);
+      if (isUploading) {
+        setValidationError("Harap tunggu hingga foto bukti selesai diunggah.");
+        return;
+      }
+
+      const validPhotos = completionPhotos
+        .map((p) => p.uploadedAttachment)
+        .filter(Boolean) as DocumentationAttachmentType[];
+
+      if (validPhotos.length === 0) {
+        setValidationError(
+          "Foto bukti penyelesaian lapangan wajib diunggah sebelum menandai laporan selesai."
+        );
+        return;
+      }
+    }
+
     setValidationError(null);
     setActionError(null);
+
+    const validPhotos = completionPhotos
+      .map((p) => p.uploadedAttachment)
+      .filter(Boolean) as DocumentationAttachmentType[];
 
     startTransition(async () => {
       try {
@@ -90,6 +220,7 @@ export function ReportStatusManager({
           reportId,
           nextStatus: selectedTransition.targetStatus,
           notes: notesInput.trim() || undefined,
+          completionPhotos: validPhotos.length > 0 ? validPhotos : undefined,
         });
 
         if (!result.success || !result.newStatus) {
@@ -249,6 +380,35 @@ export function ReportStatusManager({
         </p>
       )}
 
+      {/* Hidden File Inputs for Completion Photos */}
+      <input
+        type="file"
+        ref={cameraInputRef}
+        accept="image/*"
+        capture="environment"
+        onChange={(e) => {
+          if (e.target.files?.[0]) {
+            handleUploadCompletionFile(e.target.files[0]);
+            e.target.value = "";
+          }
+        }}
+        className="hidden"
+        aria-hidden="true"
+      />
+      <input
+        type="file"
+        ref={galleryInputRef}
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => {
+          if (e.target.files?.[0]) {
+            handleUploadCompletionFile(e.target.files[0]);
+            e.target.value = "";
+          }
+        }}
+        className="hidden"
+        aria-hidden="true"
+      />
+
       {/* Confirmation Modal Dialog */}
       {selectedTransition && (
         <div
@@ -310,6 +470,78 @@ export function ReportStatusManager({
                 <p className="font-semibold mb-0.5">Konsekuensi Operasional:</p>
                 <p>{selectedTransition.confirmDescription}</p>
               </div>
+
+              {/* Field Completion Photo Section */}
+              {selectedTransition.targetStatus === "resolved" && (
+                <div className="p-3.5 rounded-lg border border-[#16845B]/30 bg-[#EDF7F2]/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#111C2D]">
+                      <Camera size={16} className="text-[#16845B]" aria-hidden="true" />
+                      <span>Dokumentasi Foto Hasil Akhir Lapangan</span>
+                      <span className="text-[#BA1A1A]">*</span>
+                    </div>
+                    <span className="text-[11px] text-[#747686]">Wajib dilampirkan</span>
+                  </div>
+
+                  <p className="text-[11px] text-[#434654] leading-relaxed">
+                    Unggah atau ambil foto kondisi lapangan setelah penanganan/perbaikan selesai sebagai bukti penyelesaian pekerjaan instansi.
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#16845B] hover:bg-[#0E6040] text-white text-[12px] font-medium transition-colors cursor-pointer"
+                    >
+                      <Camera size={14} />
+                      <span>Ambil Foto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => galleryInputRef.current?.click()}
+                      disabled={isPending}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#D9DEE7] bg-white hover:bg-[#F0F3FF] text-[#111C2D] text-[12px] font-medium transition-colors cursor-pointer"
+                    >
+                      <Upload size={14} />
+                      <span>Unggah Foto</span>
+                    </button>
+                  </div>
+
+                  {completionPhotos.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {completionPhotos.map((item) => (
+                        <div
+                          key={item.id}
+                          className="relative aspect-video rounded-lg overflow-hidden border border-[#D9DEE7] bg-white group"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.previewUrl}
+                            alt="Foto bukti penyelesaian"
+                            className="w-full h-full object-cover"
+                          />
+                          {item.isUploading && (
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px]">
+                              <LoaderCircle size={14} className="animate-spin mr-1" />
+                              <span>Mengunggah...</span>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCompletionPhotos((prev) => prev.filter((p) => p.id !== item.id))
+                            }
+                            className="absolute top-1 right-1 p-1 rounded bg-black/60 hover:bg-[#BA1A1A] text-white transition-colors"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Notes Input */}
               <div className="flex flex-col gap-1.5">
